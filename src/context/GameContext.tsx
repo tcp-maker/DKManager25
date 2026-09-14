@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Team } from '../types/teams';
 
 export interface Player {
@@ -30,6 +30,7 @@ interface GameContextType {
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
   handleNextWeek: () => void;
+  resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -61,22 +62,67 @@ const generateDummyPlayers = (): Record<string, Player> => {
   }, {} as Record<string, Player>);
 };
 
+// Initial game state
+const initialGameState: GameState = {
+  selectedTeam: null,
+  budget: 1000000,
+  players: {},
+  fanCount: 1200,
+  stadiumCapacity: 3000,
+  fanMood: 50,
+  week: 1,
+};
+
+// localStorage nøgler
+const STORAGE_KEY = 'dkmanager25_gamestate';
+
+// Gem game state til localStorage
+const saveGameState = (state: GameState) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('Fejl ved gemning af game state:', error);
+  }
+};
+
+// Hent game state fra localStorage
+const loadGameState = (): GameState | null => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Fejl ved indlæsning af game state:', error);
+  }
+  return null;
+};
+
+// Slet game state fra localStorage
+const deleteGameState = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Fejl ved sletning af game state:', error);
+  }
+};
+
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>({
-    selectedTeam: null,
-    budget: 1000000,
-    players: {},
-    fanCount: 1200,
-    stadiumCapacity: 3000,
-    fanMood: 50,
-    week: 1,
+  const [gameState, setGameState] = useState<GameState>(() => {
+    // Prøv at indlæse saved state, ellers brug initial state
+    return loadGameState() || initialGameState;
   });
+
+  // Auto-save game state når det ændrer sig
+  useEffect(() => {
+    saveGameState(gameState);
+  }, [gameState]);
 
   const selectTeam = (team: Team) => {
     setGameState(prev => ({
       ...prev,
       selectedTeam: team,
-      players: generateDummyPlayers(), // Tilføj spillere når hold er valgt
+      players: generateDummyPlayers(),
     }));
   };
 
@@ -130,8 +176,24 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const resetGame = () => {
+    deleteGameState();
+    setGameState(initialGameState);
+  };
+
   return (
-    <GameContext.Provider value={{ gameState, selectTeam, addPlayer, sellPlayer, updatePlayer, upgradeStadium, handleNextWeek }}>
+    <GameContext.Provider 
+      value={{ 
+        gameState, 
+        selectTeam, 
+        addPlayer, 
+        sellPlayer, 
+        updatePlayer, 
+        upgradeStadium, 
+        handleNextWeek,
+        resetGame
+      }}
+    >
       {children}
     </GameContext.Provider>
   );
