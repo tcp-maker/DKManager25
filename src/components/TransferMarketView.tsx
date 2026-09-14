@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useGame, Player } from '../context/GameContext';
 
-const TransferMarketView: React.FC = () => {
+interface TransferMarketViewProps {
+  onNotify?: (message: string, tone?: 'info' | 'success' | 'warning') => void;
+}
+
+const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
   const [activeTab, setActiveTab] = useState<'squad' | 'market'>('squad');
   const [selectedBuyPlayer, setSelectedBuyPlayer] = useState<Player | null>(null);
@@ -21,7 +25,14 @@ const TransferMarketView: React.FC = () => {
   ];
 
   const handleSellPlayer = (playerId: string) => {
+    const soldPlayer = gameState.players[playerId];
     sellPlayer(playerId);
+    if (soldPlayer) {
+      onNotify?.(
+        `${soldPlayer.name} blev solgt for ${soldPlayer.value.toLocaleString('da-DK')} kr.`,
+        'success'
+      );
+    }
   };
 
   const handleBuyPlayer = (player: Player) => {
@@ -34,9 +45,15 @@ const TransferMarketView: React.FC = () => {
       };
       addPlayer(newPlayer);
       setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+      onNotify?.(
+        `${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr.`,
+        'success'
+      );
     } else {
-      alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
+      onNotify?.(
+        `Ikke tilstrækkelige midler: Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`,
+        'warning'
+      );
     }
   };
 
@@ -47,6 +64,12 @@ const TransferMarketView: React.FC = () => {
         isForSale: !player.isForSale,
         askingPrice: !player.isForSale ? player.value : undefined
       });
+      onNotify?.(
+        !player.isForSale
+          ? `${player.name} er nu sat til salg.`
+          : `${player.name} er fjernet fra salgslisten.`,
+        'info'
+      );
     }
   };
 
@@ -89,7 +112,10 @@ const TransferMarketView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Min Trup</h2>
           {squadPlayers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen spillere i trupen endnu</p>
+            <div className="text-center py-8 border border-dashed rounded-lg bg-gray-50">
+              <p className="text-gray-700 font-semibold">Ingen spillere i trupen endnu</p>
+              <p className="text-sm text-gray-500 mt-1">Gå til “Køb Spillere” for at hente nye profiler.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {squadPlayers.map(player => (
@@ -149,7 +175,10 @@ const TransferMarketView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Ledige Spillere</h2>
           {availableForBuy.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen spillere på markedet</p>
+            <div className="text-center py-8 border border-dashed rounded-lg bg-gray-50">
+              <p className="text-gray-700 font-semibold">Ingen spillere på markedet</p>
+              <p className="text-sm text-gray-500 mt-1">Prøv igen i næste uge for nye muligheder.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {availableForBuy.map(player => (

@@ -18,7 +18,11 @@ interface PlayedMatch {
   date: number;
 }
 
-const MatchView: React.FC = () => {
+interface MatchViewProps {
+  onNotify?: (message: string, tone?: 'info' | 'success' | 'warning') => void;
+}
+
+const MatchView: React.FC<MatchViewProps> = ({ onNotify }) => {
   const { gameState, handleNextWeek } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [playedMatches, setPlayedMatches] = useState<PlayedMatch[]>([]);
@@ -198,7 +202,12 @@ const MatchView: React.FC = () => {
               <button
                 onClick={() => {
                   setMatchResult(null);
+                  const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
                   handleNextWeek();
+                  onNotify?.(
+                    `Uge ${gameState.week + 1} er startet. Billetindtægt: +${ticketRevenue.toLocaleString('da-DK')} kr.`,
+                    'info'
+                  );
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
               >
@@ -279,7 +288,10 @@ const MatchView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
           {playedMatches.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen kampe spillet endnu</p>
+            <div className="text-center py-8 border border-dashed rounded-lg bg-gray-50">
+              <p className="text-gray-700 font-semibold">Ingen kampe spillet endnu</p>
+              <p className="text-sm text-gray-500 mt-1">Start en kamp i “Kommende Kampe” for at komme i gang.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {playedMatches.map((match) => (

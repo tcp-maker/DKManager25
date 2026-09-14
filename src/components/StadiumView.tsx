@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
 
-const StadiumView: React.FC = () => {
+interface StadiumViewProps {
+  onNotify?: (message: string, tone?: 'info' | 'success' | 'warning') => void;
+}
+
+const StadiumView: React.FC<StadiumViewProps> = ({ onNotify }) => {
   const { gameState, upgradeStadium } = useGame();
   const [upgrades, setUpgrades] = useState(0);
 
@@ -16,6 +20,12 @@ const StadiumView: React.FC = () => {
     if (gameState.budget >= 500000) {
       upgradeStadium();
       setUpgrades(prev => prev + 1);
+      onNotify?.('Stadionet blev udvidet med 2.500 pladser.', 'success');
+    } else {
+      onNotify?.(
+        `Du mangler ${(500000 - gameState.budget).toLocaleString('da-DK')} kr for at opgradere stadion.`,
+        'warning'
+      );
     }
   };
 

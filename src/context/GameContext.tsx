@@ -127,10 +127,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addPlayer = (player: Player) => {
-    setGameState(prev => ({
-      ...prev,
-      players: { ...prev.players, [player.id]: player }
-    }));
+    setGameState(prev => {
+      if (prev.budget < player.value) return prev;
+      return {
+        ...prev,
+        budget: prev.budget - player.value,
+        players: { ...prev.players, [player.id]: player }
+      };
+    });
   };
 
   const sellPlayer = (playerId: string) => {

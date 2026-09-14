@@ -3,9 +3,16 @@ import { useGame } from '../context/GameContext';
 
 const TeamView: React.FC = () => {
   const { gameState } = useGame();
-  const team = gameState.teams[gameState.selectedTeamId];
+  const team = gameState.selectedTeam;
 
-  if (!team) return <div>Ingen trup valgt</div>;
+  if (!team) {
+    return (
+      <div className="bg-white border border-dashed rounded-lg p-6 text-center">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Ingen klub valgt endnu</h2>
+        <p className="text-gray-600">Gå tilbage til klubvalg for at starte dit manager-eventyr.</p>
+      </div>
+    );
+  }
 
   const players = Object.values(gameState.players);
   const gkCount = players.filter(p => p.position === 'GK').length;
@@ -48,15 +55,23 @@ const TeamView: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {players.map(player => (
-              <tr key={player.id} className="border-t hover:bg-gray-50">
-                <td className="p-3">{player.name}</td>
-                <td className="p-3">{player.position}</td>
-                <td className="p-3">{player.age}</td>
-                <td className="p-3">{player.rating}</td>
-                <td className="p-3">{player.value.toLocaleString()}</td>
+            {players.length > 0 ? (
+              players.map(player => (
+                <tr key={player.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3">{player.name}</td>
+                  <td className="p-3">{player.position}</td>
+                  <td className="p-3">{player.age}</td>
+                  <td className="p-3">{player.rating}</td>
+                  <td className="p-3">{player.value.toLocaleString('da-DK')} kr</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="p-6 text-center text-gray-600" colSpan={5}>
+                  Truppen er tom. Gå til Transfer for at købe spillere.
+                </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
