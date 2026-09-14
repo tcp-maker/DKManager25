@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useGame } from '../context/GameContext';
-import SelectTeamView from './SelectTeamView';
-import TransferMarketView from './TransferMarketView';
-import MatchView from './MatchView';
-import StadiumView from './StadiumView';
+import { useGame } from './context/GameContext';
+import SelectTeamView from './components/SelectTeamView';
+import TeamView from './components/TeamView';
+import TransferMarketView from './components/TransferMarketView';
+import MatchView from './components/MatchView';
+import StadiumView from './components/StadiumView';
 
 type ViewType = 'team' | 'transfers' | 'matches' | 'stadium';
 
@@ -133,7 +134,7 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {activeView === 'team' && <SelectTeamView onSelectTeam={selectTeam} />}
+        {activeView === 'team' && <TeamView />}
         {activeView === 'transfers' && <TransferMarketView />}
         {activeView === 'matches' && <MatchView />}
         {activeView === 'stadium' && <StadiumView />}
