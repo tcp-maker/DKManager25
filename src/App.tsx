@@ -8,13 +8,23 @@ import StadiumView from './StadiumView';
 type ViewType = 'team' | 'transfers' | 'matches' | 'stadium';
 
 const App: React.FC = () => {
-  const { gameState, selectTeam } = useGame();
+  const { gameState, selectTeam, resetGame } = useGame();
   const [activeView, setActiveView] = useState<ViewType>('team');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // If no team selected, show team selection
   if (!gameState.selectedTeam) {
     return <SelectTeamView onSelectTeam={selectTeam} />;
   }
+
+  const handleResetClick = () => {
+    setShowResetConfirm(true);
+  };
+
+  const handleConfirmReset = () => {
+    resetGame();
+    setShowResetConfirm(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -35,10 +45,43 @@ const App: React.FC = () => {
                 <p className="text-xs text-gray-600">Uge</p>
                 <p className="text-lg font-bold text-purple-600">{gameState.week}</p>
               </div>
+              <button
+                onClick={handleResetClick}
+                className="ml-4 px-3 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200 transition text-sm"
+                title="Start nyt spil"
+              >
+                🔄 Nyt Spil
+              </button>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Start Nyt Spil?</h2>
+            <p className="text-gray-700 mb-6">
+              Hvis du starter et nyt spil, slettes al din progression og du vender tilbage til klubvalg-skærmen.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-400 transition"
+              >
+                Annuller
+              </button>
+              <button
+                onClick={handleConfirmReset}
+                className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition"
+              >
+                Ja, Start Nyt Spil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <nav className="bg-white border-b border-gray-200 sticky top-16 z-40">
