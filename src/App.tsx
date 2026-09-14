@@ -4,6 +4,7 @@ import SelectTeamView from './components/SelectTeamView';
 import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
+import TeamView from './components/TeamView';
 
 const App: React.FC = () => {
   const { selectedTeam, setSelectedTeam } = useGame();
@@ -28,7 +29,7 @@ const App: React.FC = () => {
             </div>
           </nav>
           <main className="max-w-7xl mx-auto px-4 py-8">
-            {activeView === 'team' && <div>Team View</div>}
+            {activeView === 'team' && <TeamView />}
             {activeView === 'transfers' && <TransferMarketView />}
             {activeView === 'matches' && <MatchView />}
             {activeView === 'stadium' && <StadiumView />}
