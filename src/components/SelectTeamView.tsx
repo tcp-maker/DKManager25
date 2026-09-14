@@ -56,7 +56,8 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
           <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begin dit eventyr som manager</p>
+          <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
+          <p className="text-sm text-blue-700 mt-3 font-medium">Trin 1 af 3: Vælg klub · Trin 2: Tilpas trup · Trin 3: Spil kamp</p>
         </div>
 
         {/* Leagues */}
@@ -96,6 +97,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
             <li>✓ Vælg din klub fra en af de fire danske ligaer</li>
             <li>✓ Du starter med 1.000.000 kr i budget</li>
             <li>✓ Din trup har 13 spillere klar til at spille</li>
+            <li>✓ Når klubben er valgt, ser du altid uge, budget, fans og fan mood i topstatus</li>
             <li>✓ Administrer transfers, kampe og stadion for at blive Danmarks bedste manager!</li>
           </ul>
         </div>

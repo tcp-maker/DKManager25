@@ -10,6 +10,7 @@ export interface Player {
   value: number;
   isForSale: boolean;
   askingPrice?: number;
+  ownerTeamId?: string;
 }
 
 interface GameState {
@@ -25,18 +26,18 @@ interface GameState {
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
-  addPlayer: (player: Player) => void;
+  addPlayer: (player: Player, purchaseCost?: number) => void;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
-  handleNextWeek: () => void;
+  handleNextWeek: () => number;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 // Dummy spillere til start
-const generateDummyPlayers = (): Record<string, Player> => {
+const generateDummyPlayers = (ownerTeamId: string): Record<string, Player> => {
   const players: Player[] = [
     { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
     { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
@@ -56,7 +57,10 @@ const generateDummyPlayers = (): Record<string, Player> => {
     { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
   ];
 
-  return players.reduce((acc, player) => {
+  return players.map(player => ({
+    ...player,
+    ownerTeamId,
+  })).reduce((acc, player) => {
     acc[player.id] = player;
     return acc;
   }, {} as Record<string, Player>);
@@ -76,6 +80,26 @@ const initialGameState: GameState = {
 // localStorage nøgler
 const STORAGE_KEY = 'dkmanager25_gamestate';
 
+const migrateGameState = (state: GameState): GameState => {
+  if (!state.selectedTeam) return state;
+  const selectedTeamId = state.selectedTeam.id;
+
+  let hasChanges = false;
+  const migratedPlayers = Object.fromEntries(
+    Object.entries(state.players).map(([playerId, player]) => {
+      if (player.ownerTeamId) return [playerId, player];
+      hasChanges = true;
+      return [playerId, { ...player, ownerTeamId: selectedTeamId }];
+    })
+  );
+
+  if (!hasChanges) return state;
+  return {
+    ...state,
+    players: migratedPlayers,
+  };
+};
+
 // Gem game state til localStorage
 const saveGameState = (state: GameState) => {
   try {
@@ -90,7 +114,7 @@ const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      return migrateGameState(JSON.parse(saved));
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
@@ -122,15 +146,20 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setGameState(prev => ({
       ...prev,
       selectedTeam: team,
-      players: generateDummyPlayers(),
+      players: generateDummyPlayers(team.id),
     }));
   };
 
-  const addPlayer = (player: Player) => {
-    setGameState(prev => ({
-      ...prev,
-      players: { ...prev.players, [player.id]: player }
-    }));
+  const addPlayer = (player: Player, purchaseCost: number = 0) => {
+    setGameState(prev => {
+      const cost = Math.max(0, purchaseCost);
+      if (prev.budget < cost) return prev;
+      return {
+        ...prev,
+        budget: prev.budget - cost,
+        players: { ...prev.players, [player.id]: player }
+      };
+    });
   };
 
   const sellPlayer = (playerId: string) => {
@@ -174,6 +203,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       week: prev.week + 1,
       budget: prev.budget + ticketRevenue
     }));
+    return ticketRevenue;
   };
 
   const resetGame = () => {
