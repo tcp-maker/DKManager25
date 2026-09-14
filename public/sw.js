@@ -1,6 +1,21 @@
 const CACHE_VERSION = 'dkmanager25-v1';
-const APP_SHELL = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const APP_SCOPE = self.registration.scope;
+const APP_SHELL = [
+  APP_SCOPE,
+  new URL('manifest.webmanifest', APP_SCOPE).toString(),
+  new URL('icons/icon-192.png', APP_SCOPE).toString(),
+  new URL('icons/icon-512.png', APP_SCOPE).toString(),
+];
 const isCacheableResponse = (response) => response && response.ok;
+const cacheSuccessfulResponse = async (request, response) => {
+  if (!isCacheableResponse(response)) {
+    return response;
+  }
+
+  const cache = await caches.open(CACHE_VERSION);
+  await cache.put(request, response.clone());
+  return response;
+};
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,16 +41,10 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          if (isCacheableResponse(response)) {
-            const responseClone = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
-          }
-          return response;
-        })
+        .then((response) => cacheSuccessfulResponse(request, response))
         .catch(async () => {
           const cachedResponse = await caches.match(request);
-          return cachedResponse || caches.match('./');
+          return cachedResponse || caches.match(APP_SCOPE);
         }),
     );
     return;
@@ -44,16 +53,15 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const networkRequest = fetch(request)
-        .then((response) => {
-          if (isCacheableResponse(response)) {
-            const responseClone = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
-          }
-          return response;
-        })
+        .then((response) => cacheSuccessfulResponse(request, response))
         .catch(() => cachedResponse);
 
-      return cachedResponse || networkRequest;
+      if (cachedResponse) {
+        event.waitUntil(networkRequest.then(() => undefined));
+        return cachedResponse;
+      }
+
+      return networkRequest;
     }),
   );
 });
