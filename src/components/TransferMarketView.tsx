@@ -61,7 +61,7 @@ const TransferMarketView: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b">
+      <div className="flex flex-wrap gap-2 sm:gap-4 mb-6 border-b">
         <button
           onClick={() => setActiveTab('squad')}
           className={`px-4 py-2 font-semibold border-b-2 ${
@@ -93,7 +93,7 @@ const TransferMarketView: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {squadPlayers.map(player => (
-                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition">
+                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:shadow-md transition">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{player.name}</h3>
                     <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
@@ -101,7 +101,7 @@ const TransferMarketView: React.FC = () => {
                   </div>
                   <button
                     onClick={() => handleToggleSale(player.id)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded transition"
+                    className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded transition"
                   >
                     Sælg
                   </button>
@@ -116,22 +116,22 @@ const TransferMarketView: React.FC = () => {
               <h3 className="text-xl font-bold mb-4 text-orange-600">Til Salg</h3>
               <div className="space-y-3">
                 {playersForSale.map(player => (
-                  <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center">
+                  <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
                       <p className="text-sm text-gray-600">{player.position} • Rating: {player.rating}</p>
                       <p className="text-sm font-semibold text-orange-600">Prisønsker: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
                     </div>
-                    <div className="space-x-2">
+                    <div className="w-full sm:w-auto flex gap-2">
                       <button
                         onClick={() => handleToggleSale(player.id)}
-                        className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition"
+                        className="flex-1 sm:flex-none bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition"
                       >
                         Annuller
                       </button>
                       <button
                         onClick={() => handleSellPlayer(player.id)}
-                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition"
+                        className="flex-1 sm:flex-none bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition"
                       >
                         Sælg Nu
                       </button>
