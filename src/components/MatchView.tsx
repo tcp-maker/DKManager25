@@ -23,41 +23,37 @@ const MatchView: React.FC = () => {
 
     // Simulate match delay
     setTimeout(() => {
-      const homeRating = match.isHome ? getTeamRating() : match.opponentRating;
-      const awayRating = match.isHome ? match.opponentRating : getTeamRating();
-
-      const diff = homeRating - awayRating;
-      const winProb = 0.4 + diff / 200;
+      const playerRating = getTeamRating() + (match.isHome ? 2 : 0);
+      const opponentRating = match.opponentRating + (match.isHome ? 0 : 2);
+      const diff = playerRating - opponentRating;
+      const winProb = Math.max(0.15, Math.min(0.7, 0.4 + diff / 200));
       const drawProb = 0.25;
 
       const roll = Math.random();
-      let homeGoals: number;
-      let awayGoals: number;
+      let teamGoals: number;
+      let opponentGoals: number;
+      let playerResult: 'WIN' | 'DRAW' | 'LOSS';
 
       if (roll < winProb) {
-        homeGoals = Math.floor(Math.random() * 3) + 1;
-        awayGoals = Math.floor(Math.random() * homeGoals);
+        playerResult = 'WIN';
+        teamGoals = Math.floor(Math.random() * 3) + 1;
+        opponentGoals = Math.floor(Math.random() * teamGoals);
       } else if (roll < winProb + drawProb) {
-        homeGoals = Math.floor(Math.random() * 2) + 1;
-        awayGoals = homeGoals;
+        playerResult = 'DRAW';
+        teamGoals = Math.floor(Math.random() * 2) + 1;
+        opponentGoals = teamGoals;
       } else {
-        awayGoals = Math.floor(Math.random() * 3) + 1;
-        homeGoals = Math.floor(Math.random() * awayGoals);
+        playerResult = 'LOSS';
+        opponentGoals = Math.floor(Math.random() * 3) + 1;
+        teamGoals = Math.floor(Math.random() * opponentGoals);
       }
-
-      const playerResult: 'WIN' | 'DRAW' | 'LOSS' =
-        homeGoals === awayGoals
-          ? 'DRAW'
-          : match.isHome
-            ? homeGoals > awayGoals ? 'WIN' : 'LOSS'
-            : homeGoals > awayGoals ? 'LOSS' : 'WIN';
 
       const played: PlayedMatchRecord = {
         id: match.id,
         opponent: match.opponent,
         result: playerResult,
-        homeGoals: match.isHome ? homeGoals : awayGoals,
-        awayGoals: match.isHome ? awayGoals : homeGoals,
+        homeGoals: match.isHome ? teamGoals : opponentGoals,
+        awayGoals: match.isHome ? opponentGoals : teamGoals,
         date: gameState.week,
         isHome: match.isHome,
       };
