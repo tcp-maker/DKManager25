@@ -39,7 +39,7 @@ const StadiumView: React.FC = () => {
             <p className="text-xs text-gray-500 mt-1">{capacityUsage.toFixed(1)}% kapacitet</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600">Ugentlig Indtægt</p>
+            <p className="text-sm text-gray-600">Ugentlig Billetindtægt</p>
             <p className="text-2xl font-bold text-green-600">{weeklyRevenue.toLocaleString('da-DK')} kr</p>
             <p className="text-xs text-gray-500 mt-1">fra billetsalg</p>
           </div>
