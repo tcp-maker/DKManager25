@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useGame } from '../context/GameContext';
-import SelectTeamView from './SelectTeamView';
-import TransferMarketView from './TransferMarketView';
-import MatchView from './MatchView';
-import StadiumView from './StadiumView';
+import { useGame } from './context/GameContext';
+import SelectTeamView from './components/SelectTeamView';
+import TransferMarketView from './components/TransferMarketView';
+import MatchView from './components/MatchView';
+import StadiumView from './components/StadiumView';
 
 type ViewType = 'team' | 'transfers' | 'matches' | 'stadium';
 
