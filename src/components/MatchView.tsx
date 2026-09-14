@@ -31,23 +31,26 @@ const MatchView: React.FC = () => {
       const drawProb = 0.25;
 
       const roll = Math.random();
-      let playerResult: 'WIN' | 'DRAW' | 'LOSS';
       let homeGoals: number;
       let awayGoals: number;
 
       if (roll < winProb) {
-        playerResult = match.isHome ? 'WIN' : 'LOSS';
         homeGoals = Math.floor(Math.random() * 3) + 1;
         awayGoals = Math.floor(Math.random() * homeGoals);
       } else if (roll < winProb + drawProb) {
-        playerResult = 'DRAW';
         homeGoals = Math.floor(Math.random() * 2) + 1;
         awayGoals = homeGoals;
       } else {
-        playerResult = match.isHome ? 'LOSS' : 'WIN';
         awayGoals = Math.floor(Math.random() * 3) + 1;
         homeGoals = Math.floor(Math.random() * awayGoals);
       }
+
+      const playerResult: 'WIN' | 'DRAW' | 'LOSS' =
+        homeGoals === awayGoals
+          ? 'DRAW'
+          : match.isHome
+            ? homeGoals > awayGoals ? 'WIN' : 'LOSS'
+            : homeGoals > awayGoals ? 'LOSS' : 'WIN';
 
       const played: PlayedMatchRecord = {
         id: match.id,
