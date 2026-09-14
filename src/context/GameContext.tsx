@@ -80,6 +80,26 @@ const initialGameState: GameState = {
 // localStorage nøgler
 const STORAGE_KEY = 'dkmanager25_gamestate';
 
+const migrateGameState = (state: GameState): GameState => {
+  if (!state.selectedTeam) return state;
+  const selectedTeamId = state.selectedTeam.id;
+
+  let hasChanges = false;
+  const migratedPlayers = Object.fromEntries(
+    Object.entries(state.players).map(([playerId, player]) => {
+      if (player.ownerTeamId) return [playerId, player];
+      hasChanges = true;
+      return [playerId, { ...player, ownerTeamId: selectedTeamId }];
+    })
+  );
+
+  if (!hasChanges) return state;
+  return {
+    ...state,
+    players: migratedPlayers,
+  };
+};
+
 // Gem game state til localStorage
 const saveGameState = (state: GameState) => {
   try {
@@ -94,7 +114,7 @@ const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      return migrateGameState(JSON.parse(saved));
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);

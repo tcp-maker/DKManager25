@@ -66,7 +66,7 @@ const App: React.FC = () => {
                 <p className="font-semibold text-gray-900">{gameState.fanCount.toLocaleString('da-DK')}</p>
               </div>
               <div className="rounded-lg bg-gray-50 px-3 py-2">
-                <p className="text-xs text-gray-500">Fan Mood</p>
+                <p className="text-xs text-gray-500">Fan-humør</p>
                 <p className="font-semibold text-gray-900">{gameState.fanMood}/100 · {fanMoodLabel}</p>
               </div>
             </div>

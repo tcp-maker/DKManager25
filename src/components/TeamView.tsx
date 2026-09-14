@@ -15,7 +15,7 @@ const TeamView: React.FC = () => {
   }
 
   const players = Object.values(gameState.players).filter(
-    player => !player.ownerTeamId || player.ownerTeamId === team.id
+    player => player.ownerTeamId === team.id
   );
   const gkCount = players.filter(p => p.position === 'GK').length;
   const dfCount = players.filter(p => p.position === 'DF').length;
