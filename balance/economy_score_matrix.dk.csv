@@ -1,0 +1,12 @@
+score,band_min,band_max,label,board_delta_per_week,morale_delta_per_week,interest_rate_weekly,sponsor_income_modifier_pct,transfer_mode,notes
+-5,-999999999,-5000000,Dyb krise,-5,-4,3.5,-15,låst,Akut økonomisk nød
+-4,-4999999,-3000001,Kritisk,-4,-3,3.0,-10,låst,Hård genopretningsfase
+-3,-3000000,-1500001,Alvorlig,-3,-2,2.5,-8,stærkt_begrænset,Kun stram drift
+-2,-1500000,-500001,Presset,-2,-2,2.0,-5,lav_cap,Begrænset handlefrihed
+-1,-500000,-1,Skrøbelig,-1,-1,1.0,-2,forsigtig,Advarselstilstand
+0,0,0,Neutral,0,0,0.0,0,normal,Ingen bonus eller straf
+1,1,500000,Stabil,0,0,0.0,0,normal,Lille robusthed
+2,500001,1500000,Kørende,0,0,0.0,0,normal,Board +1 hver 3. uge
+3,1500001,5000000,Rigere,0,0,0.0,0,normal,Moral +1 hver 2. uge
+4,5000001,12000000,Rig,0,0,0.0,0,normal,Sponsorforhandling +2%
+5,12000001,999999999,Meget_rig,0,0,0.0,0,normal,Sponsorforhandling +4%, tabsmoralstraf dæmpes med 1
