@@ -5,6 +5,8 @@ Danish Football Manager Game.
 ## Prerequisites
 
 - Node.js `^20.19.0` or `>=22.12.0`
+
+> This version range matches the runtime requirement from Vite 8.
 - npm
 
 ## Local development
