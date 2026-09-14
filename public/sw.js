@@ -1,10 +1,11 @@
 const CACHE_VERSION = 'dkmanager25-v1';
 const APP_SCOPE = self.registration.scope;
-const APP_SHELL_URL = new URL('', APP_SCOPE).toString();
+const APP_SCOPE_PATH = new URL(APP_SCOPE).pathname;
+const APP_SHELL_PATH = APP_SCOPE_PATH;
 const STATIC_ASSETS = [
-  new URL('manifest.webmanifest', APP_SCOPE).toString(),
-  new URL('icons/icon-192.png', APP_SCOPE).toString(),
-  new URL('icons/icon-512.png', APP_SCOPE).toString(),
+  `${APP_SCOPE_PATH}manifest.webmanifest`,
+  `${APP_SCOPE_PATH}icons/icon-192.png`,
+  `${APP_SCOPE_PATH}icons/icon-512.png`,
 ];
 const isCacheableResponse = (response) => response && response.ok;
 const putInCache = async (request, response) => {
@@ -23,7 +24,7 @@ self.addEventListener('install', (event) => {
       .then(async (cache) => {
         await cache.addAll(STATIC_ASSETS);
         try {
-          await cache.add(APP_SHELL_URL);
+          await cache.add(APP_SHELL_PATH);
         } catch (error) {
           console.warn('App shell precache skipped:', error);
         }
@@ -50,11 +51,7 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((response) => putInCache(request, response))
-        .catch(async () => {
-          const cachedResponse = await caches.match(request);
-          return cachedResponse || caches.match(APP_SHELL_URL);
-        }),
+        .catch(() => caches.match(APP_SHELL_PATH)),
     );
     return;
   }
