@@ -1,7 +1,7 @@
 {
   "name": "DKManager25",
   "short_name": "DKManager25",
-  "description": "Dansk football manager-spil til browser og Android-hjemmeskærm.",
+  "description": "Dansk fodboldmanager-spil til browser og Android-hjemmeskærm.",
   "lang": "da",
   "start_url": ".",
   "scope": ".",
