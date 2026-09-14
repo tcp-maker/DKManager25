@@ -202,8 +202,7 @@ const MatchView: React.FC<MatchViewProps> = ({ onNotify }) => {
               <button
                 onClick={() => {
                   setMatchResult(null);
-                  const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
-                  handleNextWeek();
+                  const ticketRevenue = handleNextWeek();
                   onNotify?.(
                     `Uge ${gameState.week + 1} er startet. Billetindtægt: +${ticketRevenue.toLocaleString('da-DK')} kr.`,
                     'info'

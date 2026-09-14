@@ -36,7 +36,8 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
   };
 
   const handleBuyPlayer = (player: Player) => {
-    if (gameState.budget >= player.value) {
+    const purchasePrice = player.askingPrice ?? player.value;
+    if (gameState.budget >= purchasePrice) {
       const newPlayer = {
         ...player,
         id: `own_${player.id}`,
@@ -44,22 +45,15 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
         askingPrice: undefined,
         ownerTeamId: gameState.selectedTeam?.id
       };
-      const wasBought = addPlayer(newPlayer, player.value);
-      if (wasBought) {
-        setSelectedBuyPlayer(null);
-        onNotify?.(
-          `${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr.`,
-          'success'
-        );
-      } else {
-        onNotify?.(
-          `Købet af ${player.name} blev ikke gennemført. Tjek budgettet og prøv igen.`,
-          'warning'
-        );
-      }
+      addPlayer(newPlayer, purchasePrice);
+      setSelectedBuyPlayer(null);
+      onNotify?.(
+        `${player.name} blev købt for ${purchasePrice.toLocaleString('da-DK')} kr.`,
+        'success'
+      );
     } else {
       onNotify?.(
-        `Ikke tilstrækkelige midler: Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`,
+        `Ikke tilstrækkelige midler: Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${purchasePrice.toLocaleString('da-DK')} kr.`,
         'warning'
       );
     }
@@ -203,14 +197,14 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
                       <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
-                      <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
+                      <p className="text-lg font-bold text-blue-600 mt-2">Pris: {(player.askingPrice ?? player.value).toLocaleString('da-DK')} kr</p>
                     </div>
-                    {gameState.budget >= player.value && (
+                    {gameState.budget >= (player.askingPrice ?? player.value) && (
                       <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
                         Råd
                       </span>
                     )}
-                    {gameState.budget < player.value && (
+                    {gameState.budget < (player.askingPrice ?? player.value) && (
                       <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
                         For dyr
                       </span>
@@ -221,9 +215,9 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
                   {selectedBuyPlayer?.id === player.id && (
                     <div className="mt-4 pt-4 border-t">
                       <p className="text-sm text-gray-700 mb-4">
-                        Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
+                        Købt denne spiller til {(player.askingPrice ?? player.value).toLocaleString('da-DK')} kr. Du vil have{' '}
                         <span className="font-bold text-green-600">
-                          {(gameState.budget - player.value).toLocaleString('da-DK')} kr
+                          {(gameState.budget - (player.askingPrice ?? player.value)).toLocaleString('da-DK')} kr
                         </span>{' '}
                         tilbage.
                       </p>
@@ -232,14 +226,14 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
                           e.stopPropagation();
                           handleBuyPlayer(player);
                         }}
-                        disabled={gameState.budget < player.value}
+                        disabled={gameState.budget < (player.askingPrice ?? player.value)}
                         className={`w-full font-bold py-3 px-4 rounded transition ${
-                          gameState.budget >= player.value
+                          gameState.budget >= (player.askingPrice ?? player.value)
                             ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        {gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
+                        {gameState.budget >= (player.askingPrice ?? player.value) ? 'Køb Spiller' : 'Ikke råd'}
                       </button>
                     </div>
                   )}

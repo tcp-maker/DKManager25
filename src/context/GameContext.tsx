@@ -26,11 +26,11 @@ interface GameState {
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
-  addPlayer: (player: Player, purchaseCost?: number) => boolean;
+  addPlayer: (player: Player, purchaseCost?: number) => void;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
-  handleNextWeek: () => void;
+  handleNextWeek: () => number;
   resetGame: () => void;
 }
 
@@ -131,16 +131,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addPlayer = (player: Player, purchaseCost: number = 0) => {
-    const cost = Math.max(0, purchaseCost);
-    if (gameState.budget < cost) return false;
     setGameState(prev => {
+      const cost = Math.max(0, purchaseCost);
+      if (prev.budget < cost) return prev;
       return {
         ...prev,
         budget: prev.budget - cost,
         players: { ...prev.players, [player.id]: player }
       };
     });
-    return true;
   };
 
   const sellPlayer = (playerId: string) => {
@@ -184,6 +183,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       week: prev.week + 1,
       budget: prev.budget + ticketRevenue
     }));
+    return ticketRevenue;
   };
 
   const resetGame = () => {
