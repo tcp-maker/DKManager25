@@ -4,7 +4,7 @@ Danish Football Manager Game.
 
 ## Prerequisites
 
-- Node.js 20.19+ (or newer)
+- Node.js `^20.19.0` or `>=22.12.0`
 - npm
 
 ## Local development
