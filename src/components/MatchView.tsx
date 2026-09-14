@@ -28,6 +28,7 @@ const MatchView: React.FC = () => {
       const diff = playerRating - opponentRating;
       const winProb = Math.max(0.15, Math.min(0.7, 0.4 + diff / 200));
       const drawProb = 0.25;
+      const marginBoost = Math.max(0, Math.min(2, Math.round(Math.abs(diff) / 12)));
 
       const roll = Math.random();
       let teamGoals: number;
@@ -36,7 +37,7 @@ const MatchView: React.FC = () => {
 
       if (roll < winProb) {
         playerResult = 'WIN';
-        teamGoals = Math.floor(Math.random() * 3) + 1;
+        teamGoals = Math.floor(Math.random() * 3) + 1 + marginBoost;
         opponentGoals = Math.floor(Math.random() * teamGoals);
       } else if (roll < winProb + drawProb) {
         playerResult = 'DRAW';
@@ -44,7 +45,7 @@ const MatchView: React.FC = () => {
         opponentGoals = teamGoals;
       } else {
         playerResult = 'LOSS';
-        opponentGoals = Math.floor(Math.random() * 3) + 1;
+        opponentGoals = Math.floor(Math.random() * 3) + 1 + marginBoost;
         teamGoals = Math.floor(Math.random() * opponentGoals);
       }
 
