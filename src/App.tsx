@@ -7,12 +7,10 @@ import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
 
 const App: React.FC = () => {
-  const { selectedTeam, setSelectedTeam } = useGame();
+  const { gameState, selectTeam } = useGame();
   const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium'>('team');
 
-  const selectTeam = (teamId: string) => {
-    setSelectedTeam(teamId);
-  };
+  const selectedTeam = gameState.selectedTeam;
 
   return (
     <div className="min-h-screen bg-gray-100">
