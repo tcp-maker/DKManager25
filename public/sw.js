@@ -1,5 +1,6 @@
 const CACHE_VERSION = 'dkmanager25-v1';
 const APP_SHELL = ['./', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
+const isCacheableResponse = (response) => response && response.ok;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,8 +27,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put('./', responseClone));
+          if (isCacheableResponse(response)) {
+            const responseClone = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
+          }
           return response;
         })
         .catch(async () => {
@@ -42,8 +45,10 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cachedResponse) => {
       const networkRequest = fetch(request)
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
+          if (isCacheableResponse(response)) {
+            const responseClone = response.clone();
+            caches.open(CACHE_VERSION).then((cache) => cache.put(request, responseClone));
+          }
           return response;
         })
         .catch(() => cachedResponse);
