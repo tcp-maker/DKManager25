@@ -1,59 +1,12 @@
 import React, { useState } from 'react';
-import { useGame } from '../context/GameContext';
-
-interface Match {
-  id: string;
-  opponent: string;
-  isHome: boolean;
-  difficulty: 'Nem' | 'Moderat' | 'Svær';
-  opponentRating: number;
-}
-
-interface PlayedMatch {
-  id: string;
-  opponent: string;
-  result: 'WIN' | 'DRAW' | 'LOSS';
-  homeGoals: number;
-  awayGoals: number;
-  date: number;
-}
+import { PlayedMatchRecord, ScheduledMatch, useGame } from '../context/GameContext';
 
 const MatchView: React.FC = () => {
-  const { gameState, handleNextWeek } = useGame();
+  const { gameState, handleNextWeek, recordMatch } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [playedMatches, setPlayedMatches] = useState<PlayedMatch[]>([]);
-  const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
+  const [matchResult, setMatchResult] = useState<PlayedMatchRecord | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
-
-  // Dummy modstandere
-  const opponents = [
-    { name: 'FC København', baseRating: 82 },
-    { name: 'Brøndby IF', baseRating: 79 },
-    { name: 'AaB Aalborg', baseRating: 76 },
-    { name: 'Silkeborg IF', baseRating: 74 },
-    { name: 'Randers FC', baseRating: 75 },
-    { name: 'Midtjylland', baseRating: 78 },
-    { name: 'OB Odense', baseRating: 73 },
-    { name: 'Nordsjælland', baseRating: 77 },
-  ];
-
-  // Generate upcoming matches
-  const generateUpcomingMatches = (): Match[] => {
-    const matches: Match[] = [];
-    for (let i = 0; i < 3; i++) {
-      const opponent = opponents[Math.floor(Math.random() * opponents.length)];
-      const isHome = Math.random() > 0.5;
-      matches.push({
-        id: `match_${gameState.week}_${i}`,
-        opponent: opponent.name,
-        isHome,
-        difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
-        opponentRating: opponent.baseRating + Math.random() * 5 - 2.5,
-      });
-    }
-    return matches;
-  };
 
   // Calculate team rating (average of all players)
   const getTeamRating = (): number => {
@@ -64,49 +17,50 @@ const MatchView: React.FC = () => {
   };
 
   // Simulate match
-  const simulateMatch = (match: Match) => {
+  const simulateMatch = (match: ScheduledMatch) => {
     setIsMatchPlaying(true);
     setCurrentMatch(match);
 
     // Simulate match delay
     setTimeout(() => {
-      const homeRating = match.isHome ? getTeamRating() : match.opponentRating;
-      const awayRating = match.isHome ? match.opponentRating : getTeamRating();
-
-      const diff = homeRating - awayRating;
-      const winProb = 0.4 + diff / 200;
+      const playerRating = getTeamRating() + (match.isHome ? 2 : 0);
+      const opponentRating = match.opponentRating + (match.isHome ? 0 : 2);
+      const diff = playerRating - opponentRating;
+      const winProb = Math.max(0.15, Math.min(0.7, 0.4 + diff / 200));
       const drawProb = 0.25;
+      const marginBoost = Math.max(0, Math.min(2, Math.round(Math.abs(diff) / 12)));
 
       const roll = Math.random();
-      let result: 'WIN' | 'DRAW' | 'LOSS';
-      let homeGoals: number;
-      let awayGoals: number;
+      let teamGoals: number;
+      let opponentGoals: number;
+      let playerResult: 'WIN' | 'DRAW' | 'LOSS';
 
       if (roll < winProb) {
-        result = match.isHome ? 'WIN' : 'LOSS';
-        homeGoals = Math.floor(Math.random() * 3) + 1;
-        awayGoals = Math.floor(Math.random() * homeGoals);
+        playerResult = 'WIN';
+        teamGoals = Math.floor(Math.random() * 3) + 1 + marginBoost;
+        opponentGoals = Math.floor(Math.random() * teamGoals);
       } else if (roll < winProb + drawProb) {
-        result = 'DRAW';
-        homeGoals = Math.floor(Math.random() * 2) + 1;
-        awayGoals = homeGoals;
+        playerResult = 'DRAW';
+        teamGoals = Math.floor(Math.random() * 2) + 1;
+        opponentGoals = teamGoals;
       } else {
-        result = match.isHome ? 'LOSS' : 'WIN';
-        awayGoals = Math.floor(Math.random() * 3) + 1;
-        homeGoals = Math.floor(Math.random() * awayGoals);
+        playerResult = 'LOSS';
+        opponentGoals = Math.floor(Math.random() * 3) + 1 + marginBoost;
+        teamGoals = Math.floor(Math.random() * opponentGoals);
       }
 
-      const played: PlayedMatch = {
+      const played: PlayedMatchRecord = {
         id: match.id,
         opponent: match.opponent,
-        result: match.isHome ? result : result === 'WIN' ? 'LOSS' : result === 'LOSS' ? 'WIN' : 'DRAW',
-        homeGoals: match.isHome ? homeGoals : awayGoals,
-        awayGoals: match.isHome ? awayGoals : homeGoals,
+        result: playerResult,
+        homeGoals: match.isHome ? teamGoals : opponentGoals,
+        awayGoals: match.isHome ? opponentGoals : teamGoals,
         date: gameState.week,
+        isHome: match.isHome,
       };
 
       setMatchResult(played);
-      setPlayedMatches(prev => [played, ...prev].slice(0, 5)); // Keep last 5 matches
+      recordMatch(played);
       setIsMatchPlaying(false);
 
       // Award fans and budget for wins
@@ -117,8 +71,12 @@ const MatchView: React.FC = () => {
     }, 2000);
   };
 
-  const upcomingMatches = generateUpcomingMatches();
   const teamRating = getTeamRating();
+  const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
+  const upcomingMatches = gameState.upcomingMatches;
+  const playedMatches = gameState.matchHistory;
+  const getTeamGoals = (match: PlayedMatchRecord) => match.isHome ? match.homeGoals : match.awayGoals;
+  const getOpponentGoals = (match: PlayedMatchRecord) => match.isHome ? match.awayGoals : match.homeGoals;
 
   return (
     <div className="p-4 max-w-3xl mx-auto">
@@ -128,6 +86,9 @@ const MatchView: React.FC = () => {
       <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="mt-2 text-sm text-gray-700">
+          Spil en kamp for at afslutte forberedelserne. Når resultatet er vist, kan du gå videre til næste uge og modtage {ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -166,34 +127,38 @@ const MatchView: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">{matchResult.opponent}</p>
-                  <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
+                  <p className="text-4xl font-bold text-blue-600">{getOpponentGoals(matchResult)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">-</p>
                 </div>
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">Dit Hold</p>
-                  <p className="text-4xl font-bold text-green-600">{matchResult.homeGoals}</p>
+                  <p className="text-4xl font-bold text-green-600">{getTeamGoals(matchResult)}</p>
                 </div>
               </div>
 
               <div className="text-center mb-4">
                 {matchResult.result === 'WIN' && (
                   <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
-                    🏆 SEJR! +50 fans, +100.000 kr
+                    🏆 SEJR! Hold momentumet og afslut ugen, når du er klar.
                   </span>
                 )}
                 {matchResult.result === 'DRAW' && (
                   <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
-                    ⚖️ UAFGJORT +10 fans
+                    ⚖️ UAFGJORT! En stabil uge - du kan nu gå videre.
                   </span>
                 )}
                 {matchResult.result === 'LOSS' && (
                   <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
-                    ❌ NEDERLAG -20 fans
+                    ❌ NEDERLAG! Brug næste uge på at justere trup eller stadion.
                   </span>
                 )}
               </div>
+
+              <p className="mb-4 text-sm text-gray-600">
+                Næste uge giver dig {ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter med din nuværende fanbase og stadionkapacitet.
+              </p>
 
               <button
                 onClick={() => {
@@ -202,7 +167,7 @@ const MatchView: React.FC = () => {
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
               >
-                Gå til næste uge
+                Afslut uge og modtag billetindtægter
               </button>
             </div>
           )}
@@ -279,7 +244,9 @@ const MatchView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
           {playedMatches.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen kampe spillet endnu</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-gray-600">
+              Ingen kampe spillet endnu. Start en kamp ovenfor for at skabe din første uge i historikken.
+            </div>
           ) : (
             <div className="space-y-3">
               {playedMatches.map((match) => (
@@ -301,7 +268,7 @@ const MatchView: React.FC = () => {
 
                     <div className="text-center">
                       <p className="text-3xl font-bold">
-                        {match.homeGoals} - {match.awayGoals}
+                        {getTeamGoals(match)} - {getOpponentGoals(match)}
                       </p>
                       <p className={`text-sm font-bold ${
                         match.result === 'WIN'

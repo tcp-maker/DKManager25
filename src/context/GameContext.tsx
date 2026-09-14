@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Team } from '../types/teams';
 
 export interface Player {
@@ -12,6 +12,24 @@ export interface Player {
   askingPrice?: number;
 }
 
+export interface ScheduledMatch {
+  id: string;
+  opponent: string;
+  isHome: boolean;
+  difficulty: 'Nem' | 'Moderat' | 'Svær';
+  opponentRating: number;
+}
+
+export interface PlayedMatchRecord {
+  id: string;
+  opponent: string;
+  result: 'WIN' | 'DRAW' | 'LOSS';
+  homeGoals: number;
+  awayGoals: number;
+  date: number;
+  isHome: boolean;
+}
+
 interface GameState {
   selectedTeam: Team | null;
   budget: number;
@@ -20,12 +38,24 @@ interface GameState {
   stadiumCapacity: number;
   fanMood: number;
   week: number;
+  upcomingMatches: ScheduledMatch[];
+  matchHistory: PlayedMatchRecord[];
+}
+
+interface FeedbackMessage {
+  tone: 'success' | 'info' | 'warning';
+  title: string;
+  message: string;
 }
 
 interface GameContextType {
   gameState: GameState;
+  feedback: FeedbackMessage | null;
+  clearFeedback: () => void;
   selectTeam: (team: Team) => void;
   addPlayer: (player: Player) => void;
+  buyPlayer: (player: Player) => void;
+  recordMatch: (match: PlayedMatchRecord) => void;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
@@ -62,6 +92,35 @@ const generateDummyPlayers = (): Record<string, Player> => {
   }, {} as Record<string, Player>);
 };
 
+const opponents = [
+  { name: 'FC København', baseRating: 82 },
+  { name: 'Brøndby IF', baseRating: 79 },
+  { name: 'AaB Aalborg', baseRating: 76 },
+  { name: 'Silkeborg IF', baseRating: 74 },
+  { name: 'Randers FC', baseRating: 75 },
+  { name: 'Midtjylland', baseRating: 78 },
+  { name: 'OB Odense', baseRating: 73 },
+  { name: 'Nordsjælland', baseRating: 77 },
+];
+
+const generateUpcomingMatches = (week: number): ScheduledMatch[] => {
+  const matches: ScheduledMatch[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const opponent = opponents[Math.floor(Math.random() * opponents.length)];
+    const isHome = Math.random() > 0.5;
+    matches.push({
+      id: `match_${week}_${i}`,
+      opponent: opponent.name,
+      isHome,
+      difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
+      opponentRating: opponent.baseRating + Math.random() * 5 - 2.5,
+    });
+  }
+
+  return matches;
+};
+
 // Initial game state
 const initialGameState: GameState = {
   selectedTeam: null,
@@ -71,6 +130,8 @@ const initialGameState: GameState = {
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
+  upcomingMatches: generateUpcomingMatches(1),
+  matchHistory: [],
 };
 
 // localStorage nøgler
@@ -90,7 +151,19 @@ const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved) as Partial<GameState>;
+      const week = typeof parsed.week === 'number' ? parsed.week : initialGameState.week;
+
+      return {
+        ...initialGameState,
+        ...parsed,
+        selectedTeam: parsed.selectedTeam ?? null,
+        players: parsed.players ?? {},
+        upcomingMatches: Array.isArray(parsed.upcomingMatches)
+          ? parsed.upcomingMatches
+          : generateUpcomingMatches(week),
+        matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : [],
+      };
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
@@ -112,18 +185,37 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     // Prøv at indlæse saved state, ellers brug initial state
     return loadGameState() || initialGameState;
   });
+  const [feedback, setFeedback] = useState<FeedbackMessage | null>(null);
 
   // Auto-save game state når det ændrer sig
   useEffect(() => {
     saveGameState(gameState);
   }, [gameState]);
 
+  useEffect(() => {
+    if (!feedback) return;
+
+    const timeout = window.setTimeout(() => {
+      setFeedback(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  const clearFeedback = () => setFeedback(null);
+
   const selectTeam = (team: Team) => {
     setGameState(prev => ({
       ...prev,
       selectedTeam: team,
       players: generateDummyPlayers(),
+      upcomingMatches: generateUpcomingMatches(prev.week),
     }));
+    setFeedback({
+      tone: 'success',
+      title: `${team.name} er valgt`,
+      message: 'Du er klar til at gennemgå truppen og tage hul på den første uge.',
+    });
   };
 
   const addPlayer = (player: Player) => {
@@ -133,7 +225,56 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const buyPlayer = (player: Player) => {
+    let nextFeedback: FeedbackMessage | null = null;
+
+    setGameState(prev => {
+      if (prev.budget < player.value) {
+        nextFeedback = {
+          tone: 'warning',
+          title: 'Budgettet rækker ikke',
+          message: `${player.name} koster ${player.value.toLocaleString('da-DK')} kr, men du har kun ${prev.budget.toLocaleString('da-DK')} kr.`,
+        };
+        return prev;
+      }
+
+      nextFeedback = {
+        tone: 'success',
+        title: `${player.name} er købt`,
+        message: `${player.value.toLocaleString('da-DK')} kr er trukket fra budgettet, og spilleren er lagt til i din trup.`,
+      };
+
+      return {
+        ...prev,
+        budget: prev.budget - player.value,
+        players: {
+          ...prev.players,
+          [`own_${player.id}`]: {
+            ...player,
+            id: `own_${player.id}`,
+            isForSale: false,
+            askingPrice: undefined,
+          }
+        }
+      };
+    });
+
+    if (nextFeedback) {
+      setFeedback(nextFeedback);
+    }
+  };
+
+  const recordMatch = (match: PlayedMatchRecord) => {
+    setGameState(prev => ({
+      ...prev,
+      matchHistory: [match, ...prev.matchHistory].slice(0, 5),
+    }));
+  };
+
   const sellPlayer = (playerId: string) => {
+    const player = gameState.players[playerId];
+    if (!player) return;
+
     setGameState(prev => {
       const newPlayers = { ...prev.players };
       const price = newPlayers[playerId]?.value || 0;
@@ -143,6 +284,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         budget: prev.budget + price,
         players: newPlayers
       };
+    });
+    setFeedback({
+      tone: 'success',
+      title: `${player.name} er solgt`,
+      message: `Du har modtaget ${player.value.toLocaleString('da-DK')} kr, som nu er lagt til budgettet.`,
     });
   };
 
@@ -164,16 +310,45 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         budget: prev.budget - cost,
         stadiumCapacity: prev.stadiumCapacity + 2500
       }));
+      setFeedback({
+        tone: 'success',
+        title: 'Stadionet er opgraderet',
+        message: `Kapaciteten er øget med 2.500 pladser, og ${cost.toLocaleString('da-DK')} kr er trukket fra budgettet.`,
+      });
+      return;
     }
+
+    setFeedback({
+      tone: 'warning',
+      title: 'Du mangler penge til udvidelsen',
+      message: `Du skal bruge ${cost.toLocaleString('da-DK')} kr for at opgradere stadionet.`,
+    });
   };
 
   const handleNextWeek = () => {
-    const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
-    setGameState(prev => ({
-      ...prev,
-      week: prev.week + 1,
-      budget: prev.budget + ticketRevenue
-    }));
+    let nextFeedback: FeedbackMessage | null = null;
+
+    setGameState(prev => {
+      const ticketRevenue = Math.min(prev.fanCount, prev.stadiumCapacity) * 150;
+      const nextWeek = prev.week + 1;
+
+      nextFeedback = {
+        tone: 'info',
+        title: `Uge ${nextWeek} er startet`,
+        message: `Du modtog ${ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter baseret på dine nuværende fans og stadionpladser.`,
+      };
+
+      return {
+        ...prev,
+        week: nextWeek,
+        budget: prev.budget + ticketRevenue,
+        upcomingMatches: generateUpcomingMatches(nextWeek),
+      };
+    });
+
+    if (nextFeedback) {
+      setFeedback(nextFeedback);
+    }
   };
 
   const resetGame = () => {
@@ -185,8 +360,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     <GameContext.Provider 
       value={{ 
         gameState, 
+        feedback,
+        clearFeedback,
         selectTeam, 
         addPlayer, 
+        buyPlayer,
+        recordMatch,
         sellPlayer, 
         updatePlayer, 
         upgradeStadium, 

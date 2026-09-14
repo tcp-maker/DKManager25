@@ -1,23 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useGame } from '../context/GameContext';
 
 const StadiumView: React.FC = () => {
   const { gameState, upgradeStadium } = useGame();
-  const [upgrades, setUpgrades] = useState(0);
 
   // Calculate weekly revenue
   const weeklyRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
   const capacityUsage = (gameState.fanCount / gameState.stadiumCapacity) * 100;
+  const upgrades = Math.max((gameState.stadiumCapacity - 3000) / 2500, 0);
+  const nextCapacity = gameState.stadiumCapacity + 2500;
+  const nextRevenue = Math.min(gameState.fanCount, nextCapacity) * 150;
 
   // Stadium name based on team
   const stadiumName = gameState.selectedTeam ? `${gameState.selectedTeam.name} Stadion` : 'Dit Stadion';
-
-  const handleUpgrade = () => {
-    if (gameState.budget >= 500000) {
-      upgradeStadium();
-      setUpgrades(prev => prev + 1);
-    }
-  };
 
   return (
     <div className="p-4 max-w-3xl mx-auto">
@@ -94,6 +89,9 @@ const StadiumView: React.FC = () => {
             Udvid stadion for at øge indtægterne fra billetsalg. Hver udvidelse koster <span className="font-bold">500.000 kr</span> og tilføjer <span className="font-bold">2.500 pladser</span>.
           </p>
           <p className="text-xs text-gray-600">Du har gennemført {upgrades} udvidelser hidtil.</p>
+          <p className="mt-2 text-xs text-gray-600">
+            Næste udvidelse løfter kapaciteten til {nextCapacity.toLocaleString('da-DK')} pladser. Med den nuværende fanbase vil din billetindtægt være {nextRevenue.toLocaleString('da-DK')} kr pr. uge.
+          </p>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mb-4">
@@ -112,7 +110,7 @@ const StadiumView: React.FC = () => {
         </div>
 
         <button
-          onClick={handleUpgrade}
+          onClick={upgradeStadium}
           disabled={gameState.budget < 500000}
           className={`w-full font-bold py-3 px-4 rounded transition text-white ${
             gameState.budget >= 500000
