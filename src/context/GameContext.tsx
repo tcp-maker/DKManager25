@@ -20,6 +20,16 @@ export interface ScheduledMatch {
   opponentRating: number;
 }
 
+export interface PlayedMatchRecord {
+  id: string;
+  opponent: string;
+  result: 'WIN' | 'DRAW' | 'LOSS';
+  homeGoals: number;
+  awayGoals: number;
+  date: number;
+  isHome: boolean;
+}
+
 interface GameState {
   selectedTeam: Team | null;
   budget: number;
@@ -29,6 +39,7 @@ interface GameState {
   fanMood: number;
   week: number;
   upcomingMatches: ScheduledMatch[];
+  matchHistory: PlayedMatchRecord[];
 }
 
 interface FeedbackMessage {
@@ -43,7 +54,8 @@ interface GameContextType {
   clearFeedback: () => void;
   selectTeam: (team: Team) => void;
   addPlayer: (player: Player) => void;
-  buyPlayer: (player: Player) => boolean;
+  buyPlayer: (player: Player) => void;
+  recordMatch: (match: PlayedMatchRecord) => void;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
@@ -119,6 +131,7 @@ const initialGameState: GameState = {
   fanMood: 50,
   week: 1,
   upcomingMatches: generateUpcomingMatches(1),
+  matchHistory: [],
 };
 
 // localStorage nøgler
@@ -149,6 +162,7 @@ const loadGameState = (): GameState | null => {
         upcomingMatches: Array.isArray(parsed.upcomingMatches)
           ? parsed.upcomingMatches
           : generateUpcomingMatches(week),
+        matchHistory: Array.isArray(parsed.matchHistory) ? parsed.matchHistory : [],
       };
     }
   } catch (error) {
@@ -212,7 +226,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const buyPlayer = (player: Player) => {
-    let didBuy = false;
     let nextFeedback: FeedbackMessage | null = null;
 
     setGameState(prev => {
@@ -225,7 +238,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      didBuy = true;
       nextFeedback = {
         tone: 'success',
         title: `${player.name} er købt`,
@@ -250,8 +262,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     if (nextFeedback) {
       setFeedback(nextFeedback);
     }
+  };
 
-    return didBuy;
+  const recordMatch = (match: PlayedMatchRecord) => {
+    setGameState(prev => ({
+      ...prev,
+      matchHistory: [match, ...prev.matchHistory].slice(0, 5),
+    }));
   };
 
   const sellPlayer = (playerId: string) => {
@@ -348,6 +365,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         selectTeam, 
         addPlayer, 
         buyPlayer,
+        recordMatch,
         sellPlayer, 
         updatePlayer, 
         upgradeStadium, 

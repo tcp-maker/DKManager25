@@ -25,7 +25,9 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleBuyPlayer = (player: Player) => {
-    if (buyPlayer(player)) {
+    const canAfford = gameState.budget >= player.value;
+    buyPlayer(player);
+    if (canAfford) {
       setSelectedBuyPlayer(null);
     }
   };

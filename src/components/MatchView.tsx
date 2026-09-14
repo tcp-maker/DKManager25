@@ -1,22 +1,11 @@
 import React, { useState } from 'react';
-import { ScheduledMatch, useGame } from '../context/GameContext';
-
-interface PlayedMatch {
-  id: string;
-  opponent: string;
-  result: 'WIN' | 'DRAW' | 'LOSS';
-  homeGoals: number;
-  awayGoals: number;
-  date: number;
-  isHome: boolean;
-}
+import { PlayedMatchRecord, ScheduledMatch, useGame } from '../context/GameContext';
 
 const MatchView: React.FC = () => {
-  const { gameState, handleNextWeek } = useGame();
+  const { gameState, handleNextWeek, recordMatch } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [playedMatches, setPlayedMatches] = useState<PlayedMatch[]>([]);
   const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
+  const [matchResult, setMatchResult] = useState<PlayedMatchRecord | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
 
   // Calculate team rating (average of all players)
@@ -60,7 +49,7 @@ const MatchView: React.FC = () => {
         homeGoals = Math.floor(Math.random() * awayGoals);
       }
 
-      const played: PlayedMatch = {
+      const played: PlayedMatchRecord = {
         id: match.id,
         opponent: match.opponent,
         result: playerResult,
@@ -71,7 +60,7 @@ const MatchView: React.FC = () => {
       };
 
       setMatchResult(played);
-      setPlayedMatches(prev => [played, ...prev].slice(0, 5)); // Keep last 5 matches
+      recordMatch(played);
       setIsMatchPlaying(false);
 
       // Award fans and budget for wins
@@ -85,8 +74,9 @@ const MatchView: React.FC = () => {
   const teamRating = getTeamRating();
   const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
   const upcomingMatches = gameState.upcomingMatches;
-  const getTeamGoals = (match: PlayedMatch) => match.isHome ? match.homeGoals : match.awayGoals;
-  const getOpponentGoals = (match: PlayedMatch) => match.isHome ? match.awayGoals : match.homeGoals;
+  const playedMatches = gameState.matchHistory;
+  const getTeamGoals = (match: PlayedMatchRecord) => match.isHome ? match.homeGoals : match.awayGoals;
+  const getOpponentGoals = (match: PlayedMatchRecord) => match.isHome ? match.awayGoals : match.homeGoals;
 
   return (
     <div className="p-4 max-w-3xl mx-auto">
