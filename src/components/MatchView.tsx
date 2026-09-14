@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGame } from '../context/GameContext';
 
 interface Match {
@@ -26,6 +26,7 @@ const MatchView: React.FC = () => {
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
+  const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
 
   // Dummy modstandere
   const opponents = [
@@ -40,13 +41,13 @@ const MatchView: React.FC = () => {
   ];
 
   // Generate upcoming matches
-  const generateUpcomingMatches = (): Match[] => {
+  const generateUpcomingMatches = (week: number): Match[] => {
     const matches: Match[] = [];
     for (let i = 0; i < 3; i++) {
       const opponent = opponents[Math.floor(Math.random() * opponents.length)];
       const isHome = Math.random() > 0.5;
       matches.push({
-        id: `match_${gameState.week}_${i}`,
+        id: `match_${week}_${i}`,
         opponent: opponent.name,
         isHome,
         difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
@@ -119,11 +120,14 @@ const MatchView: React.FC = () => {
     }, 2000);
   };
 
-  const upcomingMatches = useMemo(() => generateUpcomingMatches(), [gameState.week]);
   const teamRating = getTeamRating();
   const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
   const getTeamGoals = (match: PlayedMatch) => match.isHome ? match.homeGoals : match.awayGoals;
   const getOpponentGoals = (match: PlayedMatch) => match.isHome ? match.awayGoals : match.homeGoals;
+
+  useEffect(() => {
+    setUpcomingMatches(generateUpcomingMatches(gameState.week));
+  }, [gameState.week]);
 
   return (
     <div className="p-4 max-w-3xl mx-auto">

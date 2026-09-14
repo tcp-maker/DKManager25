@@ -98,6 +98,7 @@ const App: React.FC = () => {
                 </div>
                 <button
                   onClick={clearFeedback}
+                  aria-label="Luk statusbesked"
                   className="shrink-0 rounded px-2 py-1 text-sm font-semibold hover:bg-white/60"
                 >
                   Luk

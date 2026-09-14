@@ -161,34 +161,46 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const buyPlayer = (player: Player) => {
-    if (gameState.budget < player.value) {
-      setFeedback({
-        tone: 'warning',
-        title: 'Budgettet rækker ikke',
-        message: `${player.name} koster ${player.value.toLocaleString('da-DK')} kr, men du har kun ${gameState.budget.toLocaleString('da-DK')} kr.`,
-      });
-      return false;
-    }
+    let didBuy = false;
+    let nextFeedback: FeedbackMessage | null = null;
 
-    const ownedPlayer = {
-      ...player,
-      id: `own_${player.id}`,
-      isForSale: false,
-      askingPrice: undefined,
-    };
+    setGameState(prev => {
+      if (prev.budget < player.value) {
+        nextFeedback = {
+          tone: 'warning',
+          title: 'Budgettet rækker ikke',
+          message: `${player.name} koster ${player.value.toLocaleString('da-DK')} kr, men du har kun ${prev.budget.toLocaleString('da-DK')} kr.`,
+        };
+        return prev;
+      }
 
-    setGameState(prev => ({
-      ...prev,
-      budget: prev.budget - player.value,
-      players: { ...prev.players, [ownedPlayer.id]: ownedPlayer }
-    }));
-    setFeedback({
-      tone: 'success',
-      title: `${player.name} er købt`,
-      message: `${player.value.toLocaleString('da-DK')} kr er trukket fra budgettet, og spilleren er lagt til i din trup.`,
+      didBuy = true;
+      nextFeedback = {
+        tone: 'success',
+        title: `${player.name} er købt`,
+        message: `${player.value.toLocaleString('da-DK')} kr er trukket fra budgettet, og spilleren er lagt til i din trup.`,
+      };
+
+      return {
+        ...prev,
+        budget: prev.budget - player.value,
+        players: {
+          ...prev.players,
+          [`own_${player.id}`]: {
+            ...player,
+            id: `own_${player.id}`,
+            isForSale: false,
+            askingPrice: undefined,
+          }
+        }
+      };
     });
 
-    return true;
+    if (nextFeedback) {
+      setFeedback(nextFeedback);
+    }
+
+    return didBuy;
   };
 
   const sellPlayer = (playerId: string) => {
