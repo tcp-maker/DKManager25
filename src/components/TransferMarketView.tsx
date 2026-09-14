@@ -41,7 +41,8 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
         ...player,
         id: `own_${player.id}`,
         isForSale: false,
-        askingPrice: undefined
+        askingPrice: undefined,
+        ownerTeamId: gameState.selectedTeam?.id
       };
       const wasBought = addPlayer(newPlayer, player.value);
       if (wasBought) {

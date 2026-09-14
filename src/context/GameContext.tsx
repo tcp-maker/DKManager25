@@ -10,6 +10,7 @@ export interface Player {
   value: number;
   isForSale: boolean;
   askingPrice?: number;
+  ownerTeamId?: string;
 }
 
 interface GameState {
@@ -36,7 +37,7 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 // Dummy spillere til start
-const generateDummyPlayers = (): Record<string, Player> => {
+const generateDummyPlayers = (ownerTeamId: string): Record<string, Player> => {
   const players: Player[] = [
     { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
     { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
@@ -56,7 +57,10 @@ const generateDummyPlayers = (): Record<string, Player> => {
     { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
   ];
 
-  return players.reduce((acc, player) => {
+  return players.map(player => ({
+    ...player,
+    ownerTeamId,
+  })).reduce((acc, player) => {
     acc[player.id] = player;
     return acc;
   }, {} as Record<string, Player>);
@@ -122,23 +126,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setGameState(prev => ({
       ...prev,
       selectedTeam: team,
-      players: generateDummyPlayers(),
+      players: generateDummyPlayers(team.id),
     }));
   };
 
   const addPlayer = (player: Player, purchaseCost: number = 0) => {
-    let didAddPlayer = false;
+    const cost = Math.max(0, purchaseCost);
+    if (gameState.budget < cost) return false;
     setGameState(prev => {
-      const cost = Math.max(0, purchaseCost);
-      if (prev.budget < cost) return prev;
-      didAddPlayer = true;
       return {
         ...prev,
         budget: prev.budget - cost,
         players: { ...prev.players, [player.id]: player }
       };
     });
-    return didAddPlayer;
+    return true;
   };
 
   const sellPlayer = (playerId: string) => {
