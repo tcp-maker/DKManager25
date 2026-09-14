@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGame, Player } from '../context/GameContext';
 
 const TransferMarketView: React.FC = () => {
-  const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
+  const { gameState, buyPlayer, sellPlayer, updatePlayer } = useGame();
   const [activeTab, setActiveTab] = useState<'squad' | 'market'>('squad');
   const [selectedBuyPlayer, setSelectedBuyPlayer] = useState<Player | null>(null);
 
@@ -25,18 +25,8 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleBuyPlayer = (player: Player) => {
-    if (gameState.budget >= player.value) {
-      const newPlayer = {
-        ...player,
-        id: `own_${player.id}`,
-        isForSale: false,
-        askingPrice: undefined
-      };
-      addPlayer(newPlayer);
+    if (buyPlayer(player)) {
       setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
-    } else {
-      alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
     }
   };
 
@@ -58,6 +48,9 @@ const TransferMarketView: React.FC = () => {
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">Budget: <span className="text-blue-600">{gameState.budget.toLocaleString('da-DK')} kr</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="mt-2 text-sm text-gray-700">
+          Sæt spillere til salg for at frigøre budget, eller vælg en spiller på markedet for at se hvad købet efterlader i kassen.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -89,7 +82,9 @@ const TransferMarketView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Min Trup</h2>
           {squadPlayers.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen spillere i trupen endnu</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-gray-600">
+              Ingen spillere i trupen lige nu. Gå til <span className="font-semibold">Køb Spillere</span> for at hente nye profiler ind.
+            </div>
           ) : (
             <div className="space-y-3">
               {squadPlayers.map(player => (
@@ -103,7 +98,7 @@ const TransferMarketView: React.FC = () => {
                     onClick={() => handleToggleSale(player.id)}
                     className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded transition"
                   >
-                    Sælg
+                    Sæt til salg
                   </button>
                 </div>
               ))}
@@ -149,7 +144,9 @@ const TransferMarketView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Ledige Spillere</h2>
           {availableForBuy.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen spillere på markedet</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-gray-600">
+              Markedet er tomt lige nu. Gå videre til næste uge og kig forbi igen senere.
+            </div>
           ) : (
             <div className="space-y-3">
               {availableForBuy.map(player => (

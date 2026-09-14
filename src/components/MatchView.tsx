@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 
 interface Match {
@@ -16,6 +16,7 @@ interface PlayedMatch {
   homeGoals: number;
   awayGoals: number;
   date: number;
+  isHome: boolean;
 }
 
 const MatchView: React.FC = () => {
@@ -78,20 +79,20 @@ const MatchView: React.FC = () => {
       const drawProb = 0.25;
 
       const roll = Math.random();
-      let result: 'WIN' | 'DRAW' | 'LOSS';
+      let playerResult: 'WIN' | 'DRAW' | 'LOSS';
       let homeGoals: number;
       let awayGoals: number;
 
       if (roll < winProb) {
-        result = match.isHome ? 'WIN' : 'LOSS';
+        playerResult = match.isHome ? 'WIN' : 'LOSS';
         homeGoals = Math.floor(Math.random() * 3) + 1;
         awayGoals = Math.floor(Math.random() * homeGoals);
       } else if (roll < winProb + drawProb) {
-        result = 'DRAW';
+        playerResult = 'DRAW';
         homeGoals = Math.floor(Math.random() * 2) + 1;
         awayGoals = homeGoals;
       } else {
-        result = match.isHome ? 'LOSS' : 'WIN';
+        playerResult = match.isHome ? 'LOSS' : 'WIN';
         awayGoals = Math.floor(Math.random() * 3) + 1;
         homeGoals = Math.floor(Math.random() * awayGoals);
       }
@@ -99,10 +100,11 @@ const MatchView: React.FC = () => {
       const played: PlayedMatch = {
         id: match.id,
         opponent: match.opponent,
-        result: match.isHome ? result : result === 'WIN' ? 'LOSS' : result === 'LOSS' ? 'WIN' : 'DRAW',
+        result: playerResult,
         homeGoals: match.isHome ? homeGoals : awayGoals,
         awayGoals: match.isHome ? awayGoals : homeGoals,
         date: gameState.week,
+        isHome: match.isHome,
       };
 
       setMatchResult(played);
@@ -117,8 +119,11 @@ const MatchView: React.FC = () => {
     }, 2000);
   };
 
-  const upcomingMatches = generateUpcomingMatches();
+  const upcomingMatches = useMemo(() => generateUpcomingMatches(), [gameState.week]);
   const teamRating = getTeamRating();
+  const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
+  const getTeamGoals = (match: PlayedMatch) => match.isHome ? match.homeGoals : match.awayGoals;
+  const getOpponentGoals = (match: PlayedMatch) => match.isHome ? match.awayGoals : match.homeGoals;
 
   return (
     <div className="p-4 max-w-3xl mx-auto">
@@ -128,6 +133,9 @@ const MatchView: React.FC = () => {
       <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="mt-2 text-sm text-gray-700">
+          Spil en kamp for at afslutte forberedelserne. Når resultatet er vist, kan du gå videre til næste uge og modtage {ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -166,34 +174,38 @@ const MatchView: React.FC = () => {
               <div className="flex justify-between items-center mb-4">
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">{matchResult.opponent}</p>
-                  <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
+                  <p className="text-4xl font-bold text-blue-600">{getOpponentGoals(matchResult)}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">-</p>
                 </div>
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">Dit Hold</p>
-                  <p className="text-4xl font-bold text-green-600">{matchResult.homeGoals}</p>
+                  <p className="text-4xl font-bold text-green-600">{getTeamGoals(matchResult)}</p>
                 </div>
               </div>
 
               <div className="text-center mb-4">
                 {matchResult.result === 'WIN' && (
                   <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
-                    🏆 SEJR! +50 fans, +100.000 kr
+                    🏆 SEJR! Hold momentumet og afslut ugen, når du er klar.
                   </span>
                 )}
                 {matchResult.result === 'DRAW' && (
                   <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
-                    ⚖️ UAFGJORT +10 fans
+                    ⚖️ UAFGJORT! En stabil uge - du kan nu gå videre.
                   </span>
                 )}
                 {matchResult.result === 'LOSS' && (
                   <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
-                    ❌ NEDERLAG -20 fans
+                    ❌ NEDERLAG! Brug næste uge på at justere trup eller stadion.
                   </span>
                 )}
               </div>
+
+              <p className="mb-4 text-sm text-gray-600">
+                Næste uge giver dig {ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter med din nuværende fanbase og stadionkapacitet.
+              </p>
 
               <button
                 onClick={() => {
@@ -202,7 +214,7 @@ const MatchView: React.FC = () => {
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
               >
-                Gå til næste uge
+                Afslut uge og modtag billetindtægter
               </button>
             </div>
           )}
@@ -279,7 +291,9 @@ const MatchView: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
           {playedMatches.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen kampe spillet endnu</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-white px-6 py-8 text-center text-gray-600">
+              Ingen kampe spillet endnu. Start en kamp ovenfor for at skabe din første uge i historikken.
+            </div>
           ) : (
             <div className="space-y-3">
               {playedMatches.map((match) => (
@@ -301,7 +315,7 @@ const MatchView: React.FC = () => {
 
                     <div className="text-center">
                       <p className="text-3xl font-bold">
-                        {match.homeGoals} - {match.awayGoals}
+                        {getTeamGoals(match)} - {getOpponentGoals(match)}
                       </p>
                       <p className={`text-sm font-bold ${
                         match.result === 'WIN'

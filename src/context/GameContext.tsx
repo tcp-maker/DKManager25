@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Team } from '../types/teams';
 
 export interface Player {
@@ -22,10 +22,19 @@ interface GameState {
   week: number;
 }
 
+interface FeedbackMessage {
+  tone: 'success' | 'info' | 'warning';
+  title: string;
+  message: string;
+}
+
 interface GameContextType {
   gameState: GameState;
+  feedback: FeedbackMessage | null;
+  clearFeedback: () => void;
   selectTeam: (team: Team) => void;
   addPlayer: (player: Player) => void;
+  buyPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
@@ -112,11 +121,24 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     // Prøv at indlæse saved state, ellers brug initial state
     return loadGameState() || initialGameState;
   });
+  const [feedback, setFeedback] = useState<FeedbackMessage | null>(null);
 
   // Auto-save game state når det ændrer sig
   useEffect(() => {
     saveGameState(gameState);
   }, [gameState]);
+
+  useEffect(() => {
+    if (!feedback) return;
+
+    const timeout = window.setTimeout(() => {
+      setFeedback(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [feedback]);
+
+  const clearFeedback = () => setFeedback(null);
 
   const selectTeam = (team: Team) => {
     setGameState(prev => ({
@@ -124,6 +146,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       selectedTeam: team,
       players: generateDummyPlayers(),
     }));
+    setFeedback({
+      tone: 'success',
+      title: `${team.name} er valgt`,
+      message: 'Du er klar til at gennemgå truppen og tage hul på den første uge.',
+    });
   };
 
   const addPlayer = (player: Player) => {
@@ -133,7 +160,41 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  const buyPlayer = (player: Player) => {
+    if (gameState.budget < player.value) {
+      setFeedback({
+        tone: 'warning',
+        title: 'Budgettet rækker ikke',
+        message: `${player.name} koster ${player.value.toLocaleString('da-DK')} kr, men du har kun ${gameState.budget.toLocaleString('da-DK')} kr.`,
+      });
+      return false;
+    }
+
+    const ownedPlayer = {
+      ...player,
+      id: `own_${player.id}`,
+      isForSale: false,
+      askingPrice: undefined,
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      budget: prev.budget - player.value,
+      players: { ...prev.players, [ownedPlayer.id]: ownedPlayer }
+    }));
+    setFeedback({
+      tone: 'success',
+      title: `${player.name} er købt`,
+      message: `${player.value.toLocaleString('da-DK')} kr er trukket fra budgettet, og spilleren er lagt til i din trup.`,
+    });
+
+    return true;
+  };
+
   const sellPlayer = (playerId: string) => {
+    const player = gameState.players[playerId];
+    if (!player) return;
+
     setGameState(prev => {
       const newPlayers = { ...prev.players };
       const price = newPlayers[playerId]?.value || 0;
@@ -143,6 +204,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         budget: prev.budget + price,
         players: newPlayers
       };
+    });
+    setFeedback({
+      tone: 'success',
+      title: `${player.name} er solgt`,
+      message: `Du har modtaget ${player.value.toLocaleString('da-DK')} kr, som nu er lagt til budgettet.`,
     });
   };
 
@@ -164,7 +230,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         budget: prev.budget - cost,
         stadiumCapacity: prev.stadiumCapacity + 2500
       }));
+      setFeedback({
+        tone: 'success',
+        title: 'Stadionet er opgraderet',
+        message: `Kapaciteten er øget med 2.500 pladser, og ${cost.toLocaleString('da-DK')} kr er trukket fra budgettet.`,
+      });
+      return;
     }
+
+    setFeedback({
+      tone: 'warning',
+      title: 'Du mangler penge til udvidelsen',
+      message: `Du skal bruge ${cost.toLocaleString('da-DK')} kr for at opgradere stadionet.`,
+    });
   };
 
   const handleNextWeek = () => {
@@ -174,6 +252,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       week: prev.week + 1,
       budget: prev.budget + ticketRevenue
     }));
+    setFeedback({
+      tone: 'info',
+      title: `Uge ${gameState.week + 1} er startet`,
+      message: `Du modtog ${ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter baseret på dine nuværende fans og stadionpladser.`,
+    });
   };
 
   const resetGame = () => {
@@ -185,8 +268,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     <GameContext.Provider 
       value={{ 
         gameState, 
+        feedback,
+        clearFeedback,
         selectTeam, 
         addPlayer, 
+        buyPlayer,
         sellPlayer, 
         updatePlayer, 
         upgradeStadium, 

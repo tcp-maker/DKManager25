@@ -56,7 +56,21 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
           <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begin dit eventyr som manager</p>
+          <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
+          <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
+            <div className="rounded-xl bg-white/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-blue-700">1. Vælg en klub</p>
+              <p className="mt-1 text-sm text-gray-600">Din valgte klub bliver udgangspunktet for resten af spillet.</p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-blue-700">2. Få overblik</p>
+              <p className="mt-1 text-sm text-gray-600">Efter valg kan du straks se uge, budget, fans, mood og stadionkapacitet.</p>
+            </div>
+            <div className="rounded-xl bg-white/80 p-4 shadow-sm">
+              <p className="text-sm font-semibold text-blue-700">3. Tag første beslutning</p>
+              <p className="mt-1 text-sm text-gray-600">Start med truppen eller markedet, og gør holdet klar til næste uge.</p>
+            </div>
+          </div>
         </div>
 
         {/* Leagues */}
@@ -96,6 +110,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
             <li>✓ Vælg din klub fra en af de fire danske ligaer</li>
             <li>✓ Du starter med 1.000.000 kr i budget</li>
             <li>✓ Din trup har 13 spillere klar til at spille</li>
+            <li>✓ Brug topbaren efter klubvalg til hurtigt at følge med i uge, fans og økonomi</li>
             <li>✓ Administrer transfers, kampe og stadion for at blive Danmarks bedste manager!</li>
           </ul>
         </div>
