@@ -1,13 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useGame } from '../context/GameContext';
-
-interface Match {
-  id: string;
-  opponent: string;
-  isHome: boolean;
-  difficulty: 'Nem' | 'Moderat' | 'Svær';
-  opponentRating: number;
-}
+import React, { useState } from 'react';
+import { ScheduledMatch, useGame } from '../context/GameContext';
 
 interface PlayedMatch {
   id: string;
@@ -23,39 +15,9 @@ const MatchView: React.FC = () => {
   const { gameState, handleNextWeek } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [playedMatches, setPlayedMatches] = useState<PlayedMatch[]>([]);
-  const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
   const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
-  const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
-
-  // Dummy modstandere
-  const opponents = [
-    { name: 'FC København', baseRating: 82 },
-    { name: 'Brøndby IF', baseRating: 79 },
-    { name: 'AaB Aalborg', baseRating: 76 },
-    { name: 'Silkeborg IF', baseRating: 74 },
-    { name: 'Randers FC', baseRating: 75 },
-    { name: 'Midtjylland', baseRating: 78 },
-    { name: 'OB Odense', baseRating: 73 },
-    { name: 'Nordsjælland', baseRating: 77 },
-  ];
-
-  // Generate upcoming matches
-  const generateUpcomingMatches = (week: number): Match[] => {
-    const matches: Match[] = [];
-    for (let i = 0; i < 3; i++) {
-      const opponent = opponents[Math.floor(Math.random() * opponents.length)];
-      const isHome = Math.random() > 0.5;
-      matches.push({
-        id: `match_${week}_${i}`,
-        opponent: opponent.name,
-        isHome,
-        difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
-        opponentRating: opponent.baseRating + Math.random() * 5 - 2.5,
-      });
-    }
-    return matches;
-  };
 
   // Calculate team rating (average of all players)
   const getTeamRating = (): number => {
@@ -66,7 +28,7 @@ const MatchView: React.FC = () => {
   };
 
   // Simulate match
-  const simulateMatch = (match: Match) => {
+  const simulateMatch = (match: ScheduledMatch) => {
     setIsMatchPlaying(true);
     setCurrentMatch(match);
 
@@ -122,12 +84,9 @@ const MatchView: React.FC = () => {
 
   const teamRating = getTeamRating();
   const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
+  const upcomingMatches = gameState.upcomingMatches;
   const getTeamGoals = (match: PlayedMatch) => match.isHome ? match.homeGoals : match.awayGoals;
   const getOpponentGoals = (match: PlayedMatch) => match.isHome ? match.awayGoals : match.homeGoals;
-
-  useEffect(() => {
-    setUpcomingMatches(generateUpcomingMatches(gameState.week));
-  }, [gameState.week]);
 
   return (
     <div className="p-4 max-w-3xl mx-auto">

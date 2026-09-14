@@ -12,6 +12,14 @@ export interface Player {
   askingPrice?: number;
 }
 
+export interface ScheduledMatch {
+  id: string;
+  opponent: string;
+  isHome: boolean;
+  difficulty: 'Nem' | 'Moderat' | 'Svær';
+  opponentRating: number;
+}
+
 interface GameState {
   selectedTeam: Team | null;
   budget: number;
@@ -20,6 +28,7 @@ interface GameState {
   stadiumCapacity: number;
   fanMood: number;
   week: number;
+  upcomingMatches: ScheduledMatch[];
 }
 
 interface FeedbackMessage {
@@ -71,6 +80,35 @@ const generateDummyPlayers = (): Record<string, Player> => {
   }, {} as Record<string, Player>);
 };
 
+const opponents = [
+  { name: 'FC København', baseRating: 82 },
+  { name: 'Brøndby IF', baseRating: 79 },
+  { name: 'AaB Aalborg', baseRating: 76 },
+  { name: 'Silkeborg IF', baseRating: 74 },
+  { name: 'Randers FC', baseRating: 75 },
+  { name: 'Midtjylland', baseRating: 78 },
+  { name: 'OB Odense', baseRating: 73 },
+  { name: 'Nordsjælland', baseRating: 77 },
+];
+
+const generateUpcomingMatches = (week: number): ScheduledMatch[] => {
+  const matches: ScheduledMatch[] = [];
+
+  for (let i = 0; i < 3; i++) {
+    const opponent = opponents[Math.floor(Math.random() * opponents.length)];
+    const isHome = Math.random() > 0.5;
+    matches.push({
+      id: `match_${week}_${i}`,
+      opponent: opponent.name,
+      isHome,
+      difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
+      opponentRating: opponent.baseRating + Math.random() * 5 - 2.5,
+    });
+  }
+
+  return matches;
+};
+
 // Initial game state
 const initialGameState: GameState = {
   selectedTeam: null,
@@ -80,6 +118,7 @@ const initialGameState: GameState = {
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
+  upcomingMatches: generateUpcomingMatches(1),
 };
 
 // localStorage nøgler
@@ -99,7 +138,18 @@ const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved) as Partial<GameState>;
+      const week = typeof parsed.week === 'number' ? parsed.week : initialGameState.week;
+
+      return {
+        ...initialGameState,
+        ...parsed,
+        selectedTeam: parsed.selectedTeam ?? null,
+        players: parsed.players ?? {},
+        upcomingMatches: Array.isArray(parsed.upcomingMatches)
+          ? parsed.upcomingMatches
+          : generateUpcomingMatches(week),
+      };
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
@@ -145,6 +195,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       ...prev,
       selectedTeam: team,
       players: generateDummyPlayers(),
+      upcomingMatches: generateUpcomingMatches(prev.week),
     }));
     setFeedback({
       tone: 'success',
@@ -258,17 +309,29 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleNextWeek = () => {
-    const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
-    setGameState(prev => ({
-      ...prev,
-      week: prev.week + 1,
-      budget: prev.budget + ticketRevenue
-    }));
-    setFeedback({
-      tone: 'info',
-      title: `Uge ${gameState.week + 1} er startet`,
-      message: `Du modtog ${ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter baseret på dine nuværende fans og stadionpladser.`,
+    let nextFeedback: FeedbackMessage | null = null;
+
+    setGameState(prev => {
+      const ticketRevenue = Math.min(prev.fanCount, prev.stadiumCapacity) * 150;
+      const nextWeek = prev.week + 1;
+
+      nextFeedback = {
+        tone: 'info',
+        title: `Uge ${nextWeek} er startet`,
+        message: `Du modtog ${ticketRevenue.toLocaleString('da-DK')} kr i billetindtægter baseret på dine nuværende fans og stadionpladser.`,
+      };
+
+      return {
+        ...prev,
+        week: nextWeek,
+        budget: prev.budget + ticketRevenue,
+        upcomingMatches: generateUpcomingMatches(nextWeek),
+      };
     });
+
+    if (nextFeedback) {
+      setFeedback(nextFeedback);
+    }
   };
 
   const resetGame = () => {
