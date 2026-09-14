@@ -25,11 +25,11 @@ interface GameState {
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
-  addPlayer: (player: Player) => void;
+  addPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
-  handleNextWeek: () => void;
+  handleNextWeek: () => number;
   resetGame: () => void;
 }
 
@@ -126,11 +126,30 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
-  const addPlayer = (player: Player) => {
+  const addPlayer = (player: Player): boolean => {
+    // Beregn kostprisen (brug askingPrice hvis tilgængelig, ellers value)
+    const cost = player.askingPrice ?? player.value;
+    
+    // Tjek om spilleren allerede er i truppen
+    if (gameState.players[player.id]) {
+      console.warn(`Spiller ${player.name} er allerede i truppen`);
+      return false;
+    }
+    
+    // Tjek om der er budget nok
+    if (gameState.budget < cost) {
+      console.warn(`Ikke budget nok til at købe ${player.name}. Mangler: ${cost - gameState.budget} kr`);
+      return false;
+    }
+
+    // Træk penge fra budget og tilføj spiller
     setGameState(prev => ({
       ...prev,
+      budget: prev.budget - cost,
       players: { ...prev.players, [player.id]: player }
     }));
+    
+    return true;
   };
 
   const sellPlayer = (playerId: string) => {
@@ -167,13 +186,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleNextWeek = () => {
+  const handleNextWeek = (): number => {
     const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
     setGameState(prev => ({
       ...prev,
       week: prev.week + 1,
       budget: prev.budget + ticketRevenue
     }));
+    return ticketRevenue;
   };
 
   const resetGame = () => {
