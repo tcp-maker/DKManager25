@@ -14,10 +14,18 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9fafb;
   color: #1f2937;
+  min-width: 320px;
+  touch-action: manipulation;
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 /* Custom scrollbar */
@@ -42,6 +50,8 @@ html {
 /* Button transitions */
 button {
   transition: all 0.3s ease;
+  min-height: 44px;
+  touch-action: manipulation;
 }
 
 /* Card hover effects */

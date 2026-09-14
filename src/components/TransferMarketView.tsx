@@ -51,37 +51,39 @@ const TransferMarketView: React.FC = () => {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Transfermarked</h1>
+    <div className="mx-auto max-w-3xl px-0 py-1 sm:px-4">
+      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Transfermarked</h1>
 
       {/* Budget Info */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
+      <div className="mb-6 rounded border-l-4 border-blue-500 bg-blue-50 p-4">
         <p className="text-lg font-semibold">Budget: <span className="text-blue-600">{gameState.budget.toLocaleString('da-DK')} kr</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b">
-        <button
-          onClick={() => setActiveTab('squad')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'squad'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Min Trup ({squadPlayers.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('market')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'market'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Køb Spillere ({availableForBuy.length})
-        </button>
+      <div className="-mx-4 mb-6 overflow-x-auto border-b px-4">
+        <div className="flex min-w-max gap-4">
+          <button
+            onClick={() => setActiveTab('squad')}
+            className={`border-b-2 px-4 py-2 font-semibold whitespace-nowrap ${
+              activeTab === 'squad'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Min Trup ({squadPlayers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('market')}
+            className={`border-b-2 px-4 py-2 font-semibold whitespace-nowrap ${
+              activeTab === 'market'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Køb Spillere ({availableForBuy.length})
+          </button>
+        </div>
       </div>
 
       {/* Squad Tab */}
@@ -93,7 +95,7 @@ const TransferMarketView: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {squadPlayers.map(player => (
-                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition">
+                <div key={player.id} className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 transition hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{player.name}</h3>
                     <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
@@ -116,13 +118,13 @@ const TransferMarketView: React.FC = () => {
               <h3 className="text-xl font-bold mb-4 text-orange-600">Til Salg</h3>
               <div className="space-y-3">
                 {playersForSale.map(player => (
-                  <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center">
+                  <div key={player.id} className="flex flex-col gap-3 rounded-lg border-2 border-orange-300 bg-orange-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
                       <p className="text-sm text-gray-600">{player.position} • Rating: {player.rating}</p>
                       <p className="text-sm font-semibold text-orange-600">Prisønsker: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
                     </div>
-                    <div className="space-x-2">
+                    <div className="grid gap-2 sm:flex">
                       <button
                         onClick={() => handleToggleSale(player.id)}
                         className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition"
@@ -162,19 +164,19 @@ const TransferMarketView: React.FC = () => {
                       : 'border-gray-200 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
                       <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
                       <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
                     </div>
                     {gameState.budget >= player.value && (
-                      <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
+                      <span className="self-start rounded bg-green-100 px-3 py-1 text-xs font-bold text-green-800">
                         Råd
                       </span>
                     )}
                     {gameState.budget < player.value && (
-                      <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
+                      <span className="self-start rounded bg-red-100 px-3 py-1 text-xs font-bold text-red-800">
                         For dyr
                       </span>
                     )}

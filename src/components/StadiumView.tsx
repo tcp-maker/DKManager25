@@ -20,14 +20,14 @@ const StadiumView: React.FC = () => {
   };
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Stadion Management</h1>
+    <div className="mx-auto max-w-3xl px-0 py-1 sm:px-4">
+      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Stadion Management</h1>
 
       {/* Stadium Overview */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-500 rounded-lg p-6 mb-6">
+      <div className="mb-6 rounded-lg border-l-4 border-orange-500 bg-gradient-to-r from-amber-50 to-orange-50 p-5 sm:p-6">
         <h2 className="text-2xl font-bold mb-4">{stadiumName}</h2>
         
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-sm text-gray-600">Kapacitet</p>
             <p className="text-2xl font-bold text-orange-600">{gameState.stadiumCapacity.toLocaleString('da-DK')}</p>
@@ -86,7 +86,7 @@ const StadiumView: React.FC = () => {
       </div>
 
       {/* Stadium Upgrades */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-5 sm:p-6">
         <h2 className="text-2xl font-bold mb-4">Stadion Udvidelse</h2>
         
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded">
@@ -96,7 +96,7 @@ const StadiumView: React.FC = () => {
           <p className="text-xs text-gray-600">Du har gennemført {upgrades} udvidelser hidtil.</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="text-center">
             <p className="text-sm text-gray-600">Omkostning</p>
             <p className="text-xl font-bold text-red-600">500.000 kr</p>
@@ -127,7 +127,7 @@ const StadiumView: React.FC = () => {
       </div>
 
       {/* Facilities */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* Training Facility */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-xl font-bold mb-4">🏋️ Træningsanlæg</h3>
