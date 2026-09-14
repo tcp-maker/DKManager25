@@ -4,6 +4,19 @@ import App from './App.tsx'
 import { GameProvider } from './context/GameContext'
 import './index.css'
 
+// Register service worker for PWA support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      .then(registration => {
+        console.log('Service Worker registered:', registration)
+      })
+      .catch(error => {
+        console.log('Service Worker registration failed:', error)
+      })
+  })
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GameProvider>
