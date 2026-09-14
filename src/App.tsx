@@ -5,11 +5,16 @@ import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
+import { Team } from './types/teams';
 
 const App: React.FC = () => {
   const { gameState, selectTeam } = useGame();
   const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium'>('team');
   const selectedTeam = gameState.selectedTeam;
+  const handleSelectTeam = (team: Team) => {
+    selectTeam(team);
+    setActiveView('team');
+  };
   const navItems: Array<{ id: 'team' | 'transfers' | 'matches' | 'stadium'; label: string }> = [
     { id: 'team', label: 'Trup' },
     { id: 'transfers', label: 'Transfer' },
@@ -20,7 +25,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {!selectedTeam ? (
-        <SelectTeamView onSelectTeam={selectTeam} />
+        <SelectTeamView onSelectTeam={handleSelectTeam} />
       ) : (
         <>
           <header className="sticky top-0 z-20 border-b border-blue-500 bg-blue-600/95 text-white backdrop-blur">

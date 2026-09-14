@@ -20,11 +20,10 @@ const putInCache = async (request, response) => {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(async () => {
+      .then(async (cache) => {
+        await cache.addAll(STATIC_ASSETS);
         try {
-          const response = await fetch(APP_SHELL_URL, { cache: 'no-cache' });
-          await putInCache(APP_SHELL_URL, response);
+          await cache.add(APP_SHELL_URL);
         } catch (error) {
           console.warn('App shell precache skipped:', error);
         }
@@ -51,11 +50,7 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then(async (response) => {
-          await putInCache(request, response);
-          await putInCache(APP_SHELL_URL, response);
-          return response;
-        })
+        .then((response) => putInCache(request, response))
         .catch(async () => {
           const cachedResponse = await caches.match(request);
           return cachedResponse || caches.match(APP_SHELL_URL);
