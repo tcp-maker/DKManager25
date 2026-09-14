@@ -50,36 +50,36 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 px-4 py-6 sm:py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
-          <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begin dit eventyr som manager</p>
+        <div className="mb-10 text-center sm:mb-12">
+          <h1 className="mb-2 text-4xl font-bold text-blue-600 sm:text-5xl">DKManager25</h1>
+          <p className="mb-4 text-lg text-gray-600 sm:text-xl">Dansk Fodbold Management Spil</p>
+          <p className="mx-auto max-w-2xl text-sm text-gray-500 sm:text-base">Vælg din klub og begynd dit eventyr som manager.</p>
         </div>
 
         {/* Leagues */}
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {leagues.map((league) => (
             <div key={league.name}>
               {/* League Header */}
-              <div className={`bg-gradient-to-r ${league.color} rounded-lg px-6 py-4 mb-4`}>
-                <h2 className="text-2xl font-bold text-white">{league.name}</h2>
+              <div className={`mb-4 rounded-lg bg-gradient-to-r px-4 py-3 sm:px-6 sm:py-4 ${league.color}`}>
+                <h2 className="text-xl font-bold text-white sm:text-2xl">{league.name}</h2>
               </div>
 
               {/* Team Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {league.teams.map((team) => (
                   <button
                     key={team.id}
                     onClick={() => onSelectTeam(team as Team)}
-                    className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all p-6 text-center card-hover border-2 border-transparent hover:border-blue-500"
+                    className="card-hover rounded-lg border-2 border-transparent bg-white p-5 text-center shadow-md transition-all hover:border-blue-500 hover:shadow-lg sm:p-6"
                   >
                     <div className="text-5xl mb-3">{team.logo}</div>
                     <h3 className="font-bold text-lg text-gray-900 mb-2">{team.name}</h3>
                     <p className="text-sm text-gray-600 mb-4">Klik for at vælge</p>
-                    <div className="bg-blue-100 text-blue-700 font-semibold py-2 px-4 rounded hover:bg-blue-200 transition w-full">
+                    <div className="w-full rounded bg-blue-100 px-4 py-2 font-semibold text-blue-700 transition hover:bg-blue-200">
                       Vælg Klub
                     </div>
                   </button>
@@ -90,7 +90,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         </div>
 
         {/* Info Box */}
-        <div className="mt-12 bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+        <div className="mt-10 rounded-lg border-l-4 border-blue-500 bg-white p-5 shadow-md sm:mt-12 sm:p-6">
           <h3 className="text-lg font-bold mb-3">💡 Sådan Starter Du</h3>
           <ul className="text-gray-700 space-y-2">
             <li>✓ Vælg din klub fra en af de fire danske ligaer</li>

@@ -121,37 +121,39 @@ const MatchView: React.FC = () => {
   const teamRating = getTeamRating();
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Kampe</h1>
+    <div className="mx-auto max-w-3xl px-0 py-1 sm:px-4">
+      <h1 className="mb-6 text-2xl font-bold sm:text-3xl">Kampe</h1>
 
       {/* Match Info */}
-      <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
+      <div className="mb-6 rounded border-l-4 border-purple-500 bg-purple-50 p-4">
         <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b">
-        <button
-          onClick={() => setActiveTab('upcoming')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'upcoming'
-              ? 'border-purple-600 text-purple-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Kommende Kampe
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'history'
-              ? 'border-purple-600 text-purple-600'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Kamp Historie ({playedMatches.length})
-        </button>
+      <div className="-mx-4 mb-6 overflow-x-auto border-b px-4">
+        <div className="flex min-w-max gap-4">
+          <button
+            onClick={() => setActiveTab('upcoming')}
+            className={`border-b-2 px-4 py-2 font-semibold whitespace-nowrap ${
+              activeTab === 'upcoming'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Kommende Kampe
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`border-b-2 px-4 py-2 font-semibold whitespace-nowrap ${
+              activeTab === 'history'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Kamp Historie ({playedMatches.length})
+          </button>
+        </div>
       </div>
 
       {/* Upcoming Matches Tab */}
@@ -163,7 +165,7 @@ const MatchView: React.FC = () => {
           {matchResult && !isMatchPlaying && (
             <div className="bg-white border-2 border-green-500 rounded-lg p-6 mb-6">
               <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
-              <div className="flex justify-between items-center mb-4">
+              <div className="mb-4 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">{matchResult.opponent}</p>
                   <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
@@ -211,7 +213,7 @@ const MatchView: React.FC = () => {
           {isMatchPlaying && currentMatch && (
             <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
               <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
-              <div className="flex justify-between items-center mb-4 animate-pulse">
+              <div className="mb-4 flex flex-col items-center gap-3 animate-pulse sm:flex-row sm:justify-between">
                 <p className="text-lg font-semibold">{currentMatch.opponent}</p>
                 <p className="text-2xl font-bold">vs</p>
                 <p className="text-lg font-semibold">{gameState.selectedTeam?.name}</p>
@@ -228,7 +230,7 @@ const MatchView: React.FC = () => {
                   key={match.id}
                   className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
                 >
-                  <div className="flex justify-between items-start mb-3">
+                  <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold text-gray-600">Uge {gameState.week}, Kamp {index + 1}</span>
@@ -299,7 +301,7 @@ const MatchView: React.FC = () => {
                       <h3 className="text-lg font-bold">{match.opponent}</h3>
                     </div>
 
-                    <div className="text-center">
+                    <div className="mt-3 text-center sm:mt-0">
                       <p className="text-3xl font-bold">
                         {match.homeGoals} - {match.awayGoals}
                       </p>
