@@ -43,7 +43,7 @@ const TransferMarketView: React.FC<TransferMarketViewProps> = ({ onNotify }) => 
         isForSale: false,
         askingPrice: undefined
       };
-      addPlayer(newPlayer);
+      addPlayer(newPlayer, player.value);
       setSelectedBuyPlayer(null);
       onNotify?.(
         `${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr.`,
