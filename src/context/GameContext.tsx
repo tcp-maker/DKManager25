@@ -25,7 +25,7 @@ interface GameState {
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
-  addPlayer: (player: Player, purchaseCost?: number) => void;
+  addPlayer: (player: Player, purchaseCost?: number) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
@@ -127,15 +127,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addPlayer = (player: Player, purchaseCost: number = 0) => {
+    let didAddPlayer = false;
     setGameState(prev => {
       const cost = Math.max(0, purchaseCost);
       if (prev.budget < cost) return prev;
+      didAddPlayer = true;
       return {
         ...prev,
         budget: prev.budget - cost,
         players: { ...prev.players, [player.id]: player }
       };
     });
+    return didAddPlayer;
   };
 
   const sellPlayer = (playerId: string) => {
