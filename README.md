@@ -1,48 +1,64 @@
 # DKManager25
 
-DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og styrer trup, transfers, kampe, stadion og gemt fremdrift i browseren.
+DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og styrer trup, transfermarked, kampe, stadion og gemte fremskridt i browseren.
 
-## Status før stabiliseringsrunden
+## Hvad fungerer nu
 
-Repositoryet er under aktiv oprydning. Den nuværende prototype indeholder de centrale hovedfunktioner, men havde ved start af denne runde flere kendte problemer omkring delt game state, kampafvikling og build/PWA-opsætning.
-
-Denne README bliver opdateret igen, når implementeringen er færdig, så den matcher den endelige funktionalitet.
-
-## Nuværende hovedfunktioner
-
-- Vælg en dansk klub som startpunkt
-- Se din trup og spillerfordeling efter position
-- Køb, sæt til salg og sælg spillere
-- Spil kampe og se kamphistorik i UI
-- Udvid stadion og se billetindtægter
-- Gem og indlæs spillet via `localStorage`
-
-## Kendte begrænsninger ved start
-
-- TeamView og GameContext bruger ikke helt samme state-kontrakt
-- Kommende kampe bliver regenereret for ofte
-- Match-resultater vises i UI, men påvirker ikke alle relevante dele af game state konsekvent
-- Service worker/PWA-opsætningen er ikke fuldt sammenhængende
-- Der er endnu ikke et test-setup i repositoryet
+- Klubbvalg på tværs af fire danske ligaer
+- Fælles game state for klub, spillere, økonomi, fans, stadion og ugeforløb
+- Trupvisning med positionsfordeling og spilleroversigt
+- Transferflow for køb, sætte til salg, annullere salg og sælge med budgetopdatering
+- Stabil ugentlig kampplan, som kun ændres ved ny uge
+- Kampsimulering med begrænsede sandsynligheder, konsistente scorelinjer og anvendte konsekvenser i game state
+- Stadionudvidelser med kapacitets- og budgetopdatering
+- Robust `localStorage`-indlæsning med validering og fallback til standarddata
+- Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 
 ## Gameplay- og state-model
 
-Spillet er bygget omkring én delt game state i `GameContext`, som styrer:
+Spillet bruger én delt state i `src/context/GameContext.tsx`.
 
-- valgt klub
+State indeholder:
+
+- valgt klub (`selectedTeam`)
+- spillertrup (`players`)
 - budget
-- spillertrup
-- antal fans
-- fan mood
-- stadionkapacitet
-- aktuel uge
+- antal fans (`fanCount`)
+- fan mood (`fanMood`)
+- stadionkapacitet (`stadiumCapacity`)
+- uge (`week`)
+- seneste spillede kampe (`playedMatches`)
+- antal stadionudvidelser (`stadiumUpgrades`)
 
-UI'et er opdelt i fire hovedvisninger:
+Spilflowet er:
 
-1. **Trup** – overblik over hold og spillere
-2. **Transfer** – køb, salg og prisstatus
-3. **Kampe** – kommende kampe og historik
-4. **Stadion** – kapacitet, fans og udvidelser
+1. Vælg en klub
+2. Gennemgå trup og transfermarked
+3. Spil én kamp i den aktuelle uge
+4. Få billetindtægter og kampbonus/-tab anvendt direkte på økonomi og fans
+5. Gå videre til næste uge via den anvendte kampopdatering
+6. Udvid stadion, når budgettet tillader det
+
+Kampresultater påvirker nu faktisk state:
+
+- **Sejr:** +50 fans, +8 mood, +100.000 kr sponsorbonus
+- **Uafgjort:** +10 fans, +2 mood, +25.000 kr sponsorbonus
+- **Nederlag:** -20 fans, -7 mood, -30.000 kr sponsorpåvirkning
+- **Alle kampe:** ugens billetindtægt lægges til budgettet ud fra `min(fans, stadionkapacitet) * 150`
+
+## Kendte begrænsninger
+
+- Der er stadig ingen automatiserede tests eller lint-scripts i repoet
+- Trupper, modstandere og købsspillere er stadig statiske prototype-data
+- Der spilles kun én valgt kamp pr. uge, selv om UI viser tre mulige modstandere
+- Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
+
+## Teknologi
+
+- React 18
+- TypeScript 5
+- Vite
+- Tailwind CSS
 
 ## Krav
 
@@ -57,8 +73,6 @@ npm install
 
 ## Udvikling
 
-Start udviklingsserveren:
-
 ```bash
 npm run dev
 ```
@@ -71,22 +85,28 @@ npm start
 
 ## Build
 
-Lav et produktionsbuild:
-
 ```bash
 npm run build
 ```
 
-## Lokal preview
+## Preview af produktionsbuild
 
 ```bash
 npm run preview
 ```
 
-## Kvalitetssikring i dette repo
+## Manuelt verificeret i stabiliseringsrunden
 
-Der er i øjeblikket ingen automatiserede tests eller lint-scripts i `package.json`. Stabiliseringsarbejdet verificeres derfor med:
-
+- `npm install`
+- `npx tsc --noEmit`
 - `npm run build`
-- TypeScript-kompilering via projektets build
-- manuel gennemgang af de berørte flows i browseren
+- stabil ugentlig kampgenerering blev kontrolleret via målrettet TypeScript-kørsel
+- dev-server svarede korrekt på `/`, `/manifest.webmanifest`, `/sw.js` og `/icon.svg`
+
+## Repository-struktur
+
+- `src/App.tsx` – hovednavigation mellem visninger
+- `src/context/GameContext.tsx` – delt game state, persistence og økonomiopdateringer
+- `src/game/matches.ts` – kampplan og simulationslogik
+- `src/components/` – UI for holdvalg, trup, transfermarked, kampe og stadion
+- `public/manifest.webmanifest` og `public/sw.js` – minimal PWA-understøttelse
