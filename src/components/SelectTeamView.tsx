@@ -49,12 +49,12 @@ const SelectTeamView = ({ onSelectTeam }: SelectTeamViewProps) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-6 px-4 md:py-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
-          <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
+        <div className="text-center mb-10 md:mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
+          <p className="text-lg md:text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
           <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
         </div>
 
@@ -63,7 +63,7 @@ const SelectTeamView = ({ onSelectTeam }: SelectTeamViewProps) => {
           {leagues.map((league) => (
             <div key={league.name}>
               {/* League Header */}
-              <div className={`bg-gradient-to-r ${league.color} rounded-lg px-6 py-4 mb-4`}>
+              <div className={`bg-gradient-to-r ${league.color} rounded-lg px-4 py-3 md:px-6 md:py-4 mb-4`}>
                 <h2 className="text-2xl font-bold text-white">{league.name}</h2>
               </div>
 
