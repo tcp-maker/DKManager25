@@ -210,11 +210,7 @@ export const simulateMatch = ({
   stadiumCapacity: number;
   week: number;
 }): PlayedMatch => {
-  const random = createSeededRandom(
-    createSeedFromTeamAndWeek({ id: match.id, name: match.opponent, logo: '' }, week) +
-      Math.round(teamRating * 100) +
-      fanMood * 37
-  );
+  const random = Math.random;
   const moodModifier = (fanMood - 50) / 12;
   const venueModifier = match.isHome ? 3 : -2;
   const advantage = clampNumber(teamRating + moodModifier + venueModifier - match.opponentRating, -18, 18);
