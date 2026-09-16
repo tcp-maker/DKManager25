@@ -1,23 +1,29 @@
-import React from 'react';
 import { useGame } from '../context/GameContext';
 
-const TeamView: React.FC = () => {
+const TeamView = () => {
   const { gameState } = useGame();
-  const team = gameState.teams[gameState.selectedTeamId];
+  const team = gameState.selectedTeam;
 
-  if (!team) return <div>Ingen trup valgt</div>;
+  if (!team) {
+    return <div className="text-center text-gray-500 py-8">Ingen trup valgt</div>;
+  }
 
   const players = Object.values(gameState.players);
-  const gkCount = players.filter(p => p.position === 'GK').length;
-  const dfCount = players.filter(p => p.position === 'DF').length;
-  const mfCount = players.filter(p => p.position === 'MF').length;
-  const fwCount = players.filter(p => p.position === 'FW').length;
+  const gkCount = players.filter(player => player.position === 'GK').length;
+  const dfCount = players.filter(player => player.position === 'DF').length;
+  const mfCount = players.filter(player => player.position === 'MF').length;
+  const fwCount = players.filter(player => player.position === 'FW').length;
 
   return (
     <div>
-      <h2 className="text-3xl font-bold mb-4">{team.name}</h2>
-      
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-4xl" aria-hidden="true">
+          {team.logo}
+        </span>
+        <h2 className="text-3xl font-bold">{team.name}</h2>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white p-4 rounded shadow">
           <p className="text-gray-600">Målmænd (GK)</p>
           <p className="text-2xl font-bold">{gkCount}</p>
@@ -54,7 +60,7 @@ const TeamView: React.FC = () => {
                 <td className="p-3">{player.position}</td>
                 <td className="p-3">{player.age}</td>
                 <td className="p-3">{player.rating}</td>
-                <td className="p-3">{player.value.toLocaleString()}</td>
+                <td className="p-3">{player.value.toLocaleString('da-DK')} kr</td>
               </tr>
             ))}
           </tbody>

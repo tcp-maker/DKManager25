@@ -1,11 +1,10 @@
-import React from 'react';
 import { Team } from '../types/teams';
 
 interface SelectTeamViewProps {
   onSelectTeam: (team: Team) => void;
 }
 
-const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
+const SelectTeamView = ({ onSelectTeam }: SelectTeamViewProps) => {
   const leagues = [
     {
       name: 'Superligaen',
@@ -56,7 +55,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
           <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begin dit eventyr som manager</p>
+          <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
         </div>
 
         {/* Leagues */}

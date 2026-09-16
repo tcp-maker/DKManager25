@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useGame } from './context/GameContext';
 import SelectTeamView from './components/SelectTeamView';
 import TransferMarketView from './components/TransferMarketView';
@@ -6,7 +6,7 @@ import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
 
-const App: React.FC = () => {
+const App = () => {
   const { gameState, selectTeam } = useGame();
   const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium'>('team');
 
