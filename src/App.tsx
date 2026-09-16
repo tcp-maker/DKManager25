@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { useGame } from './context/GameContext';
 import SelectTeamView from './components/SelectTeamView';
 import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
+
+type ViewKey = 'team' | 'transfers' | 'matches' | 'stadium';
 
 const NAV_ITEMS = [
   { key: 'team', label: 'Trup', icon: '👥' },
@@ -15,9 +19,60 @@ const NAV_ITEMS = [
 
 const App = () => {
   const { gameState, selectTeam } = useGame();
-  const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium'>('team');
+  const [activeView, setActiveView] = useState<ViewKey>('team');
+  const hasInitializedHistory = useRef(false);
 
   const selectedTeam = gameState.selectedTeam;
+
+  useEffect(() => {
+    if (!selectedTeam) {
+      hasInitializedHistory.current = false;
+      return;
+    }
+
+    if (!hasInitializedHistory.current) {
+      window.history.replaceState({ dkmView: 'team' }, '');
+      hasInitializedHistory.current = true;
+      return;
+    }
+
+    const currentState = window.history.state as { dkmView?: ViewKey } | null;
+    if (currentState?.dkmView !== activeView) {
+      window.history.pushState({ dkmView: activeView }, '');
+    }
+  }, [activeView, selectedTeam]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const nextView = (event.state as { dkmView?: ViewKey } | null)?.dkmView;
+
+      if (nextView) {
+        setActiveView(nextView);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    const listenerPromise = CapacitorApp.addListener('backButton', async () => {
+      if (activeView !== 'team') {
+        window.history.back();
+        return;
+      }
+
+      await CapacitorApp.exitApp();
+    });
+
+    return () => {
+      listenerPromise.then(listener => listener.remove());
+    };
+  }, [activeView]);
 
   return (
     <div className="min-h-screen bg-gray-100">
