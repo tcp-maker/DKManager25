@@ -54,8 +54,8 @@ const TransferMarketView = () => {
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Transfermarked</h1>
+    <div className="p-3 md:p-4 max-w-2xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Transfermarked</h1>
 
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">
@@ -64,7 +64,7 @@ const TransferMarketView = () => {
         <p className="text-sm text-gray-600">Uge {gameState.week}</p>
       </div>
 
-      <div className="flex space-x-4 mb-6 border-b">
+      <div className="grid grid-cols-2 gap-2 md:flex md:space-x-4 mb-6 border-b pb-2 md:pb-0">
         <button
           onClick={() => setActiveTab('squad')}
           className={`px-4 py-2 font-semibold border-b-2 ${
@@ -97,7 +97,7 @@ const TransferMarketView = () => {
               {squadPlayers.map(player => (
                 <div
                   key={player.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition"
+                  className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center hover:shadow-md transition"
                 >
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{player.name}</h3>
@@ -135,7 +135,7 @@ const TransferMarketView = () => {
                         Prisønske: {player.askingPrice?.toLocaleString('da-DK')} kr
                       </p>
                     </div>
-                    <div className="space-x-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:space-x-2">
                       <button
                         onClick={() => handleToggleSale(player.id)}
                         className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition"

@@ -1,6 +1,6 @@
 # DKManager25
 
-DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og styrer trup, transfermarked, kampe, stadion og gemte fremskridt i browseren.
+DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og styrer trup, transfermarked, kampe, stadion og gemte fremskridt i både browseren og en Android-wrapper via Capacitor.
 
 ## Hvad fungerer nu
 
@@ -13,6 +13,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Stadionudvidelser med kapacitets- og budgetopdatering
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
+- Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app
 
 ## Gameplay- og state-model
 
@@ -89,6 +90,28 @@ npm start
 npm run build
 ```
 
+## Browser + Android
+
+Browser:
+
+```bash
+npm run dev
+```
+
+Android build/sync:
+
+```bash
+npm run build:mobile
+```
+
+Åbn Android-projektet i Android Studio:
+
+```bash
+npm run mobile:android
+```
+
+Når webkoden ændres, skal Android-projektet synkroniseres igen med `npm run mobile:sync` eller `npm run build:mobile`.
+
 ## Preview af produktionsbuild
 
 ```bash
@@ -100,6 +123,7 @@ npm run preview
 - `npm install`
 - `npx tsc --noEmit`
 - `npm run build`
+- `npm run build:mobile`
 - stabil ugentlig kampgenerering blev kontrolleret via målrettet TypeScript-kørsel
 - dev-server svarede korrekt på `/`, `/manifest.webmanifest`, `/sw.js` og `/icon.svg`
 
@@ -110,3 +134,4 @@ npm run preview
 - `src/game/matches.ts` – kampplan og simulationslogik
 - `src/components/` – UI for holdvalg, trup, transfermarked, kampe og stadion
 - `public/manifest.webmanifest` og `public/sw.js` – minimal PWA-understøttelse
+- `android/` og `capacitor.config.ts` – Android-wrapper for mobil-app

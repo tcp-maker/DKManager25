@@ -68,7 +68,7 @@ const MatchView = () => {
     const awayGoals = match.isHome ? match.opponentGoals : match.teamGoals;
 
     return (
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-4">
         <div className="text-center flex-1">
           <p className="text-sm text-gray-600">{homeTeamName}</p>
           <p className="text-4xl font-bold text-blue-600">{homeGoals}</p>
@@ -86,8 +86,8 @@ const MatchView = () => {
   };
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Kampe</h1>
+    <div className="p-3 md:p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Kampe</h1>
 
       <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">
@@ -98,7 +98,7 @@ const MatchView = () => {
         </p>
       </div>
 
-      <div className="flex space-x-4 mb-6 border-b">
+      <div className="grid grid-cols-2 gap-2 md:flex md:space-x-4 mb-6 border-b pb-2 md:pb-0">
         <button
           onClick={() => setActiveTab('upcoming')}
           className={`px-4 py-2 font-semibold border-b-2 ${
@@ -130,7 +130,7 @@ const MatchView = () => {
               <h3 className="text-2xl font-bold mb-4">Kampresultat</h3>
               {renderScoreline(matchResult)}
 
-              <div className="text-center mb-4">
+              <div className="text-center mb-4 text-sm sm:text-base">
                 {matchResult.result === 'WIN' && (
                   <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
                     🏆 Sejr! +{matchResult.fanChange} fans, +{matchResult.sponsorBonus.toLocaleString('da-DK')} kr bonus
@@ -167,7 +167,7 @@ const MatchView = () => {
           {isMatchPlaying && currentMatch && (
             <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
               <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
-              <div className="flex justify-between items-center mb-4 animate-pulse">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-4 animate-pulse">
                 <p className="text-lg font-semibold">{currentMatch.isHome ? selectedTeam.name : currentMatch.opponent}</p>
                 <p className="text-2xl font-bold">vs</p>
                 <p className="text-lg font-semibold">{currentMatch.isHome ? currentMatch.opponent : selectedTeam.name}</p>
@@ -183,7 +183,7 @@ const MatchView = () => {
                   key={match.id}
                   className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
                 >
-                  <div className="flex justify-between items-start mb-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold text-gray-600">
@@ -254,7 +254,7 @@ const MatchView = () => {
                         : 'border-yellow-500 bg-yellow-50'
                   }`}
                 >
-                  <div className="flex justify-between items-center gap-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
                     <div className="flex-1">
                       <p className="text-sm text-gray-600">
                         Uge {match.week} • {match.isHome ? 'Hjemme' : 'Ude'}

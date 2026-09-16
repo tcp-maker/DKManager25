@@ -8,13 +8,13 @@ const StadiumView = () => {
   const stadiumName = gameState.selectedTeam ? `${gameState.selectedTeam.name} Stadion` : 'Dit Stadion';
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Stadion Management</h1>
+    <div className="p-3 md:p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl md:text-3xl font-bold mb-6">Stadion Management</h1>
 
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-500 rounded-lg p-6 mb-6">
         <h2 className="text-2xl font-bold mb-4">{stadiumName}</h2>
 
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-600">Kapacitet</p>
             <p className="text-2xl font-bold text-orange-600">{gameState.stadiumCapacity.toLocaleString('da-DK')}</p>
@@ -73,7 +73,7 @@ const StadiumView = () => {
           <p className="text-xs text-gray-600">Du har gennemført {gameState.stadiumUpgrades} udvidelser hidtil.</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div className="text-center">
             <p className="text-sm text-gray-600">Omkostning</p>
             <p className="text-xl font-bold text-red-600">500.000 kr</p>

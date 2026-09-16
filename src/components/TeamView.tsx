@@ -15,12 +15,12 @@ const TeamView = () => {
   const fwCount = players.filter(player => player.position === 'FW').length;
 
   return (
-    <div>
+    <div className="p-1 sm:p-0">
       <div className="flex items-center gap-3 mb-4">
         <span className="text-4xl" aria-hidden="true">
           {team.logo}
         </span>
-        <h2 className="text-3xl font-bold">{team.name}</h2>
+        <h2 className="text-2xl md:text-3xl font-bold break-words">{team.name}</h2>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -43,7 +43,8 @@ const TeamView = () => {
       </div>
 
       <div className="bg-white rounded shadow overflow-hidden">
-        <table className="w-full">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px]">
           <thead className="bg-gray-200">
             <tr>
               <th className="p-3 text-left">Spiller</th>
@@ -65,6 +66,7 @@ const TeamView = () => {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
