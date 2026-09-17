@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { calculateLeagueStandings, getLeagueByTeamId, getLeagueFixtureSet } from '../data/leagues';
+import { calculateLeagueStandings, getCurrentSeason, getLeagueByTeamId, getLeagueFixtureSet } from '../data/leagues';
 import { useGame } from '../context/GameContext';
 import { LeagueFixture, LeagueMatchResult } from '../types/teams';
 
@@ -10,6 +10,7 @@ interface ClubPerspectiveMatch {
   goalsFor: number;
   goalsAgainst: number;
   date: number;
+  season: number;
 }
 
 const getRandomInt = (max: number) => Math.floor(Math.random() * max);
@@ -23,6 +24,7 @@ const MatchView: React.FC = () => {
 
   const selectedTeam = gameState.selectedTeam;
   const currentLeague = selectedTeam ? getLeagueByTeamId(selectedTeam.id) : undefined;
+  const currentSeason = getCurrentSeason(gameState.week);
 
   const getTeamRating = (): number => {
     const players = Object.values(gameState.players);
@@ -64,6 +66,7 @@ const MatchView: React.FC = () => {
     return {
       id: fixture.id,
       leagueId: fixture.leagueId,
+      season: fixture.season,
       week: fixture.week,
       homeTeamId: fixture.homeTeam.id,
       awayTeamId: fixture.awayTeam.id,
@@ -87,6 +90,7 @@ const MatchView: React.FC = () => {
       goalsFor,
       goalsAgainst,
       date: result.week,
+      season: result.season,
     };
   };
 
@@ -99,7 +103,9 @@ const MatchView: React.FC = () => {
 
   const displayResult = matchResult ?? recordedCurrentWeekMatch ?? null;
   const displayPerspectiveMatch = displayResult ? mapToClubPerspective(displayResult) : null;
-  const standings = currentLeague ? calculateLeagueStandings(currentLeague, gameState.playedLeagueMatches) : [];
+  const standings = currentLeague
+    ? calculateLeagueStandings(currentLeague, gameState.playedLeagueMatches, currentSeason)
+    : [];
   const teamStanding = standings.find(standing => standing.teamId === selectedTeam?.id);
 
   const simulateMatch = (fixture: LeagueFixture) => {
@@ -129,7 +135,7 @@ const MatchView: React.FC = () => {
     }, 2000);
   };
 
-  if (!selectedTeam || !currentLeague || !playerFixture) {
+  if (!selectedTeam || !currentLeague) {
     return <div className="p-4">Ingen ligakampe tilgængelige endnu.</div>;
   }
 
@@ -138,7 +144,7 @@ const MatchView: React.FC = () => {
       <h1 className="text-3xl font-bold mb-6">Kampe</h1>
 
       <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
-        <p className="text-lg font-semibold">{currentLeague.name} • Din Trup Rating: <span className="text-purple-600">{getTeamRating().toFixed(1)}</span></p>
+        <p className="text-lg font-semibold">{currentLeague.name} • Sæson {currentSeason} • Din Trup Rating: <span className="text-purple-600">{getTeamRating().toFixed(1)}</span></p>
         <p className="text-sm text-gray-600">Uge {gameState.week} • Placering: {teamStanding?.position ?? '-'} • Point: {teamStanding?.points ?? 0}</p>
       </div>
 
@@ -228,7 +234,7 @@ const MatchView: React.FC = () => {
             </div>
           )}
 
-          {!isMatchPlaying && !displayPerspectiveMatch && (
+          {!isMatchPlaying && !displayPerspectiveMatch && playerFixture && (
             <div className="space-y-3">
               {currentFixtures.map((fixture) => {
                 const isPlayerMatch = fixture.id === playerFixture.id;
@@ -244,7 +250,7 @@ const MatchView: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                       <div>
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-sm font-semibold text-gray-600">Uge {gameState.week}</span>
+                          <span className="text-sm font-semibold text-gray-600">Sæson {fixture.season} • Uge {fixture.week}</span>
                           {isPlayerMatch && (
                             <span className="text-xs font-bold px-2 py-1 rounded bg-purple-100 text-purple-800">
                               Din kamp
@@ -283,6 +289,12 @@ const MatchView: React.FC = () => {
               })}
             </div>
           )}
+
+          {!isMatchPlaying && !displayPerspectiveMatch && !playerFixture && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-600">
+              Der er ingen aktiv rundekamp for din klub lige nu, men du kan stadig se kamp-historikken og ligatabellen.
+            </div>
+          )}
         </div>
       )}
 
@@ -306,7 +318,7 @@ const MatchView: React.FC = () => {
                 >
                   <div className="flex justify-between items-center gap-4">
                     <div className="flex-1">
-                      <p className="text-sm text-gray-600">Uge {match.date}</p>
+                      <p className="text-sm text-gray-600">Sæson {match.season} • Uge {match.date}</p>
                       <h3 className="text-lg font-bold">{match.opponent}</h3>
                     </div>
 

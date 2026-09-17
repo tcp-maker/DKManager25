@@ -1,5 +1,5 @@
 import React from 'react';
-import { calculateLeagueStandings, getLeagueByTeamId } from '../data/leagues';
+import { calculateLeagueStandings, getCurrentSeason, getLeagueByTeamId } from '../data/leagues';
 import { useGame } from '../context/GameContext';
 
 const LeagueTableView: React.FC = () => {
@@ -15,7 +15,8 @@ const LeagueTableView: React.FC = () => {
     return <div>Kunne ikke finde ligaen for den valgte klub.</div>;
   }
 
-  const standings = calculateLeagueStandings(league, gameState.playedLeagueMatches);
+  const currentSeason = getCurrentSeason(gameState.week);
+  const standings = calculateLeagueStandings(league, gameState.playedLeagueMatches, currentSeason);
   const selectedStanding = standings.find(standing => standing.teamId === selectedTeam.id);
   const roundsPlayed = selectedStanding?.played ?? 0;
 
@@ -25,7 +26,7 @@ const LeagueTableView: React.FC = () => {
 
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">{league.name}</p>
-        <p className="text-sm text-gray-600">Uge {gameState.week} • Rundens stilling opdateres automatisk efter kampene</p>
+        <p className="text-sm text-gray-600">Sæson {currentSeason} • Uge {gameState.week} • Rundens stilling opdateres automatisk efter kampene</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

@@ -47,6 +47,8 @@ export const LEAGUES: League[] = [
   },
 ];
 
+export const LEAGUE_ROUNDS_PER_SEASON = 6;
+
 const ROUND_TEMPLATES: Array<Array<[number, number]>> = [
   [[0, 3], [1, 2]],
   [[3, 2], [0, 1]],
@@ -71,10 +73,16 @@ export const getLeagueById = (leagueId: string) =>
 export const getLeagueByTeamId = (teamId: string) =>
   LEAGUES.find(league => league.teams.some(team => team.id === teamId));
 
-export const getTeamById = (teamId: string) => {
-  const league = getLeagueByTeamId(teamId);
-  return league?.teams.find(team => team.id === teamId);
-};
+export const getCurrentSeason = (week: number) =>
+  Math.max(1, Math.floor((Math.max(week, 1) - 1) / LEAGUE_ROUNDS_PER_SEASON) + 1);
+
+export const getSeasonWeek = (week: number) =>
+  ((Math.max(week, 1) - 1) % LEAGUE_ROUNDS_PER_SEASON) + 1;
+
+export const normalizeLeagueResult = (result: LeagueMatchResult): LeagueMatchResult => ({
+  ...result,
+  season: result.season ?? getCurrentSeason(result.week),
+});
 
 export const getLeagueFixtureSet = (leagueId: string, week: number): LeagueFixture[] => {
   const league = getLeagueById(leagueId);
@@ -82,11 +90,13 @@ export const getLeagueFixtureSet = (leagueId: string, week: number): LeagueFixtu
     return [];
   }
 
-  const roundIndex = (week - 1) % ROUND_TEMPLATES.length;
+  const season = getCurrentSeason(week);
+  const roundIndex = getSeasonWeek(week) - 1;
 
   return ROUND_TEMPLATES[roundIndex].map(([homeIndex, awayIndex], matchIndex) => ({
-    id: `${league.id}-uge-${week}-kamp-${matchIndex + 1}`,
+    id: `${league.id}-saeson-${season}-uge-${week}-kamp-${matchIndex + 1}`,
     leagueId: league.id,
+    season,
     week,
     homeTeam: league.teams[homeIndex],
     awayTeam: league.teams[awayIndex],
@@ -96,6 +106,7 @@ export const getLeagueFixtureSet = (leagueId: string, week: number): LeagueFixtu
 export const calculateLeagueStandings = (
   league: League,
   results: LeagueMatchResult[],
+  season: number,
 ): LeagueStanding[] => {
   const standings = new Map<string, LeagueStanding>();
 
@@ -116,7 +127,8 @@ export const calculateLeagueStandings = (
   });
 
   results
-    .filter(result => result.leagueId === league.id)
+    .map(normalizeLeagueResult)
+    .filter(result => result.leagueId === league.id && result.season === season)
     .forEach(result => {
       const home = standings.get(result.homeTeamId);
       const away = standings.get(result.awayTeamId);

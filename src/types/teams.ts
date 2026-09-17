@@ -18,6 +18,7 @@ export interface League {
 export interface LeagueFixture {
   id: string;
   leagueId: string;
+  season: number;
   week: number;
   homeTeam: LeagueTeam;
   awayTeam: LeagueTeam;
@@ -26,6 +27,7 @@ export interface LeagueFixture {
 export interface LeagueMatchResult {
   id: string;
   leagueId: string;
+  season: number;
   week: number;
   homeTeamId: string;
   awayTeamId: string;
