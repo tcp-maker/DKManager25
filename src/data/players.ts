@@ -72,6 +72,13 @@ interface SquadStrength {
   overall: number;
 }
 
+interface PlayerValueInput {
+  age: number;
+  primaryRole: PlayerRole;
+  skills: PlayerSkills;
+  asi: number;
+}
+
 const clampSkill = (value: number) => Math.max(1, Math.min(99, Math.round(value)));
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -239,13 +246,29 @@ const normalizeAbsoluteSkills = (skills: PlayerSkills): PlayerSkills => ({
 export const calculateASI = (skills: PlayerSkills) =>
   Math.round(average(SKILL_KEYS.map(skill => skills[skill])));
 
-export const calculateRoleScore = (player: Player, role: PlayerRole = player.primaryRole) => {
+const calculateRoleScoreFromSkills = (skills: PlayerSkills, role: PlayerRole) => {
   const weights = roleWeights[role];
   const weightedEntries = Object.entries(weights) as Array<[SkillKey, number]>;
   const totalWeight = weightedEntries.reduce((sum, [, weight]) => sum + weight, 0);
-  const weightedValue = weightedEntries.reduce((sum, [skill, weight]) => sum + player.skills[skill] * weight, 0);
+  const weightedValue = weightedEntries.reduce((sum, [skill, weight]) => sum + skills[skill] * weight, 0);
 
   return Math.round(weightedValue / totalWeight);
+};
+
+export const calculateRoleScore = (player: Player, role: PlayerRole = player.primaryRole) =>
+  calculateRoleScoreFromSkills(player.skills, role);
+
+export const estimatePlayerValue = ({ age, primaryRole, skills, asi }: PlayerValueInput) => {
+  const roleScore = calculateRoleScoreFromSkills(skills, primaryRole);
+  const ageFactor = Math.max(0.82, 1.14 - Math.abs(age - 27) * 0.018);
+  const developmentBonus = average([
+    skills.intelligence,
+    skills.stamina,
+    skills.vision,
+    skills.passing,
+  ]) * 1200;
+
+  return roundToNearestTenThousand((asi * 7000 + roleScore * 5000 + developmentBonus) * ageFactor);
 };
 
 export const getPlayerAreaStrengths = (player: Player): Omit<SquadStrength, 'overall'> => {
@@ -349,23 +372,15 @@ export const createPlayer = ({
     ...seed.overrides,
   });
   const asi = calculateASI(skills);
-  const roleScore = calculateRoleScore({
-    ...seed,
-    isForSale,
-    askingPrice,
-    secondaryRoles,
-    skills,
+  const value = estimatePlayerValue({
+    age: seed.age,
+    primaryRole: seed.primaryRole,
+    skills: {
+      ...skills,
+      intelligence: Math.round((skills.intelligence + baseSkills.intelligence) / 2),
+    },
     asi,
-    value: 0,
-  } as Player);
-  const ageFactor = Math.max(0.82, 1.14 - Math.abs(seed.age - 27) * 0.018);
-  const developmentBonus = average([
-    skills.intelligence,
-    skills.stamina,
-    skills.vision,
-    baseSkills.intelligence,
-  ]) * 1200;
-  const value = roundToNearestTenThousand((asi * 7000 + roleScore * 5000 + developmentBonus) * ageFactor);
+  });
 
   return {
     ...seed,
@@ -429,18 +444,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
 
     return {
       ...normalizedPlayer,
-      value: rawPlayer.value ?? createPlayer({
-        id: normalizedPlayer.id,
-        name: normalizedPlayer.name,
-        age: normalizedPlayer.age,
-        position: normalizedPlayer.position,
-        primaryRole: normalizedPlayer.primaryRole,
-        secondaryRoles: normalizedPlayer.secondaryRoles,
-        base: normalizedPlayer.asi,
-        overrides: {},
-        isForSale: normalizedPlayer.isForSale,
-        askingPrice: normalizedPlayer.askingPrice,
-      }).value,
+      value: rawPlayer.value ?? estimatePlayerValue(normalizedPlayer),
     };
   }
 

@@ -190,7 +190,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         : true;
       const isSeasonFinished = seasonFixtures.length > 0 && completedMatches >= seasonFixtures.length;
 
-      if (!isCurrentWeekPlayed) {
+      if (!isSeasonFinished && !isCurrentWeekPlayed) {
         return prev;
       }
 
@@ -199,7 +199,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         week: isSeasonFinished ? 1 : prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
         budget: prev.budget + ticketRevenue,
-        leagueMatches: isSeasonFinished ? [] : prev.leagueMatches,
+        leagueMatches: prev.leagueMatches,
       };
     });
     return ticketRevenue;
