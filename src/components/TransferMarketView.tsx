@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import ConfirmAction from './ConfirmAction';
-import { useGame, Player } from '../context/GameContext';
+import PlayerDetailsPanel from './PlayerDetailsPanel';
+import { ROLE_LABELS, TRANSFER_MARKET_PLAYERS } from '../data/players';
+import { useGame } from '../context/GameContext';
+import { Player } from '../types/player';
 
 const TransferMarketView: React.FC = () => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
@@ -14,13 +17,7 @@ const TransferMarketView: React.FC = () => {
   const squadPlayers = playerList.filter(p => !p.isForSale);
 
   // Dummy spillere der kan købes
-  const availableForBuy: Player[] = [
-    { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', rating: 79, value: 650000, isForSale: false },
-    { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', rating: 81, value: 800000, isForSale: false },
-    { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', rating: 75, value: 550000, isForSale: false },
-    { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', rating: 72, value: 420000, isForSale: false },
-    { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false },
-  ];
+  const availableForBuy: Player[] = TRANSFER_MARKET_PLAYERS;
 
   const handleSellPlayer = (playerId: string): string | null => {
     const player = gameState.players[playerId];
@@ -117,7 +114,7 @@ const TransferMarketView: React.FC = () => {
                 <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{player.name}</h3>
-                    <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
+                    <p className="text-sm text-gray-600">{ROLE_LABELS[player.primaryRole]} • {player.age} år • ASI: {player.asi}</p>
                     <p className="text-sm font-semibold text-green-600">Værdi: {player.value.toLocaleString('da-DK')} kr</p>
                   </div>
                   <button
@@ -140,7 +137,7 @@ const TransferMarketView: React.FC = () => {
                   <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • Rating: {player.rating}</p>
+                      <p className="text-sm text-gray-600">{ROLE_LABELS[player.primaryRole]} • ASI: {player.asi}</p>
                       <p className="text-sm font-semibold text-orange-600">Prisønsker: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
                     </div>
                     <div className="space-x-2">
@@ -190,7 +187,7 @@ const TransferMarketView: React.FC = () => {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
+                      <p className="text-sm text-gray-600">{ROLE_LABELS[player.primaryRole]} • {player.age} år • ASI: {player.asi}</p>
                       <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
                     </div>
                     {gameState.budget >= player.value && (
@@ -207,7 +204,10 @@ const TransferMarketView: React.FC = () => {
 
                   {/* Expanded details */}
                   {selectedBuyPlayer?.id === player.id && (
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-4 pt-4 border-t" onClick={(e) => e.stopPropagation()}>
+                      <div className="mb-4">
+                        <PlayerDetailsPanel player={player} title="Spillerprofil" />
+                      </div>
                       <p className="text-sm text-gray-700 mb-4">
                         Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
                         <span className="font-bold text-green-600">

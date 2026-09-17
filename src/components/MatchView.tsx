@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { calculateSquadStrength, getBalancedOpponentStrength, getMatchPerformanceRating } from '../data/players';
 import { buildLeagueStandings, getSeasonFixtures, getTeamById, ScheduledMatch, simulateScore } from '../data/leagues';
 
 interface PlayedMatchSummary {
@@ -69,13 +70,10 @@ const MatchView: React.FC = () => {
     fixtures[fixtures.length - 1]?.id === currentMatch.id
   );
 
-  // Calculate team rating (average of all players)
-  const getTeamRating = (): number => {
-    const players = Object.values(gameState.players);
-    if (players.length === 0) return 70;
-    const totalRating = players.reduce((sum, p) => sum + p.rating, 0);
-    return totalRating / players.length;
-  };
+  const squadStrength = useMemo(
+    () => calculateSquadStrength(Object.values(gameState.players)),
+    [gameState.players],
+  );
 
   // Simulate match
   const simulateMatch = (match: ScheduledMatch) => {
@@ -86,9 +84,10 @@ const MatchView: React.FC = () => {
 
     // Simulate match delay
     setTimeout(() => {
+      const opponentStrength = getBalancedOpponentStrength(match.opponentRating);
       const simulated = simulateScore(
-        match.isHome ? getTeamRating() : match.opponentRating,
-        match.isHome ? match.opponentRating : getTeamRating(),
+        match.isHome ? getMatchPerformanceRating(squadStrength, true) : getMatchPerformanceRating(opponentStrength, true),
+        match.isHome ? getMatchPerformanceRating(opponentStrength, false) : getMatchPerformanceRating(squadStrength, false),
       );
       const userGoals = match.isHome ? simulated.homeGoals : simulated.awayGoals;
       const opponentGoals = match.isHome ? simulated.awayGoals : simulated.homeGoals;
@@ -107,7 +106,6 @@ const MatchView: React.FC = () => {
       setIsMatchPlaying(false);
     }, 2000);
   };
-  const teamRating = getTeamRating();
 
   return (
     <div className="p-4 max-w-6xl mx-auto">
@@ -117,8 +115,14 @@ const MatchView: React.FC = () => {
         <div>
           {/* Match Info */}
           <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
-            <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
+            <p className="text-lg font-semibold">Samlet Holdstyrke: <span className="text-purple-600">{squadStrength.overall}</span></p>
             <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+              <div className="rounded bg-white/70 px-3 py-2">Målmand: <span className="font-bold">{squadStrength.goalkeeping}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Forsvar: <span className="font-bold">{squadStrength.defense}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Midtbane: <span className="font-bold">{squadStrength.midfield}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Angreb: <span className="font-bold">{squadStrength.attack}</span></div>
+            </div>
           </div>
 
           {/* Tabs */}

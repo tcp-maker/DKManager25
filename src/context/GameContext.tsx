@@ -1,17 +1,8 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, LeagueMatchRecord, ScheduledMatch, simulateScore } from '../data/leagues';
+import { normalizePlayerRecord, STARTER_PLAYERS } from '../data/players';
 import { Team } from '../types/teams';
-
-export interface Player {
-  id: string;
-  name: string;
-  age: number;
-  position: 'GK' | 'DF' | 'MF' | 'FW';
-  rating: number;
-  value: number;
-  isForSale: boolean;
-  askingPrice?: number;
-}
+import { Player } from '../types/player';
 
 interface GameState {
   selectedTeam: Team | null;
@@ -41,26 +32,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 // Dummy spillere til start
 const generateDummyPlayers = (): Record<string, Player> => {
-  const players: Player[] = [
-    { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
-    { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
-    
-    { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', rating: 79, value: 600000, isForSale: false },
-    { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', rating: 76, value: 450000, isForSale: false },
-    { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', rating: 71, value: 400000, isForSale: true, askingPrice: 450000 },
-    { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', rating: 74, value: 380000, isForSale: false },
-    
-    { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', rating: 76, value: 520000, isForSale: false },
-    { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', rating: 73, value: 420000, isForSale: false },
-    { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', rating: 72, value: 450000, isForSale: true, askingPrice: 500000 },
-    { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', rating: 68, value: 280000, isForSale: false },
-    
-    { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', rating: 80, value: 750000, isForSale: false },
-    { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', rating: 77, value: 600000, isForSale: false },
-    { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
-  ];
-
-  return players.reduce((acc, player) => {
+  return STARTER_PLAYERS.reduce((acc, player) => {
     acc[player.id] = player;
     return acc;
   }, {} as Record<string, Player>);
@@ -103,6 +75,7 @@ const loadGameState = (): GameState | null => {
         ...initialGameState,
         ...parsed,
         selectedTeam,
+        players: normalizePlayerRecord(parsed.players),
         season: typeof parsed.season === 'number' ? parsed.season : initialGameState.season,
         week: typeof parsed.week === 'number' ? parsed.week : initialGameState.week,
         leagueMatches: Array.isArray(parsed.leagueMatches) ? parsed.leagueMatches : [],
