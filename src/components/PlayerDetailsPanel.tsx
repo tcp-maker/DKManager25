@@ -34,10 +34,14 @@ const PlayerDetailsPanel: React.FC<PlayerDetailsPanelProps> = ({ player, title =
         )}
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-lg bg-blue-50 p-3">
           <p className="text-xs text-gray-600">ASI</p>
           <p className="text-2xl font-bold text-blue-700">{player.asi}</p>
+        </div>
+        <div className="rounded-lg bg-sky-50 p-3">
+          <p className="text-xs text-gray-600">Målmand</p>
+          <p className="text-2xl font-bold text-sky-700">{areas.goalkeeping}</p>
         </div>
         <div className="rounded-lg bg-green-50 p-3">
           <p className="text-xs text-gray-600">Forsvar</p>

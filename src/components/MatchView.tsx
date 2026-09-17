@@ -74,6 +74,8 @@ const MatchView: React.FC = () => {
     () => calculateSquadStrength(Object.values(gameState.players)),
     [gameState.players],
   );
+  const leftSideIsUser = Boolean(currentMatch?.isHome);
+  const rightSideIsUser = currentMatch ? !currentMatch.isHome : false;
 
   // Simulate match
   const simulateMatch = (match: ScheduledMatch) => {
@@ -158,15 +160,19 @@ const MatchView: React.FC = () => {
                   <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
                   <div className="flex justify-between items-center mb-4">
                     <div className="text-center flex-1">
-                      <p className="text-sm text-gray-600">{currentMatch?.isHome ? 'Dit Hold' : matchResult.opponent}</p>
-                      <p className="text-4xl font-bold text-blue-600">{currentMatch?.isHome ? matchResult.userGoals : matchResult.opponentGoals}</p>
+                      <p className="text-sm text-gray-600">{leftSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
+                      <p className={`text-4xl font-bold ${leftSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
+                        {leftSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
+                      </p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold">-</p>
                     </div>
                     <div className="text-center flex-1">
-                      <p className="text-sm text-gray-600">{currentMatch?.isHome ? matchResult.opponent : 'Dit Hold'}</p>
-                      <p className="text-4xl font-bold text-green-600">{currentMatch?.isHome ? matchResult.opponentGoals : matchResult.userGoals}</p>
+                      <p className="text-sm text-gray-600">{rightSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
+                      <p className={`text-4xl font-bold ${rightSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
+                        {rightSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
+                      </p>
                     </div>
                   </div>
 

@@ -37,7 +37,7 @@ const TransferMarketView: React.FC = () => {
 
     const newPlayer = {
       ...player,
-      id: `own_${player.id}`,
+      id: `own_${player.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       isForSale: false,
       askingPrice: undefined
     };

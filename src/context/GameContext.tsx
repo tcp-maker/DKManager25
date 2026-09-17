@@ -182,21 +182,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const completedMatches = prev.leagueMatches.filter(match => match.season === prev.season && match.isUserMatch).length;
       const seasonFixtures = getSeasonFixtures(prev.selectedTeam);
-      const currentWeekFixture = seasonFixtures.find(match => match.week === prev.week);
-      const isCurrentWeekPlayed = currentWeekFixture
-        ? prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === currentWeekFixture.id)
-        : true;
-      const isSeasonFinished = seasonFixtures.length > 0 && completedMatches >= seasonFixtures.length;
+      const playedFixtureIds = new Set(
+        prev.leagueMatches
+          .filter(match => match.season === prev.season && match.isUserMatch)
+          .map(match => match.fixtureId)
+      );
+      const nextUnplayedFixture = seasonFixtures.find(match => !playedFixtureIds.has(match.id));
+      const isSeasonFinished = seasonFixtures.length > 0 && !nextUnplayedFixture;
 
-      if (!isSeasonFinished && !isCurrentWeekPlayed) {
+      if (nextUnplayedFixture && nextUnplayedFixture.week <= prev.week) {
         return prev;
       }
 
       return {
         ...prev,
-        week: isSeasonFinished ? 1 : prev.week + 1,
+        week: isSeasonFinished ? 1 : nextUnplayedFixture?.week ?? prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
         budget: prev.budget + ticketRevenue,
         leagueMatches: isSeasonFinished
