@@ -24,6 +24,7 @@ const ConfirmationPanel: React.FC<ConfirmationPanelProps> = ({
   className = ''
 }) => {
   const titleId = useId();
+  const descriptionId = useId();
   const confirmButtonClassName = confirmVariant === 'danger'
     ? 'bg-red-600 hover:bg-red-700 focus-visible:outline-red-600'
     : 'bg-blue-600 hover:bg-blue-700 focus-visible:outline-blue-600';
@@ -32,12 +33,13 @@ const ConfirmationPanel: React.FC<ConfirmationPanelProps> = ({
     <div
       role="alertdialog"
       aria-labelledby={titleId}
+      aria-describedby={descriptionId}
       className={`mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 ${className}`.trim()}
     >
       <h3 id={titleId} className="text-lg font-bold text-gray-900">
         {title}
       </h3>
-      <div className="mt-2 text-sm text-gray-700">{message}</div>
+      <div id={descriptionId} className="mt-2 text-sm text-gray-700">{message}</div>
       <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"

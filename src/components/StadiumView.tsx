@@ -129,7 +129,7 @@ const StadiumView: React.FC = () => {
         </button>
         {isConfirmingUpgrade && gameState.budget >= 500000 && (
           <ConfirmationPanel
-            title="Bekræft klubkøb"
+            title="Bekræft stadionudvidelse"
             message={
               <>
                 Udvid <span className="font-bold">{stadiumName}</span> for{' '}
