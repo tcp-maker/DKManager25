@@ -114,6 +114,22 @@ npm run mobile:android
 
 Når webkoden ændres, skal Android-projektet synkroniseres igen med `npm run mobile:sync` eller `npm run build:mobile`.
 
+Byg lokal debug-APK:
+
+```bash
+npm run mobile:apk
+```
+
+Byg release App Bundle (AAB):
+
+```bash
+npm run mobile:bundle
+```
+
+Bemærk: `mobile:bundle` laver selve bundle-filen, men en rigtig Play Store-udgivelse kræver stadig signering/keystore og endelig gennemgang i Android Studio eller CI.
+
+Første Android-build kræver også adgang til Gradle/Google Maven for at hente Android build-afhængigheder, hvis de ikke allerede findes lokalt i cachen.
+
 Android-wrapperen bruger nu en mere app-venlig opsætning med:
 
 - native statuslinje i appens farver
@@ -134,8 +150,10 @@ npm run preview
 - `npx tsc --noEmit`
 - `npm run build`
 - `npm run build:mobile`
+- `npm run mobile:apk`
 - stabil ugentlig kampgenerering blev kontrolleret via målrettet TypeScript-kørsel
 - dev-server svarede korrekt på `/`, `/manifest.webmanifest`, `/sw.js` og `/icon.svg`
+- Android CLI-build blev forberedt, men fuld `assembleDebug` i denne sandbox blev stoppet af netværksadgang til `dl.google.com`
 
 ## Repository-struktur
 
