@@ -221,7 +221,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         ...prev,
         week: isSeasonFinished ? 1 : prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
-        budget: prev.budget + ticketRevenue
+        budget: prev.budget + ticketRevenue,
+        leagueMatches: isSeasonFinished ? [] : prev.leagueMatches,
       };
     });
     return ticketRevenue;

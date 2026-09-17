@@ -27,9 +27,15 @@ const MatchView: React.FC = () => {
     () => new Set(seasonMatches.filter(match => match.isUserMatch).map(match => match.fixtureId)),
     [seasonMatches],
   );
-  const upcomingMatches = useMemo(
-    () => fixtures.filter(match => !playedFixtureIds.has(match.id)).slice(0, 3),
+  const nextPlayableWeek = useMemo(
+    () => fixtures.find(match => !playedFixtureIds.has(match.id))?.week ?? null,
     [fixtures, playedFixtureIds],
+  );
+  const upcomingMatches = useMemo(
+    () => fixtures
+      .filter(match => !playedFixtureIds.has(match.id) && match.week === nextPlayableWeek)
+      .slice(0, 3),
+    [fixtures, playedFixtureIds, nextPlayableWeek],
   );
   const leagueTable = useMemo(
     () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
