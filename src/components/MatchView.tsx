@@ -67,7 +67,7 @@ const MatchView: React.FC = () => {
     matchResult &&
     currentMatch &&
     fixtures.length > 0 &&
-    fixtures[fixtures.length - 1]?.id === currentMatch.id
+    (playedFixtureIds.has(currentMatch.id) ? playedFixtureIds.size : playedFixtureIds.size + 1) >= fixtures.length
   );
 
   const squadStrength = useMemo(

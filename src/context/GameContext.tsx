@@ -199,7 +199,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         week: isSeasonFinished ? 1 : prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
         budget: prev.budget + ticketRevenue,
-        leagueMatches: prev.leagueMatches,
+        leagueMatches: isSeasonFinished
+          ? prev.leagueMatches.filter(match => match.season >= Math.max(1, prev.season - 2))
+          : prev.leagueMatches,
       };
     });
     return ticketRevenue;
