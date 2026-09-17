@@ -31,7 +31,7 @@ const ConfirmationPanel: React.FC<ConfirmationPanelProps> = ({
 
   return (
     <div
-      role="dialog"
+      role="region"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       className={`mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 ${className}`.trim()}

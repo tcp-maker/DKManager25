@@ -14,6 +14,11 @@ const App: React.FC = () => {
 
   const selectedTeam = gameState.selectedTeam;
 
+  const handleViewChange = (view: 'team' | 'transfers' | 'matches' | 'stadium') => {
+    setActiveView(view);
+    setIsConfirmingReset(false);
+  };
+
   const handleResetGame = () => {
     setActiveView('team');
     setIsConfirmingReset(false);
@@ -28,10 +33,10 @@ const App: React.FC = () => {
         <>
           <nav className="bg-blue-600 text-white p-4">
             <div className="max-w-7xl mx-auto flex flex-wrap items-center gap-4">
-              <button onClick={() => setActiveView('team')} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
-              <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
-              <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
-              <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
+              <button onClick={() => handleViewChange('team')} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
+              <button onClick={() => handleViewChange('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
+              <button onClick={() => handleViewChange('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
+              <button onClick={() => handleViewChange('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
               <button
                 type="button"
                 onClick={() => setIsConfirmingReset(true)}
