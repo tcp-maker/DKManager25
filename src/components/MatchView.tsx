@@ -99,7 +99,7 @@ const MatchView: React.FC = () => {
       const played: PlayedMatch = {
         id: match.id,
         opponent: match.opponent,
-        result: match.isHome ? result : result === 'WIN' ? 'LOSS' : result === 'LOSS' ? 'WIN' : 'DRAW',
+        result,
         homeGoals: match.isHome ? homeGoals : awayGoals,
         awayGoals: match.isHome ? awayGoals : homeGoals,
         date: gameState.week,
@@ -310,7 +310,7 @@ const MatchView: React.FC = () => {
                           ? 'text-red-700'
                           : 'text-yellow-700'
                       }`}>
-                        {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nedlag' : '⚖️ Uafgjort'}
+                        {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nederlag' : '⚖️ Uafgjort'}
                       </p>
                     </div>
                   </div>
