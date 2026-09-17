@@ -98,9 +98,12 @@ const normalizePlayers = (players: unknown): Record<string, Player> => {
     return {};
   }
 
-  return Object.values(players as Record<string, Player>).reduce((acc, player) => {
+  return Object.entries(players as Record<string, Player>).reduce((acc, [playerKey, player]) => {
     const normalized = normalizePlayer(player);
-    acc[normalized.id] = normalized;
+    acc[playerKey] = {
+      ...normalized,
+      id: player.id,
+    };
     return acc;
   }, {} as Record<string, Player>);
 };
@@ -235,7 +238,7 @@ const normalizeGameState = (savedState: unknown): GameState => {
   const maxAllowedWeek = seasonComplete ? maxRound + 1 : maxRound;
   const normalizedWeek =
     typeof rawState.week === 'number' && rawState.week > 0
-      ? Math.min(Math.floor(rawState.week), maxAllowedWeek)
+      ? Math.max(1, Math.min(Math.floor(rawState.week), maxAllowedWeek))
       : 1;
 
   return {
