@@ -92,6 +92,10 @@ export const getTeamById = (teamId?: string | null) =>
   LEAGUES.flatMap((league) => league.teams).find((team) => team.id === teamId) ?? null;
 
 export const createLeagueFixtures = (league: LeagueDefinition): LeagueFixture[] => {
+  if (league.teams.length !== 4) {
+    throw new Error(`Ligaen "${league.name}" skal have præcis 4 hold for at generere kampprogrammet.`);
+  }
+
   const [team1, team2, team3, team4] = league.teams;
 
   return [

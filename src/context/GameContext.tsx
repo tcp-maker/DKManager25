@@ -73,6 +73,8 @@ const initialGameState: GameState = {
 };
 
 const clampMood = (value: number) => Math.max(0, Math.min(100, value));
+const getPositiveNumber = (value: unknown, fallback: number) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
 
 const generateDummyPlayers = (): Record<string, Player> =>
   STARTER_PLAYERS.reduce((acc, player) => {
@@ -224,16 +226,18 @@ const normalizeGameState = (savedState: unknown): GameState => {
       : 1;
 
   return {
-    ...initialGameState,
-    ...rawState,
     selectedTeam,
-    leagueId: league?.id ?? rawState.leagueId ?? null,
-    leagueName: league?.name ?? rawState.leagueName ?? null,
+    budget: getPositiveNumber(rawState.budget, initialGameState.budget),
     players: normalizePlayers(rawState.players),
+    fanCount: getPositiveNumber(rawState.fanCount, initialGameState.fanCount),
+    stadiumCapacity: getPositiveNumber(rawState.stadiumCapacity, initialGameState.stadiumCapacity),
+    fanMood: clampMood(getPositiveNumber(rawState.fanMood, initialGameState.fanMood)),
+    week: normalizedWeek,
+    leagueId: league?.id ?? null,
+    leagueName: league?.name ?? null,
     fixtures,
     results,
     latestWeekSummary: normalizeWeekSummary(rawState.latestWeekSummary),
-    week: normalizedWeek,
   };
 };
 

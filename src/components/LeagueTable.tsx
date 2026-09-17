@@ -18,13 +18,13 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ league, standings, selectedTe
           <tr>
             <th className="p-3 text-left text-sm font-semibold">#</th>
             <th className="p-3 text-left text-sm font-semibold">Hold</th>
-            <th className="p-3 text-center text-sm font-semibold">K</th>
-            <th className="p-3 text-center text-sm font-semibold">V</th>
-            <th className="p-3 text-center text-sm font-semibold">U</th>
-            <th className="p-3 text-center text-sm font-semibold">T</th>
-            <th className="p-3 text-center text-sm font-semibold">MF</th>
-            <th className="p-3 text-center text-sm font-semibold">+/-</th>
-            <th className="p-3 text-center text-sm font-semibold">P</th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Kampe">K</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Vundne">V</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Uafgjorte">U</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Tabte">T</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Mål for og imod">MF</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Målforskel">+/-</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold"><abbr title="Point">P</abbr></th>
           </tr>
         </thead>
         <tbody>
