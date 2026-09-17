@@ -1,24 +1,20 @@
-import React, { useState } from 'react';
-import { useGame, Player } from '../context/GameContext';
+import React, { useMemo, useState } from 'react';
+import { getTransferMarketPlayers } from '../data/gameData';
+import { useGame } from '../context/GameContext';
+import { Player } from '../types/player';
 
 const TransferMarketView: React.FC = () => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
   const [activeTab, setActiveTab] = useState<'squad' | 'market'>('squad');
   const [selectedBuyPlayer, setSelectedBuyPlayer] = useState<Player | null>(null);
 
-  // Konverter Record til Array
-  const playerList = Object.values(gameState.players);
+  const playerList = Object.values(gameState.players).sort((a, b) => b.rating - a.rating);
   const playersForSale = playerList.filter(p => p.isForSale);
   const squadPlayers = playerList.filter(p => !p.isForSale);
-
-  // Dummy spillere der kan købes
-  const availableForBuy: Player[] = [
-    { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', rating: 79, value: 650000, isForSale: false },
-    { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', rating: 81, value: 800000, isForSale: false },
-    { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', rating: 75, value: 550000, isForSale: false },
-    { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', rating: 72, value: 420000, isForSale: false },
-    { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false },
-  ];
+  const availableForBuy = useMemo(
+    () => getTransferMarketPlayers(gameState.selectedTeam?.id),
+    [gameState.selectedTeam?.id]
+  );
 
   const handleSellPlayer = (playerId: string) => {
     sellPlayer(playerId);
@@ -45,22 +41,20 @@ const TransferMarketView: React.FC = () => {
     if (player) {
       updatePlayer(playerId, {
         isForSale: !player.isForSale,
-        askingPrice: !player.isForSale ? player.value : undefined
+        askingPrice: !player.isForSale ? Math.round(player.value * 1.05 / 1000) * 1000 : undefined
       });
     }
   };
 
   return (
-    <div className="p-4 max-w-2xl mx-auto">
+    <div className="p-4 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Transfermarked</h1>
 
-      {/* Budget Info */}
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">Budget: <span className="text-blue-600">{gameState.budget.toLocaleString('da-DK')} kr</span></p>
-        <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="text-sm text-gray-600">Scouted salgsliste fra de øvrige danske divisioner</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex space-x-4 mb-6 border-b">
         <button
           onClick={() => setActiveTab('squad')}
@@ -84,7 +78,6 @@ const TransferMarketView: React.FC = () => {
         </button>
       </div>
 
-      {/* Squad Tab */}
       {activeTab === 'squad' && (
         <div>
           <h2 className="text-2xl font-bold mb-4">Min Trup</h2>
@@ -93,36 +86,37 @@ const TransferMarketView: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {squadPlayers.map(player => (
-                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition">
+                <div key={player.id} className="bg-white border border-gray-200 rounded-lg p-4 flex justify-between items-center hover:shadow-md transition gap-4">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{player.name}</h3>
-                    <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
+                    <p className="text-sm text-gray-600">{player.position} • {player.age} år • OVR {player.rating}</p>
+                    <p className="text-sm text-gray-600">GK {player.goalkeeping} • DEF {player.defending} • PLAY {player.playmaking} • FIN {player.finishing}</p>
                     <p className="text-sm font-semibold text-green-600">Værdi: {player.value.toLocaleString('da-DK')} kr</p>
                   </div>
                   <button
                     onClick={() => handleToggleSale(player.id)}
                     className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded transition"
                   >
-                    Sælg
+                    Sæt til salg
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Spillere til salg */}
           {playersForSale.length > 0 && (
             <div className="mt-8">
               <h3 className="text-xl font-bold mb-4 text-orange-600">Til Salg</h3>
               <div className="space-y-3">
                 {playersForSale.map(player => (
-                  <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center">
+                  <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center gap-4">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • Rating: {player.rating}</p>
-                      <p className="text-sm font-semibold text-orange-600">Prisønsker: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
+                      <p className="text-sm text-gray-600">{player.position} • OVR {player.rating}</p>
+                      <p className="text-sm text-gray-600">GK {player.goalkeeping} • DEF {player.defending} • PLAY {player.playmaking} • FIN {player.finishing}</p>
+                      <p className="text-sm font-semibold text-orange-600">Prisønske: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
                     </div>
-                    <div className="space-x-2">
+                    <div className="space-x-2 shrink-0">
                       <button
                         onClick={() => handleToggleSale(player.id)}
                         className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition"
@@ -144,10 +138,10 @@ const TransferMarketView: React.FC = () => {
         </div>
       )}
 
-      {/* Market Tab */}
       {activeTab === 'market' && (
         <div>
           <h2 className="text-2xl font-bold mb-4">Ledige Spillere</h2>
+          <p className="text-sm text-gray-600 mb-4">Markedet viser de højest ratede spillere, som andre danske klubber har sat til salg.</p>
           {availableForBuy.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Ingen spillere på markedet</p>
           ) : (
@@ -162,29 +156,24 @@ const TransferMarketView: React.FC = () => {
                       : 'border-gray-200 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex justify-between items-start gap-4">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
+                      <p className="text-sm text-gray-600">{player.position} • {player.age} år • OVR {player.rating}</p>
+                      <p className="text-sm text-gray-600">GK {player.goalkeeping} • DEF {player.defending} • PLAY {player.playmaking} • FIN {player.finishing}</p>
                       <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
                     </div>
-                    {gameState.budget >= player.value && (
-                      <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
-                        Råd
-                      </span>
-                    )}
-                    {gameState.budget < player.value && (
-                      <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
-                        For dyr
-                      </span>
+                    {gameState.budget >= player.value ? (
+                      <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">Råd</span>
+                    ) : (
+                      <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">For dyr</span>
                     )}
                   </div>
 
-                  {/* Expanded details */}
                   {selectedBuyPlayer?.id === player.id && (
                     <div className="mt-4 pt-4 border-t">
                       <p className="text-sm text-gray-700 mb-4">
-                        Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
+                        Køber du denne spiller, har du{' '}
                         <span className="font-bold text-green-600">
                           {(gameState.budget - player.value).toLocaleString('da-DK')} kr
                         </span>{' '}

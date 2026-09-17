@@ -1,16 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createPlayerRecord, getTeamById } from '../data/gameData';
+import { PlayedMatch } from '../types/matches';
+import { Player, PlayerPosition } from '../types/player';
 import { Team } from '../types/teams';
-
-export interface Player {
-  id: string;
-  name: string;
-  age: number;
-  position: 'GK' | 'DF' | 'MF' | 'FW';
-  rating: number;
-  value: number;
-  isForSale: boolean;
-  askingPrice?: number;
-}
 
 interface GameState {
   selectedTeam: Team | null;
@@ -20,6 +12,7 @@ interface GameState {
   stadiumCapacity: number;
   fanMood: number;
   week: number;
+  playedMatches: PlayedMatch[];
 }
 
 interface GameContextType {
@@ -30,39 +23,12 @@ interface GameContextType {
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
   handleNextWeek: () => number;
+  recordPlayedMatch: (match: PlayedMatch) => void;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Dummy spillere til start
-const generateDummyPlayers = (): Record<string, Player> => {
-  const players: Player[] = [
-    { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
-    { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
-    
-    { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', rating: 79, value: 600000, isForSale: false },
-    { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', rating: 76, value: 450000, isForSale: false },
-    { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', rating: 71, value: 400000, isForSale: true, askingPrice: 450000 },
-    { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', rating: 74, value: 380000, isForSale: false },
-    
-    { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', rating: 76, value: 520000, isForSale: false },
-    { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', rating: 73, value: 420000, isForSale: false },
-    { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', rating: 72, value: 450000, isForSale: true, askingPrice: 500000 },
-    { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', rating: 68, value: 280000, isForSale: false },
-    
-    { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', rating: 80, value: 750000, isForSale: false },
-    { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', rating: 77, value: 600000, isForSale: false },
-    { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
-  ];
-
-  return players.reduce((acc, player) => {
-    acc[player.id] = player;
-    return acc;
-  }, {} as Record<string, Player>);
-};
-
-// Initial game state
 const initialGameState: GameState = {
   selectedTeam: null,
   budget: 1000000,
@@ -71,12 +37,83 @@ const initialGameState: GameState = {
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
+  playedMatches: [],
 };
 
-// localStorage nøgler
 const STORAGE_KEY = 'dkmanager25_gamestate';
 
-// Gem game state til localStorage
+const createFallbackSkills = (position: PlayerPosition, rating: number) => {
+  switch (position) {
+    case 'GK':
+      return { goalkeeping: rating + 8, defending: Math.round(rating * 0.55), playmaking: Math.round(rating * 0.45), finishing: Math.round(rating * 0.25) };
+    case 'DF':
+      return { goalkeeping: Math.round(rating * 0.2), defending: rating + 6, playmaking: Math.round(rating * 0.6), finishing: Math.round(rating * 0.35) };
+    case 'MF':
+      return { goalkeeping: Math.round(rating * 0.15), defending: Math.round(rating * 0.6), playmaking: rating + 7, finishing: Math.round(rating * 0.7) };
+    case 'FW':
+    default:
+      return { goalkeeping: Math.round(rating * 0.1), defending: Math.round(rating * 0.35), playmaking: Math.round(rating * 0.65), finishing: rating + 8 };
+  }
+};
+
+const normalizeStoredPlayer = (player: unknown): Player | null => {
+  if (!player || typeof player !== 'object') return null;
+
+  const raw = player as Partial<Player>;
+  if (
+    typeof raw.id !== 'string' ||
+    typeof raw.name !== 'string' ||
+    typeof raw.age !== 'number' ||
+    (raw.position !== 'GK' && raw.position !== 'DF' && raw.position !== 'MF' && raw.position !== 'FW') ||
+    typeof raw.rating !== 'number' ||
+    typeof raw.value !== 'number' ||
+    typeof raw.isForSale !== 'boolean'
+  ) {
+    return null;
+  }
+
+  const fallbackSkills = createFallbackSkills(raw.position, raw.rating);
+
+  return {
+    id: raw.id,
+    name: raw.name,
+    age: raw.age,
+    position: raw.position,
+    rating: raw.rating,
+    value: raw.value,
+    isForSale: raw.isForSale,
+    askingPrice: typeof raw.askingPrice === 'number' ? raw.askingPrice : undefined,
+    goalkeeping: typeof raw.goalkeeping === 'number' ? raw.goalkeeping : fallbackSkills.goalkeeping,
+    defending: typeof raw.defending === 'number' ? raw.defending : fallbackSkills.defending,
+    playmaking: typeof raw.playmaking === 'number' ? raw.playmaking : fallbackSkills.playmaking,
+    finishing: typeof raw.finishing === 'number' ? raw.finishing : fallbackSkills.finishing,
+  };
+};
+
+const normalizePlayedMatch = (match: unknown): PlayedMatch | null => {
+  if (!match || typeof match !== 'object') return null;
+
+  const raw = match as Partial<PlayedMatch>;
+  if (
+    typeof raw.id !== 'string' ||
+    typeof raw.opponentId !== 'string' ||
+    typeof raw.opponent !== 'string' ||
+    typeof raw.isHome !== 'boolean' ||
+    (raw.difficulty !== 'Nem' && raw.difficulty !== 'Moderat' && raw.difficulty !== 'Svær') ||
+    typeof raw.opponentRating !== 'number' ||
+    typeof raw.round !== 'number' ||
+    typeof raw.season !== 'number' ||
+    (raw.result !== 'WIN' && raw.result !== 'DRAW' && raw.result !== 'LOSS') ||
+    typeof raw.homeGoals !== 'number' ||
+    typeof raw.awayGoals !== 'number' ||
+    typeof raw.date !== 'number'
+  ) {
+    return null;
+  }
+
+  return raw as PlayedMatch;
+};
+
 const saveGameState = (state: GameState) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -85,20 +122,36 @@ const saveGameState = (state: GameState) => {
   }
 };
 
-// Hent game state fra localStorage
 const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return JSON.parse(saved);
-    }
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved) as Partial<GameState> & { selectedTeam?: { id?: string } };
+    const selectedTeam = typeof parsed.selectedTeam?.id === 'string' ? getTeamById(parsed.selectedTeam.id) : null;
+    const players = parsed.players && typeof parsed.players === 'object'
+      ? Object.values(parsed.players).map(normalizeStoredPlayer).filter((player): player is Player => Boolean(player))
+      : [];
+    const playedMatches = Array.isArray(parsed.playedMatches)
+      ? parsed.playedMatches.map(normalizePlayedMatch).filter((match): match is PlayedMatch => Boolean(match))
+      : [];
+
+    return {
+      selectedTeam,
+      budget: typeof parsed.budget === 'number' ? parsed.budget : initialGameState.budget,
+      players: players.length > 0 ? createPlayerRecord(players) : selectedTeam ? createPlayerRecord(selectedTeam.players) : {},
+      fanCount: typeof parsed.fanCount === 'number' ? parsed.fanCount : initialGameState.fanCount,
+      stadiumCapacity: typeof parsed.stadiumCapacity === 'number' ? parsed.stadiumCapacity : initialGameState.stadiumCapacity,
+      fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialGameState.fanMood,
+      week: typeof parsed.week === 'number' && parsed.week > 0 ? Math.floor(parsed.week) : initialGameState.week,
+      playedMatches,
+    };
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
   }
   return null;
 };
 
-// Slet game state fra localStorage
 const deleteGameState = () => {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -108,12 +161,8 @@ const deleteGameState = () => {
 };
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => {
-    // Prøv at indlæse saved state, ellers brug initial state
-    return loadGameState() || initialGameState;
-  });
+  const [gameState, setGameState] = useState<GameState>(() => loadGameState() || initialGameState);
 
-  // Auto-save game state når det ændrer sig
   useEffect(() => {
     saveGameState(gameState);
   }, [gameState]);
@@ -122,33 +171,31 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setGameState(prev => ({
       ...prev,
       selectedTeam: team,
-      players: generateDummyPlayers(),
+      players: createPlayerRecord(team.players),
+      playedMatches: [],
+      week: 1,
     }));
   };
 
   const addPlayer = (player: Player): boolean => {
-    // Beregn kostprisen (brug askingPrice hvis tilgængelig, ellers value)
     const cost = player.askingPrice ?? player.value;
-    
-    // Tjek om spilleren allerede er i truppen
+
     if (gameState.players[player.id]) {
       console.warn(`Spiller ${player.name} er allerede i truppen`);
       return false;
     }
-    
-    // Tjek om der er budget nok
+
     if (gameState.budget < cost) {
       console.warn(`Ikke budget nok til at købe ${player.name}. Mangler: ${cost - gameState.budget} kr`);
       return false;
     }
 
-    // Træk penge fra budget og tilføj spiller
     setGameState(prev => ({
       ...prev,
       budget: prev.budget - cost,
       players: { ...prev.players, [player.id]: player }
     }));
-    
+
     return true;
   };
 
@@ -196,21 +243,29 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     return ticketRevenue;
   };
 
+  const recordPlayedMatch = (match: PlayedMatch) => {
+    setGameState(prev => ({
+      ...prev,
+      playedMatches: [match, ...prev.playedMatches]
+    }));
+  };
+
   const resetGame = () => {
     deleteGameState();
     setGameState(initialGameState);
   };
 
   return (
-    <GameContext.Provider 
-      value={{ 
-        gameState, 
-        selectTeam, 
-        addPlayer, 
-        sellPlayer, 
-        updatePlayer, 
-        upgradeStadium, 
+    <GameContext.Provider
+      value={{
+        gameState,
+        selectTeam,
+        addPlayer,
+        sellPlayer,
+        updatePlayer,
+        upgradeStadium,
         handleNextWeek,
+        recordPlayedMatch,
         resetGame
       }}
     >
