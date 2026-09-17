@@ -56,7 +56,6 @@ const App: React.FC = () => {
                 autoFocusAction="cancel"
                 onConfirm={handleResetGame}
                 onCancel={() => setIsConfirmingReset(false)}
-                className="mb-6"
               />
             )}
             {activeView === 'team' && <TeamView />}
