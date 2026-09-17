@@ -175,11 +175,15 @@ const normalizeWeekSummary = (summary: unknown): WeekSummary | null => {
   }
 
   const rawSummary = summary as Partial<WeekSummary>;
+  const validUserResult =
+    rawSummary.userResult === 'WIN' ||
+    rawSummary.userResult === 'DRAW' ||
+    rawSummary.userResult === 'LOSS';
 
   if (
     typeof rawSummary.round !== 'number' ||
     typeof rawSummary.userFixtureId !== 'string' ||
-    !rawSummary.userResult ||
+    !validUserResult ||
     typeof rawSummary.userGoals !== 'number' ||
     typeof rawSummary.opponentGoals !== 'number' ||
     typeof rawSummary.ticketRevenue !== 'number' ||
@@ -192,7 +196,7 @@ const normalizeWeekSummary = (summary: unknown): WeekSummary | null => {
   return {
     round: rawSummary.round,
     userFixtureId: rawSummary.userFixtureId,
-    userResult: rawSummary.userResult,
+    userResult: rawSummary.userResult as MatchOutcome,
     userGoals: rawSummary.userGoals,
     opponentGoals: rawSummary.opponentGoals,
     ticketRevenue: rawSummary.ticketRevenue,
@@ -211,6 +215,11 @@ const normalizeGameState = (savedState: unknown): GameState => {
   const league = getLeagueById(selectedTeam?.leagueId) ?? getLeagueByTeamId(selectedTeam?.id);
   const fixtures = league ? createLeagueFixtures(league) : [];
   const results = normalizeResults(rawState.results, fixtures);
+  const maxRound = fixtures.length > 0 ? Math.max(...fixtures.map((fixture) => fixture.round)) : 1;
+  const normalizedWeek =
+    typeof rawState.week === 'number' && rawState.week > 0
+      ? Math.min(Math.floor(rawState.week), maxRound)
+      : 1;
 
   return {
     ...initialGameState,
@@ -222,7 +231,7 @@ const normalizeGameState = (savedState: unknown): GameState => {
     fixtures,
     results,
     latestWeekSummary: normalizeWeekSummary(rawState.latestWeekSummary),
-    week: typeof rawState.week === 'number' && rawState.week > 0 ? Math.floor(rawState.week) : 1,
+    week: normalizedWeek,
   };
 };
 

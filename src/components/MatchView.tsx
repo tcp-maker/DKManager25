@@ -200,9 +200,9 @@ const MatchView: React.FC = () => {
             <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 text-center">
               <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
               <div className="flex justify-between items-center mb-4 animate-pulse">
-                <p className="text-lg font-semibold">{getTeamById(userFixture.awayTeamId)?.name}</p>
-                <p className="text-2xl font-bold">vs</p>
                 <p className="text-lg font-semibold">{getTeamById(userFixture.homeTeamId)?.name}</p>
+                <p className="text-2xl font-bold">vs</p>
+                <p className="text-lg font-semibold">{getTeamById(userFixture.awayTeamId)?.name}</p>
               </div>
               <p className="text-gray-600">Resultat beregnes og ligatabellen opdateres...</p>
             </div>
