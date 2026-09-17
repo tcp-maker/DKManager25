@@ -18,6 +18,15 @@ export interface ScheduledMatch {
   opponentRating: number;
 }
 
+export interface LeagueFixture {
+  id: string;
+  week: number;
+  homeTeamId: string;
+  homeTeamName: string;
+  awayTeamId: string;
+  awayTeamName: string;
+}
+
 export interface LeagueMatchRecord {
   fixtureId: string;
   season: number;
@@ -109,37 +118,80 @@ export const getLeagueByTeamId = (teamId?: string | null): LeagueDefinition | nu
   return LEAGUES.find(league => league.teams.some(team => team.id === teamId)) ?? null;
 };
 
-export const getSeasonFixtures = (selectedTeam: Team | null): ScheduledMatch[] => {
+const buildRoundRobinFixtures = (teams: Team[]): LeagueFixture[] => {
+  if (teams.length < 2 || teams.length % 2 !== 0) {
+    return [];
+  }
+
+  const rounds = teams.length - 1;
+  const halfSize = teams.length / 2;
+  let rotation = [...teams];
+  const firstHalf: LeagueFixture[] = [];
+
+  for (let round = 0; round < rounds; round += 1) {
+    for (let index = 0; index < halfSize; index += 1) {
+      const homeCandidate = rotation[index];
+      const awayCandidate = rotation[rotation.length - 1 - index];
+      const shouldSwap = (round + index) % 2 === 1;
+      const homeTeam = shouldSwap ? awayCandidate : homeCandidate;
+      const awayTeam = shouldSwap ? homeCandidate : awayCandidate;
+
+      firstHalf.push({
+        id: `fixture-${round + 1}-${homeTeam.id}-${awayTeam.id}`,
+        week: round + 1,
+        homeTeamId: homeTeam.id,
+        homeTeamName: homeTeam.name,
+        awayTeamId: awayTeam.id,
+        awayTeamName: awayTeam.name,
+      });
+    }
+
+    rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
+  }
+
+  const secondHalf = firstHalf.map(fixture => ({
+    id: `fixture-${fixture.week + rounds}-${fixture.awayTeamId}-${fixture.homeTeamId}`,
+    week: fixture.week + rounds,
+    homeTeamId: fixture.awayTeamId,
+    homeTeamName: fixture.awayTeamName,
+    awayTeamId: fixture.homeTeamId,
+    awayTeamName: fixture.homeTeamName,
+  }));
+
+  return [...firstHalf, ...secondHalf];
+};
+
+export const getLeagueSeasonSchedule = (selectedTeam: Team | null): LeagueFixture[] => {
   if (!selectedTeam) return [];
 
   const league = getLeagueByTeamId(selectedTeam.id);
   if (!league) return [];
 
-  const currentTeam = getTeamById(selectedTeam.id) ?? selectedTeam;
-  const opponents = league.teams.filter(team => team.id !== currentTeam.id);
+  return buildRoundRobinFixtures(league.teams).sort((a, b) => a.week - b.week);
+};
 
-  return opponents
-    .flatMap((opponent, index) => ([
-      {
-        id: `${currentTeam.id}-${opponent.id}-home`,
-        week: index + 1,
-        opponentId: opponent.id,
-        opponent: opponent.name,
-        isHome: true,
-        difficulty: getDifficulty(opponent.baseRating),
-        opponentRating: opponent.baseRating,
-      },
-      {
-        id: `${currentTeam.id}-${opponent.id}-away`,
-        week: index + opponents.length + 1,
-        opponentId: opponent.id,
-        opponent: opponent.name,
-        isHome: false,
-        difficulty: getDifficulty(opponent.baseRating),
-        opponentRating: opponent.baseRating,
-      }
-    ]))
-    .sort((a, b) => a.week - b.week);
+export const getSeasonFixtures = (selectedTeam: Team | null): ScheduledMatch[] => {
+  if (!selectedTeam) return [];
+
+  const currentTeam = getTeamById(selectedTeam.id) ?? selectedTeam;
+
+  return getLeagueSeasonSchedule(currentTeam)
+    .filter(fixture => fixture.homeTeamId === currentTeam.id || fixture.awayTeamId === currentTeam.id)
+    .map(fixture => {
+      const isHome = fixture.homeTeamId === currentTeam.id;
+      const opponentId = isHome ? fixture.awayTeamId : fixture.homeTeamId;
+      const opponent = getTeamById(opponentId);
+
+      return {
+        id: fixture.id,
+        week: fixture.week,
+        opponentId,
+        opponent: opponent?.name ?? (isHome ? fixture.awayTeamName : fixture.homeTeamName),
+        isHome,
+        difficulty: getDifficulty(opponent?.baseRating ?? 70),
+        opponentRating: opponent?.baseRating ?? 70,
+      };
+    });
 };
 
 export const simulateScore = (homeRating: number, awayRating: number) => {

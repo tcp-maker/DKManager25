@@ -28,8 +28,8 @@ const MatchView: React.FC = () => {
     [seasonMatches],
   );
   const upcomingMatches = useMemo(
-    () => fixtures.filter(match => !playedFixtureIds.has(match.id) && match.week >= gameState.week).slice(0, 3),
-    [fixtures, playedFixtureIds, gameState.week],
+    () => fixtures.filter(match => !playedFixtureIds.has(match.id)).slice(0, 3),
+    [fixtures, playedFixtureIds],
   );
   const leagueTable = useMemo(
     () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
@@ -60,7 +60,7 @@ const MatchView: React.FC = () => {
     matchResult &&
     currentMatch &&
     fixtures.length > 0 &&
-    (playedFixtureIds.has(currentMatch.id) ? playedFixtureIds.size : playedFixtureIds.size + 1) >= fixtures.length
+    fixtures[fixtures.length - 1]?.id === currentMatch.id
   );
 
   // Calculate team rating (average of all players)

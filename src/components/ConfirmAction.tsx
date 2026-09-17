@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 
 interface ConfirmActionProps {
   label: string;
@@ -24,6 +24,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirmationId = useId();
 
   const handleConfirm = async () => {
     if (disabled || isSubmitting) return;
@@ -55,6 +56,8 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
           setError(null);
           setIsOpen(current => !current);
         }}
+        aria-expanded={isOpen}
+        aria-controls={confirmationId}
         disabled={disabled || isSubmitting}
         className={`w-full rounded px-4 py-3 font-bold transition disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 ${buttonClassName}`}
       >
@@ -66,7 +69,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
       )}
 
       {isOpen && !disabled && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm">
+        <div id={confirmationId} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm">
           <p className="font-semibold text-amber-900">Bekræft handling</p>
           <p className="mt-1">{confirmMessage}</p>
 

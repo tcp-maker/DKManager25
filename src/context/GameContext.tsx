@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { getLeagueByTeamId, getSeasonFixtures, getTeamById, LeagueMatchRecord, ScheduledMatch, simulateScore } from '../data/leagues';
+import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, LeagueMatchRecord, ScheduledMatch, simulateScore } from '../data/leagues';
 import { Team } from '../types/teams';
 
 export interface Player {
@@ -206,8 +206,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
     setGameState(prev => {
       const completedMatches = prev.leagueMatches.filter(match => match.season === prev.season && match.isUserMatch).length;
-      const seasonMatchCount = prev.selectedTeam ? getSeasonFixtures(prev.selectedTeam).length : 0;
-      const isSeasonFinished = seasonMatchCount > 0 && completedMatches >= seasonMatchCount;
+      const seasonFixtures = prev.selectedTeam ? getSeasonFixtures(prev.selectedTeam) : [];
+      const currentWeekFixture = seasonFixtures.find(match => match.week === prev.week);
+      const isCurrentWeekPlayed = currentWeekFixture
+        ? prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === currentWeekFixture.id)
+        : true;
+      const isSeasonFinished = completedMatches > 0 && currentWeekFixture?.id === seasonFixtures[seasonFixtures.length - 1]?.id;
+
+      if (!isCurrentWeekPlayed) {
+        return prev;
+      }
 
       return {
         ...prev,
@@ -231,44 +239,30 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const league = getLeagueByTeamId(selectedTeam.id);
-      if (!league) {
-        return prev;
-      }
+      const otherMatches = getLeagueSeasonSchedule(selectedTeam)
+        .filter(match =>
+          match.week === prev.week &&
+          match.id !== fixture.id &&
+          !prev.leagueMatches.some(existing => existing.season === prev.season && existing.fixtureId === match.id)
+        )
+        .map(match => {
+          const homeTeam = getTeamById(match.homeTeamId);
+          const awayTeam = getTeamById(match.awayTeamId);
+          const otherResult = simulateScore(homeTeam?.baseRating ?? 70, awayTeam?.baseRating ?? 70);
 
-      const remainingTeams = league.teams.filter(team => team.id !== selectedTeam.id && team.id !== fixture.opponentId);
-      const shouldReverseOtherFixtures = prev.week % 2 === 0;
-      const otherMatches = remainingTeams.reduce<LeagueMatchRecord[]>((matches, team, index) => {
-        if (index % 2 !== 0) {
-          return matches;
-        }
-
-        const firstTeam = team;
-        const secondTeam = remainingTeams[index + 1];
-
-        if (!secondTeam) {
-          return matches;
-        }
-
-        const homeTeam = shouldReverseOtherFixtures ? secondTeam : firstTeam;
-        const awayTeam = shouldReverseOtherFixtures ? firstTeam : secondTeam;
-        const otherResult = simulateScore(homeTeam.baseRating, awayTeam.baseRating);
-
-        matches.push({
-          fixtureId: `other-${prev.season}-${prev.week}-${homeTeam.id}-${awayTeam.id}`,
-          season: prev.season,
-          week: prev.week,
-          homeTeamId: homeTeam.id,
-          homeTeamName: homeTeam.name,
-          awayTeamId: awayTeam.id,
-          awayTeamName: awayTeam.name,
-          homeGoals: otherResult.homeGoals,
-          awayGoals: otherResult.awayGoals,
-          isUserMatch: false,
+          return {
+            fixtureId: match.id,
+            season: prev.season,
+            week: prev.week,
+            homeTeamId: match.homeTeamId,
+            homeTeamName: match.homeTeamName,
+            awayTeamId: match.awayTeamId,
+            awayTeamName: match.awayTeamName,
+            homeGoals: otherResult.homeGoals,
+            awayGoals: otherResult.awayGoals,
+            isUserMatch: false,
+          };
         });
-
-        return matches;
-      }, []);
 
       const homeGoals = fixture.isHome ? userGoals : opponentGoals;
       const awayGoals = fixture.isHome ? opponentGoals : userGoals;
