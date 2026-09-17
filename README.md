@@ -120,13 +120,36 @@ Byg lokal debug-APK:
 npm run mobile:apk
 ```
 
+Byg release-APK:
+
+```bash
+npm run mobile:apk:release
+```
+
 Byg release App Bundle (AAB):
 
 ```bash
 npm run mobile:bundle
 ```
 
-Bemærk: `mobile:bundle` laver selve bundle-filen, men en rigtig Play Store-udgivelse kræver stadig signering/keystore og endelig gennemgang i Android Studio eller CI.
+Bemærk: `mobile:apk:release` og `mobile:bundle` er klar til rigtig release-signering, men du skal først konfigurere en keystore.
+
+1. Kopiér eksempel-filen:
+
+```bash
+cp android/keystore.properties.example android/keystore.properties
+```
+
+2. Udfyld din egen release-keystore i `android/keystore.properties`
+
+Alternativt kan du sætte disse miljøvariabler i stedet:
+
+- `DKMANAGER25_STORE_FILE`
+- `DKMANAGER25_STORE_PASSWORD`
+- `DKMANAGER25_KEY_ALIAS`
+- `DKMANAGER25_KEY_PASSWORD`
+
+Når signing er sat op, vil release-builds automatisk bruge den. Selve Play Store-udgivelsen kræver stadig endelig signering/keystore-håndtering og gennemgang i Android Studio eller CI.
 
 Første Android-build kræver også adgang til Gradle/Google Maven for at hente Android build-afhængigheder, hvis de ikke allerede findes lokalt i cachen.
 
@@ -151,6 +174,7 @@ npm run preview
 - `npm run build`
 - `npm run build:mobile`
 - `npm run mobile:apk`
+- `npm run mobile:apk:release` er klargjort, men kræver lokal adgang til Android/Google build-afhængigheder og release-keystore
 - stabil ugentlig kampgenerering blev kontrolleret via målrettet TypeScript-kørsel
 - dev-server svarede korrekt på `/`, `/manifest.webmanifest`, `/sw.js` og `/icon.svg`
 - Android CLI-build blev forberedt, men fuld `assembleDebug` i denne sandbox blev stoppet af netværksadgang til `dl.google.com`
