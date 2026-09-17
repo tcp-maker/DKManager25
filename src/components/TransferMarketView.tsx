@@ -30,9 +30,14 @@ const TransferMarketView: React.FC = () => {
         isForSale: false,
         askingPrice: undefined
       };
-      addPlayer(newPlayer);
-      setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${cost.toLocaleString('da-DK')} kr!`);
+      const purchaseSucceeded = addPlayer(newPlayer);
+
+      if (purchaseSucceeded) {
+        setSelectedBuyPlayer(null);
+        alert(`${player.name} blev købt for ${cost.toLocaleString('da-DK')} kr!`);
+      } else {
+        alert(`Købet af ${player.name} kunne ikke gennemføres.`);
+      }
     } else {
       alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${cost.toLocaleString('da-DK')} kr`);
     }
