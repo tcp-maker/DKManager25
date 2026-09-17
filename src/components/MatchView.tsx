@@ -271,13 +271,19 @@ const MatchView: React.FC = () => {
         </div>
       )}
 
-      {activeTab === 'table' && league && (
-        <LeagueTable
-          league={league}
-          standings={standings}
-          selectedTeamId={gameState.selectedTeam?.id}
-        />
-      )}
+      {activeTab === 'table' &&
+        (league ? (
+          <LeagueTable
+            league={league}
+            standings={standings}
+            selectedTeamId={gameState.selectedTeam?.id}
+          />
+        ) : (
+          <div className="bg-white rounded-lg shadow p-6 text-center">
+            <h2 className="text-2xl font-bold mb-2">Ingen ligatabel tilgængelig</h2>
+            <p className="text-gray-600">Vælg et hold for at se den aktuelle ligastilling.</p>
+          </div>
+        ))}
 
       {activeTab === 'history' && (
         <div>

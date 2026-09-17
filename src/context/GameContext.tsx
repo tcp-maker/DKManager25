@@ -216,9 +216,11 @@ const normalizeGameState = (savedState: unknown): GameState => {
   const fixtures = league ? createLeagueFixtures(league) : [];
   const results = normalizeResults(rawState.results, fixtures);
   const maxRound = fixtures.length > 0 ? Math.max(...fixtures.map((fixture) => fixture.round)) : 1;
+  const seasonComplete = fixtures.length > 0 && results.length >= fixtures.length;
+  const maxAllowedWeek = seasonComplete ? maxRound + 1 : maxRound;
   const normalizedWeek =
     typeof rawState.week === 'number' && rawState.week > 0
-      ? Math.min(Math.floor(rawState.week), maxRound)
+      ? Math.min(Math.floor(rawState.week), maxAllowedWeek)
       : 1;
 
   return {
@@ -470,11 +472,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleNextWeek = () => {
-    setGameState((prev) => ({
-      ...prev,
-      week: prev.week + 1,
-      latestWeekSummary: null,
-    }));
+    setGameState((prev) => {
+      const maxRound =
+        prev.fixtures.length > 0 ? Math.max(...prev.fixtures.map((fixture) => fixture.round)) : prev.week;
+      const nextWeek = Math.min(prev.week + 1, maxRound + 1);
+
+      return {
+        ...prev,
+        week: nextWeek,
+        latestWeekSummary: null,
+      };
+    });
   };
 
   const resetGame = () => {
