@@ -21,7 +21,9 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleBuyPlayer = (player: Player) => {
-    if (gameState.budget >= player.value) {
+    const cost = player.askingPrice ?? player.value;
+
+    if (gameState.budget >= cost) {
       const newPlayer = {
         ...player,
         id: `own_${player.id}`,
@@ -30,9 +32,9 @@ const TransferMarketView: React.FC = () => {
       };
       addPlayer(newPlayer);
       setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+      alert(`${player.name} blev købt for ${cost.toLocaleString('da-DK')} kr!`);
     } else {
-      alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
+      alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${cost.toLocaleString('da-DK')} kr`);
     }
   };
 
@@ -150,63 +152,67 @@ const TransferMarketView: React.FC = () => {
             <p className="text-gray-500 text-center py-8">Ingen spillere på markedet</p>
           ) : (
             <div className="space-y-3">
-              {availableForBuy.map(player => (
-                <div
-                  key={player.id}
-                  onClick={() => setSelectedBuyPlayer(selectedBuyPlayer?.id === player.id ? null : player)}
-                  className={`bg-white border rounded-lg p-4 cursor-pointer transition ${
-                    selectedBuyPlayer?.id === player.id
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
-                      <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
-                      <PlayerAbilities player={player} />
+              {availableForBuy.map(player => {
+                const cost = player.askingPrice ?? player.value;
+
+                return (
+                  <div
+                    key={player.id}
+                    onClick={() => setSelectedBuyPlayer(selectedBuyPlayer?.id === player.id ? null : player)}
+                    className={`bg-white border rounded-lg p-4 cursor-pointer transition ${
+                      selectedBuyPlayer?.id === player.id
+                        ? 'border-blue-500 bg-blue-50 shadow-md'
+                        : 'border-gray-200 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg">{player.name}</h3>
+                        <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
+                        <p className="text-lg font-bold text-blue-600 mt-2">Pris: {cost.toLocaleString('da-DK')} kr</p>
+                        <PlayerAbilities player={player} />
+                      </div>
+                      {gameState.budget >= cost && (
+                        <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
+                          Råd
+                        </span>
+                      )}
+                      {gameState.budget < cost && (
+                        <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
+                          For dyr
+                        </span>
+                      )}
                     </div>
-                    {gameState.budget >= player.value && (
-                      <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
-                        Råd
-                      </span>
-                    )}
-                    {gameState.budget < player.value && (
-                      <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
-                        For dyr
-                      </span>
+
+                    {/* Expanded details */}
+                    {selectedBuyPlayer?.id === player.id && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm text-gray-700 mb-4">
+                          Købt denne spiller til {cost.toLocaleString('da-DK')} kr. Du vil have{' '}
+                          <span className="font-bold text-green-600">
+                            {(gameState.budget - cost).toLocaleString('da-DK')} kr
+                          </span>{' '}
+                          tilbage.
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleBuyPlayer(player);
+                          }}
+                          disabled={gameState.budget < cost}
+                          className={`w-full font-bold py-3 px-4 rounded transition ${
+                            gameState.budget >= cost
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          {gameState.budget >= cost ? 'Køb Spiller' : 'Ikke råd'}
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  {/* Expanded details */}
-                  {selectedBuyPlayer?.id === player.id && (
-                    <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm text-gray-700 mb-4">
-                        Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
-                        <span className="font-bold text-green-600">
-                          {(gameState.budget - player.value).toLocaleString('da-DK')} kr
-                        </span>{' '}
-                        tilbage.
-                      </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBuyPlayer(player);
-                        }}
-                        disabled={gameState.budget < player.value}
-                        className={`w-full font-bold py-3 px-4 rounded transition ${
-                          gameState.budget >= player.value
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

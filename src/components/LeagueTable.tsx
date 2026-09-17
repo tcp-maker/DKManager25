@@ -18,13 +18,13 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ league, standings, selectedTe
           <tr>
             <th className="p-3 text-left text-sm font-semibold">#</th>
             <th className="p-3 text-left text-sm font-semibold">Hold</th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Kampe">K</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Vundne">V</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Uafgjorte">U</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Tabte">T</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Mål for og imod">MF</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Målforskel">+/-</abbr></th>
-            <th className="p-3 text-center text-sm font-semibold"><abbr title="Point">P</abbr></th>
+            <th className="p-3 text-center text-sm font-semibold">K<span className="sr-only"> Kampe</span></th>
+            <th className="p-3 text-center text-sm font-semibold">V<span className="sr-only"> Vundne</span></th>
+            <th className="p-3 text-center text-sm font-semibold">U<span className="sr-only"> Uafgjorte</span></th>
+            <th className="p-3 text-center text-sm font-semibold">T<span className="sr-only"> Tabte</span></th>
+            <th className="p-3 text-center text-sm font-semibold">MF<span className="sr-only"> Mål for og imod</span></th>
+            <th className="p-3 text-center text-sm font-semibold">+/-<span className="sr-only"> Målforskel</span></th>
+            <th className="p-3 text-center text-sm font-semibold">P<span className="sr-only"> Point</span></th>
           </tr>
         </thead>
         <tbody>

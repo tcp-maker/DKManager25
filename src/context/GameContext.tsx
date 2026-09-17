@@ -174,7 +174,11 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
   }, [] as LeagueResult[]);
 };
 
-const normalizeWeekSummary = (summary: unknown): WeekSummary | null => {
+const normalizeWeekSummary = (
+  summary: unknown,
+  fixtures: LeagueFixture[],
+  results: LeagueResult[],
+): WeekSummary | null => {
   if (!summary || typeof summary !== 'object') {
     return null;
   }
@@ -195,6 +199,13 @@ const normalizeWeekSummary = (summary: unknown): WeekSummary | null => {
     typeof rawSummary.fanDelta !== 'number' ||
     typeof rawSummary.moodDelta !== 'number'
   ) {
+    return null;
+  }
+
+  const hasFixture = fixtures.some((fixture) => fixture.id === rawSummary.userFixtureId);
+  const hasResult = results.some((result) => result.fixtureId === rawSummary.userFixtureId);
+
+  if (!hasFixture || !hasResult) {
     return null;
   }
 
@@ -241,7 +252,7 @@ const normalizeGameState = (savedState: unknown): GameState => {
     leagueName: league?.name ?? null,
     fixtures,
     results,
-    latestWeekSummary: normalizeWeekSummary(rawState.latestWeekSummary),
+    latestWeekSummary: normalizeWeekSummary(rawState.latestWeekSummary, fixtures, results),
   };
 };
 
