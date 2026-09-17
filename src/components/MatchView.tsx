@@ -20,7 +20,12 @@ const MatchView: React.FC = () => {
   const playedUserResult = userFixture
     ? gameState.results.find((result) => result.fixtureId === userFixture.id) ?? null
     : null;
-  const playedMatches = [...gameState.results].sort((a, b) => b.round - a.round);
+  const playedMatches = gameState.results
+    .filter(
+      (result) =>
+        result.homeTeamId === gameState.selectedTeam?.id || result.awayTeamId === gameState.selectedTeam?.id,
+    )
+    .sort((a, b) => b.round - a.round);
   const teamRating = (() => {
     const players = Object.values(gameState.players);
     if (players.length === 0) return 70;
