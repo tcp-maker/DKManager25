@@ -237,12 +237,38 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const remainingTeams = league.teams.filter(team => team.id !== selectedTeam.id && team.id !== fixture.opponentId);
-      const shouldReverseOtherFixture = prev.week % 2 === 0;
-      const otherHomeTeam = shouldReverseOtherFixture ? remainingTeams[1] : remainingTeams[0];
-      const otherAwayTeam = shouldReverseOtherFixture ? remainingTeams[0] : remainingTeams[1];
-      const otherResult = otherHomeTeam && otherAwayTeam
-        ? simulateScore(otherHomeTeam.baseRating, otherAwayTeam.baseRating)
-        : null;
+      const shouldReverseOtherFixtures = prev.week % 2 === 0;
+      const otherMatches = remainingTeams.reduce<LeagueMatchRecord[]>((matches, team, index) => {
+        if (index % 2 !== 0) {
+          return matches;
+        }
+
+        const firstTeam = team;
+        const secondTeam = remainingTeams[index + 1];
+
+        if (!secondTeam) {
+          return matches;
+        }
+
+        const homeTeam = shouldReverseOtherFixtures ? secondTeam : firstTeam;
+        const awayTeam = shouldReverseOtherFixtures ? firstTeam : secondTeam;
+        const otherResult = simulateScore(homeTeam.baseRating, awayTeam.baseRating);
+
+        matches.push({
+          fixtureId: `other-${prev.season}-${prev.week}-${homeTeam.id}-${awayTeam.id}`,
+          season: prev.season,
+          week: prev.week,
+          homeTeamId: homeTeam.id,
+          homeTeamName: homeTeam.name,
+          awayTeamId: awayTeam.id,
+          awayTeamName: awayTeam.name,
+          homeGoals: otherResult.homeGoals,
+          awayGoals: otherResult.awayGoals,
+          isUserMatch: false,
+        });
+
+        return matches;
+      }, []);
 
       const homeGoals = fixture.isHome ? userGoals : opponentGoals;
       const awayGoals = fixture.isHome ? opponentGoals : userGoals;
@@ -273,18 +299,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         leagueMatches: [
           ...prev.leagueMatches,
           userMatch,
-          ...(otherResult && otherHomeTeam && otherAwayTeam ? [{
-            fixtureId: `other-${prev.season}-${prev.week}`,
-            season: prev.season,
-            week: prev.week,
-            homeTeamId: otherHomeTeam.id,
-            homeTeamName: otherHomeTeam.name,
-            awayTeamId: otherAwayTeam.id,
-            awayTeamName: otherAwayTeam.name,
-            homeGoals: otherResult.homeGoals,
-            awayGoals: otherResult.awayGoals,
-            isUserMatch: false,
-          }] : []),
+          ...otherMatches,
         ],
       };
     });

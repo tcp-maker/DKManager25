@@ -6,8 +6,8 @@ interface PlayedMatchSummary {
   id: string;
   opponent: string;
   result: 'WIN' | 'DRAW' | 'LOSS';
-  homeGoals: number;
-  awayGoals: number;
+  userGoals: number;
+  opponentGoals: number;
   date: number;
 }
 
@@ -47,8 +47,8 @@ const MatchView: React.FC = () => {
           id: match.fixtureId,
           opponent: isHome ? match.awayTeamName : match.homeTeamName,
           result,
-          homeGoals,
-          awayGoals,
+          userGoals: homeGoals,
+          opponentGoals: awayGoals,
           date: match.week,
         };
       })
@@ -56,6 +56,12 @@ const MatchView: React.FC = () => {
     [seasonMatches, selectedTeam],
   );
   const isSeasonComplete = fixtures.length > 0 && playedFixtureIds.size >= fixtures.length;
+  const nextAdvanceStartsNewSeason = Boolean(
+    matchResult &&
+    currentMatch &&
+    fixtures.length > 0 &&
+    (playedFixtureIds.has(currentMatch.id) ? playedFixtureIds.size : playedFixtureIds.size + 1) >= fixtures.length
+  );
 
   // Calculate team rating (average of all players)
   const getTeamRating = (): number => {
@@ -85,8 +91,8 @@ const MatchView: React.FC = () => {
         id: match.id,
         opponent: match.opponent,
         result: userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW',
-        homeGoals: userGoals,
-        awayGoals: opponentGoals,
+        userGoals,
+        opponentGoals,
         date: gameState.week,
       };
 
@@ -142,15 +148,15 @@ const MatchView: React.FC = () => {
                   <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
                   <div className="flex justify-between items-center mb-4">
                     <div className="text-center flex-1">
-                      <p className="text-sm text-gray-600">{matchResult.opponent}</p>
-                      <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
+                      <p className="text-sm text-gray-600">{currentMatch?.isHome ? 'Dit Hold' : matchResult.opponent}</p>
+                      <p className="text-4xl font-bold text-blue-600">{currentMatch?.isHome ? matchResult.userGoals : matchResult.opponentGoals}</p>
                     </div>
                     <div className="text-center">
                       <p className="text-2xl font-bold">-</p>
                     </div>
                     <div className="text-center flex-1">
-                      <p className="text-sm text-gray-600">Dit Hold</p>
-                      <p className="text-4xl font-bold text-green-600">{matchResult.homeGoals}</p>
+                      <p className="text-sm text-gray-600">{currentMatch?.isHome ? matchResult.opponent : 'Dit Hold'}</p>
+                      <p className="text-4xl font-bold text-green-600">{currentMatch?.isHome ? matchResult.opponentGoals : matchResult.userGoals}</p>
                     </div>
                   </div>
 
@@ -179,7 +185,7 @@ const MatchView: React.FC = () => {
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                   >
-                    {isSeasonComplete ? 'Start næste sæson' : 'Gå til næste uge'}
+                    {nextAdvanceStartsNewSeason || isSeasonComplete ? 'Start næste sæson' : 'Gå til næste uge'}
                   </button>
                 </div>
               )}
@@ -284,7 +290,7 @@ const MatchView: React.FC = () => {
 
                         <div className="text-center">
                           <p className="text-3xl font-bold">
-                            {match.homeGoals} - {match.awayGoals}
+                            {match.userGoals} - {match.opponentGoals}
                           </p>
                           <p className={`text-sm font-bold ${
                             match.result === 'WIN'
