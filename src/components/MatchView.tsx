@@ -41,6 +41,10 @@ const MatchView: React.FC = () => {
       opponentName: getTeamById(isHome ? result.awayTeamId : result.homeTeamId)?.name ?? 'Modstander',
     };
   };
+  const getOpponentNameFromFixture = (homeTeamId: string, awayTeamId: string) => {
+    const opponentTeamId = homeTeamId === gameState.selectedTeam?.id ? awayTeamId : homeTeamId;
+    return getTeamById(opponentTeamId)?.name ?? 'Modstander';
+  };
 
   const handlePlayMatch = () => {
     if (!userFixture || isMatchPlaying || playedUserResult) {
@@ -252,14 +256,7 @@ const MatchView: React.FC = () => {
                       {getTeamById(userFixture.homeTeamId)?.name} - {getTeamById(userFixture.awayTeamId)?.name}
                     </h3>
                     <p className="text-sm text-gray-600">
-                      {league.name} • Modstander: {getPerspectiveScore({
-                        fixtureId: userFixture.id,
-                        round: userFixture.round,
-                        homeTeamId: userFixture.homeTeamId,
-                        awayTeamId: userFixture.awayTeamId,
-                        homeGoals: 0,
-                        awayGoals: 0,
-                      }).opponentName}
+                      {league.name} • Modstander: {getOpponentNameFromFixture(userFixture.homeTeamId, userFixture.awayTeamId)}
                     </p>
                   </div>
                   <div className="text-right">
