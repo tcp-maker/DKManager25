@@ -27,10 +27,18 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleBuyPlayer = (player: Player) => {
+    const ownedPlayerId = `own_${player.id}`;
+
+    if (gameState.players[ownedPlayerId]) {
+      setConfirmingBuyPlayer(null);
+      alert(`${player.name} er allerede i truppen.`);
+      return;
+    }
+
     if (gameState.budget >= player.value) {
       const newPlayer = {
         ...player,
-        id: `own_${player.id}`,
+        id: ownedPlayerId,
         isForSale: false,
         askingPrice: undefined
       };
