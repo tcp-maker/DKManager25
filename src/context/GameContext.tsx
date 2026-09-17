@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Team } from '../types/teams';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { getLeagueByTeamId } from '../data/leagues';
+import { LeagueMatchResult, Team } from '../types/teams';
 
 export interface Player {
   id: string;
@@ -20,6 +21,7 @@ interface GameState {
   stadiumCapacity: number;
   fanMood: number;
   week: number;
+  playedLeagueMatches: LeagueMatchResult[];
 }
 
 interface GameContextType {
@@ -30,6 +32,7 @@ interface GameContextType {
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
   handleNextWeek: () => number;
+  recordLeagueResults: (results: LeagueMatchResult[]) => void;
   resetGame: () => void;
 }
 
@@ -40,17 +43,17 @@ const generateDummyPlayers = (): Record<string, Player> => {
   const players: Player[] = [
     { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
     { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
-    
+
     { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', rating: 79, value: 600000, isForSale: false },
     { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', rating: 76, value: 450000, isForSale: false },
     { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', rating: 71, value: 400000, isForSale: true, askingPrice: 450000 },
     { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', rating: 74, value: 380000, isForSale: false },
-    
+
     { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', rating: 76, value: 520000, isForSale: false },
     { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', rating: 73, value: 420000, isForSale: false },
     { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', rating: 72, value: 450000, isForSale: true, askingPrice: 500000 },
     { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', rating: 68, value: 280000, isForSale: false },
-    
+
     { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', rating: 80, value: 750000, isForSale: false },
     { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', rating: 77, value: 600000, isForSale: false },
     { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
@@ -71,6 +74,25 @@ const initialGameState: GameState = {
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
+  playedLeagueMatches: [],
+};
+
+const normalizeGameState = (state: Partial<GameState> | null): GameState => {
+  if (!state) {
+    return initialGameState;
+  }
+
+  const selectedTeam = state.selectedTeam
+    ? getLeagueByTeamId(state.selectedTeam.id)?.teams.find(team => team.id === state.selectedTeam?.id) ?? state.selectedTeam
+    : null;
+
+  return {
+    ...initialGameState,
+    ...state,
+    selectedTeam,
+    players: state.players ?? {},
+    playedLeagueMatches: Array.isArray(state.playedLeagueMatches) ? state.playedLeagueMatches : [],
+  };
 };
 
 // localStorage nøgler
@@ -86,16 +108,16 @@ const saveGameState = (state: GameState) => {
 };
 
 // Hent game state fra localStorage
-const loadGameState = (): GameState | null => {
+const loadGameState = (): GameState => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      return normalizeGameState(JSON.parse(saved) as Partial<GameState>);
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
   }
-  return null;
+  return initialGameState;
 };
 
 // Slet game state fra localStorage
@@ -108,10 +130,7 @@ const deleteGameState = () => {
 };
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => {
-    // Prøv at indlæse saved state, ellers brug initial state
-    return loadGameState() || initialGameState;
-  });
+  const [gameState, setGameState] = useState<GameState>(() => loadGameState());
 
   // Auto-save game state når det ændrer sig
   useEffect(() => {
@@ -119,23 +138,23 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   }, [gameState]);
 
   const selectTeam = (team: Team) => {
-    setGameState(prev => ({
-      ...prev,
+    setGameState({
+      ...initialGameState,
       selectedTeam: team,
       players: generateDummyPlayers(),
-    }));
+    });
   };
 
   const addPlayer = (player: Player): boolean => {
     // Beregn kostprisen (brug askingPrice hvis tilgængelig, ellers value)
     const cost = player.askingPrice ?? player.value;
-    
+
     // Tjek om spilleren allerede er i truppen
     if (gameState.players[player.id]) {
       console.warn(`Spiller ${player.name} er allerede i truppen`);
       return false;
     }
-    
+
     // Tjek om der er budget nok
     if (gameState.budget < cost) {
       console.warn(`Ikke budget nok til at købe ${player.name}. Mangler: ${cost - gameState.budget} kr`);
@@ -148,7 +167,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       budget: prev.budget - cost,
       players: { ...prev.players, [player.id]: player }
     }));
-    
+
     return true;
   };
 
@@ -196,21 +215,38 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     return ticketRevenue;
   };
 
+  const recordLeagueResults = (results: LeagueMatchResult[]) => {
+    setGameState(prev => {
+      const allResults = new Map(prev.playedLeagueMatches.map(result => [result.id, result]));
+      results.forEach(result => {
+        allResults.set(result.id, result);
+      });
+
+      return {
+        ...prev,
+        playedLeagueMatches: Array.from(allResults.values()).sort((left, right) => (
+          left.week - right.week || left.id.localeCompare(right.id, 'da')
+        ))
+      };
+    });
+  };
+
   const resetGame = () => {
     deleteGameState();
     setGameState(initialGameState);
   };
 
   return (
-    <GameContext.Provider 
-      value={{ 
-        gameState, 
-        selectTeam, 
-        addPlayer, 
-        sellPlayer, 
-        updatePlayer, 
-        upgradeStadium, 
+    <GameContext.Provider
+      value={{
+        gameState,
+        selectTeam,
+        addPlayer,
+        sellPlayer,
+        updatePlayer,
+        upgradeStadium,
         handleNextWeek,
+        recordLeagueResults,
         resetGame
       }}
     >

@@ -1,136 +1,145 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { calculateLeagueStandings, getLeagueByTeamId, getLeagueFixtureSet } from '../data/leagues';
 import { useGame } from '../context/GameContext';
+import { LeagueFixture, LeagueMatchResult } from '../types/teams';
 
-interface Match {
-  id: string;
-  opponent: string;
-  isHome: boolean;
-  difficulty: 'Nem' | 'Moderat' | 'Svær';
-  opponentRating: number;
-}
-
-interface PlayedMatch {
+interface ClubPerspectiveMatch {
   id: string;
   opponent: string;
   result: 'WIN' | 'DRAW' | 'LOSS';
-  homeGoals: number;
-  awayGoals: number;
+  goalsFor: number;
+  goalsAgainst: number;
   date: number;
 }
 
+const getRandomInt = (max: number) => Math.floor(Math.random() * max);
+
 const MatchView: React.FC = () => {
-  const { gameState, handleNextWeek } = useGame();
+  const { gameState, handleNextWeek, recordLeagueResults } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [playedMatches, setPlayedMatches] = useState<PlayedMatch[]>([]);
-  const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<LeagueFixture | null>(null);
+  const [matchResult, setMatchResult] = useState<LeagueMatchResult | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
 
-  // Dummy modstandere
-  const opponents = [
-    { name: 'FC København', baseRating: 82 },
-    { name: 'Brøndby IF', baseRating: 79 },
-    { name: 'AaB Aalborg', baseRating: 76 },
-    { name: 'Silkeborg IF', baseRating: 74 },
-    { name: 'Randers FC', baseRating: 75 },
-    { name: 'Midtjylland', baseRating: 78 },
-    { name: 'OB Odense', baseRating: 73 },
-    { name: 'Nordsjælland', baseRating: 77 },
-  ];
+  const selectedTeam = gameState.selectedTeam;
+  const currentLeague = selectedTeam ? getLeagueByTeamId(selectedTeam.id) : undefined;
 
-  // Generate upcoming matches
-  const generateUpcomingMatches = (): Match[] => {
-    const matches: Match[] = [];
-    for (let i = 0; i < 3; i++) {
-      const opponent = opponents[Math.floor(Math.random() * opponents.length)];
-      const isHome = Math.random() > 0.5;
-      matches.push({
-        id: `match_${gameState.week}_${i}`,
-        opponent: opponent.name,
-        isHome,
-        difficulty: opponent.baseRating > 80 ? 'Svær' : opponent.baseRating > 75 ? 'Moderat' : 'Nem',
-        opponentRating: opponent.baseRating + Math.random() * 5 - 2.5,
-      });
-    }
-    return matches;
-  };
-
-  // Calculate team rating (average of all players)
   const getTeamRating = (): number => {
     const players = Object.values(gameState.players);
     if (players.length === 0) return 70;
-    const totalRating = players.reduce((sum, p) => sum + p.rating, 0);
+    const totalRating = players.reduce((sum, player) => sum + player.rating, 0);
     return totalRating / players.length;
   };
 
-  // Simulate match
-  const simulateMatch = (match: Match) => {
+  const currentFixtures = currentLeague ? getLeagueFixtureSet(currentLeague.id, gameState.week) : [];
+  const playerFixture = currentFixtures.find(
+    fixture => fixture.homeTeam.id === selectedTeam?.id || fixture.awayTeam.id === selectedTeam?.id,
+  );
+  const recordedCurrentWeekMatch = playerFixture
+    ? gameState.playedLeagueMatches.find(result => result.id === playerFixture.id)
+    : undefined;
+
+  const simulateFixtureResult = (fixture: LeagueFixture): LeagueMatchResult => {
+    const homeRating = fixture.homeTeam.id === selectedTeam?.id ? getTeamRating() : fixture.homeTeam.rating;
+    const awayRating = fixture.awayTeam.id === selectedTeam?.id ? getTeamRating() : fixture.awayTeam.rating;
+    const adjustedDifference = homeRating + 2 - awayRating;
+    const homeWinProbability = Math.max(0.2, Math.min(0.65, 0.42 + adjustedDifference / 80));
+    const drawProbability = 0.24;
+    const roll = Math.random();
+
+    let homeGoals: number;
+    let awayGoals: number;
+
+    if (roll < homeWinProbability) {
+      homeGoals = 1 + getRandomInt(3) + (adjustedDifference > 8 ? 1 : 0);
+      awayGoals = getRandomInt(Math.max(1, homeGoals));
+    } else if (roll < homeWinProbability + drawProbability) {
+      homeGoals = getRandomInt(3);
+      awayGoals = homeGoals;
+    } else {
+      awayGoals = 1 + getRandomInt(3) + (adjustedDifference < -8 ? 1 : 0);
+      homeGoals = getRandomInt(Math.max(1, awayGoals));
+    }
+
+    return {
+      id: fixture.id,
+      leagueId: fixture.leagueId,
+      week: fixture.week,
+      homeTeamId: fixture.homeTeam.id,
+      awayTeamId: fixture.awayTeam.id,
+      homeGoals,
+      awayGoals,
+    };
+  };
+
+  const mapToClubPerspective = (result: LeagueMatchResult): ClubPerspectiveMatch => {
+    const isHome = result.homeTeamId === selectedTeam?.id;
+    const opponentId = isHome ? result.awayTeamId : result.homeTeamId;
+    const opponent = currentLeague?.teams.find(team => team.id === opponentId)?.name ?? opponentId;
+    const goalsFor = isHome ? result.homeGoals : result.awayGoals;
+    const goalsAgainst = isHome ? result.awayGoals : result.homeGoals;
+    const outcome = goalsFor > goalsAgainst ? 'WIN' : goalsFor < goalsAgainst ? 'LOSS' : 'DRAW';
+
+    return {
+      id: result.id,
+      opponent,
+      result: outcome,
+      goalsFor,
+      goalsAgainst,
+      date: result.week,
+    };
+  };
+
+  const playedMatches = useMemo(() => (
+    gameState.playedLeagueMatches
+      .filter(match => match.homeTeamId === selectedTeam?.id || match.awayTeamId === selectedTeam?.id)
+      .sort((left, right) => right.week - left.week || left.id.localeCompare(right.id, 'da'))
+      .map(mapToClubPerspective)
+  ), [gameState.playedLeagueMatches, selectedTeam?.id, currentLeague]);
+
+  const displayResult = matchResult ?? recordedCurrentWeekMatch ?? null;
+  const displayPerspectiveMatch = displayResult ? mapToClubPerspective(displayResult) : null;
+  const standings = currentLeague ? calculateLeagueStandings(currentLeague, gameState.playedLeagueMatches) : [];
+  const teamStanding = standings.find(standing => standing.teamId === selectedTeam?.id);
+
+  const simulateMatch = (fixture: LeagueFixture) => {
+    if (!currentLeague || !selectedTeam) {
+      return;
+    }
+
     setIsMatchPlaying(true);
-    setCurrentMatch(match);
+    setCurrentMatch(fixture);
 
-    // Simulate match delay
     setTimeout(() => {
-      const homeRating = match.isHome ? getTeamRating() : match.opponentRating;
-      const awayRating = match.isHome ? match.opponentRating : getTeamRating();
+      const weeklyResults = currentFixtures.map(currentFixture => simulateFixtureResult(currentFixture));
+      const userResult = weeklyResults.find(result => result.id === fixture.id) ?? null;
 
-      const diff = homeRating - awayRating;
-      const winProb = 0.4 + diff / 200;
-      const drawProb = 0.25;
-
-      const roll = Math.random();
-      let result: 'WIN' | 'DRAW' | 'LOSS';
-      let homeGoals: number;
-      let awayGoals: number;
-
-      if (roll < winProb) {
-        result = match.isHome ? 'WIN' : 'LOSS';
-        homeGoals = Math.floor(Math.random() * 3) + 1;
-        awayGoals = Math.floor(Math.random() * homeGoals);
-      } else if (roll < winProb + drawProb) {
-        result = 'DRAW';
-        homeGoals = Math.floor(Math.random() * 2) + 1;
-        awayGoals = homeGoals;
-      } else {
-        result = match.isHome ? 'LOSS' : 'WIN';
-        awayGoals = Math.floor(Math.random() * 3) + 1;
-        homeGoals = Math.floor(Math.random() * awayGoals);
+      if (!userResult) {
+        setIsMatchPlaying(false);
+        setCurrentMatch(null);
+        return;
       }
 
-      const played: PlayedMatch = {
-        id: match.id,
-        opponent: match.opponent,
-        result: match.isHome ? result : result === 'WIN' ? 'LOSS' : result === 'LOSS' ? 'WIN' : 'DRAW',
-        homeGoals: match.isHome ? homeGoals : awayGoals,
-        awayGoals: match.isHome ? awayGoals : homeGoals,
-        date: gameState.week,
-      };
-
-      setMatchResult(played);
-      setPlayedMatches(prev => [played, ...prev].slice(0, 5)); // Keep last 5 matches
+      recordLeagueResults(weeklyResults);
+      setMatchResult(userResult);
       setIsMatchPlaying(false);
-
-      // Award fans and budget for wins
-      if (played.result === 'WIN') {
-        // Note: In a real app, you'd call updateGameState here
-        // For now, we just display the result
-      }
+      setCurrentMatch(null);
     }, 2000);
   };
 
-  const upcomingMatches = generateUpcomingMatches();
-  const teamRating = getTeamRating();
+  if (!selectedTeam || !currentLeague || !playerFixture) {
+    return <div className="p-4">Ingen ligakampe tilgængelige endnu.</div>;
+  }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
+    <div className="p-4 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Kampe</h1>
 
-      {/* Match Info */}
       <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
-        <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
-        <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="text-lg font-semibold">{currentLeague.name} • Din Trup Rating: <span className="text-purple-600">{getTeamRating().toFixed(1)}</span></p>
+        <p className="text-sm text-gray-600">Uge {gameState.week} • Placering: {teamStanding?.position ?? '-'} • Point: {teamStanding?.points ?? 0}</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex space-x-4 mb-6 border-b">
         <button
           onClick={() => setActiveTab('upcoming')}
@@ -140,7 +149,7 @@ const MatchView: React.FC = () => {
               : 'border-transparent text-gray-600 hover:text-gray-900'
           }`}
         >
-          Kommende Kampe
+          Rundens Kampe
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -154,43 +163,41 @@ const MatchView: React.FC = () => {
         </button>
       </div>
 
-      {/* Upcoming Matches Tab */}
       {activeTab === 'upcoming' && (
         <div>
-          <h2 className="text-2xl font-bold mb-4">Kommende Kampe</h2>
+          <h2 className="text-2xl font-bold mb-4">Runde i {currentLeague.name}</h2>
 
-          {/* Match Simulator */}
-          {matchResult && !isMatchPlaying && (
+          {displayPerspectiveMatch && !isMatchPlaying && (
             <div className="bg-white border-2 border-green-500 rounded-lg p-6 mb-6">
               <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-4 gap-4">
                 <div className="text-center flex-1">
-                  <p className="text-sm text-gray-600">{matchResult.opponent}</p>
-                  <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
+                  <p className="text-sm text-gray-600">{displayPerspectiveMatch.opponent}</p>
+                  <p className="text-4xl font-bold text-blue-600">{displayPerspectiveMatch.goalsAgainst}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">-</p>
                 </div>
                 <div className="text-center flex-1">
                   <p className="text-sm text-gray-600">Dit Hold</p>
-                  <p className="text-4xl font-bold text-green-600">{matchResult.homeGoals}</p>
+                  <p className="text-4xl font-bold text-green-600">{displayPerspectiveMatch.goalsFor}</p>
                 </div>
               </div>
 
               <div className="text-center mb-4">
-                {matchResult.result === 'WIN' && (
+                {displayPerspectiveMatch.result === 'WIN' && (
                   <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
-                    🏆 SEJR! +50 fans, +100.000 kr
+                    🏆 SEJR! Tabellen er opdateret
                   </span>
                 )}
-                {matchResult.result === 'DRAW' && (
+                {displayPerspectiveMatch.result === 'DRAW' && (
                   <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
-                    ⚖️ UAFGJORT +10 fans
+                    ⚖️ UAFGJORT Tabellen er opdateret
                   </span>
                 )}
-                {matchResult.result === 'LOSS' && (
+                {displayPerspectiveMatch.result === 'LOSS' && (
                   <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
-                    ❌ NEDERLAG -20 fans
+                    ❌ NEDERLAG Tabellen er opdateret
                   </span>
                 )}
               </div>
@@ -207,74 +214,75 @@ const MatchView: React.FC = () => {
             </div>
           )}
 
-          {/* Playing match animation */}
           {isMatchPlaying && currentMatch && (
             <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
               <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
-              <div className="flex justify-between items-center mb-4 animate-pulse">
-                <p className="text-lg font-semibold">{currentMatch.opponent}</p>
+              <div className="flex justify-between items-center mb-4 animate-pulse gap-4">
+                <p className="text-lg font-semibold">{currentMatch.homeTeam.name}</p>
                 <p className="text-2xl font-bold">vs</p>
-                <p className="text-lg font-semibold">{gameState.selectedTeam?.name}</p>
+                <p className="text-lg font-semibold">{currentMatch.awayTeam.name}</p>
               </div>
-              <p className="text-gray-600">Resultat beregnes...</p>
+              <p className="text-gray-600">Rundens resultater beregnes...</p>
             </div>
           )}
 
-          {/* Upcoming matches list */}
-          {!isMatchPlaying && !matchResult && (
+          {!isMatchPlaying && !displayPerspectiveMatch && (
             <div className="space-y-3">
-              {upcomingMatches.map((match, index) => (
-                <div
-                  key={match.id}
-                  className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-600">Uge {gameState.week}, Kamp {index + 1}</span>
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${
-                          match.isHome
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {match.isHome ? '🏠 Hjemme' : '✈️ Ude'}
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-bold">{match.opponent}</h3>
-                      <p className="text-sm text-gray-600">
-                        Modstanders Rating: {match.opponentRating.toFixed(1)} • Sværhedsgrad: {match.difficulty}
-                      </p>
-                    </div>
+              {currentFixtures.map((fixture) => {
+                const isPlayerMatch = fixture.id === playerFixture.id;
+                const alreadyPlayed = gameState.playedLeagueMatches.some(result => result.id === fixture.id);
 
-                    {/* Difficulty indicator */}
-                    <div className="text-right">
-                      <p className={`text-xs font-bold px-3 py-1 rounded ${
-                        match.difficulty === 'Nem'
-                          ? 'bg-green-100 text-green-800'
-                          : match.difficulty === 'Moderat'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {match.difficulty}
-                      </p>
+                return (
+                  <div
+                    key={fixture.id}
+                    className={`bg-white border rounded-lg p-4 transition ${
+                      isPlayerMatch ? 'border-purple-300 shadow-sm' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-semibold text-gray-600">Uge {gameState.week}</span>
+                          {isPlayerMatch && (
+                            <span className="text-xs font-bold px-2 py-1 rounded bg-purple-100 text-purple-800">
+                              Din kamp
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-xl font-bold">
+                          {fixture.homeTeam.name} - {fixture.awayTeam.name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {fixture.homeTeam.name} ({fixture.homeTeam.rating}) • {fixture.awayTeam.name} ({fixture.awayTeam.rating})
+                        </p>
+                      </div>
+
+                      {isPlayerMatch ? (
+                        <button
+                          onClick={() => simulateMatch(fixture)}
+                          disabled={alreadyPlayed}
+                          className={`font-bold py-2 px-4 rounded transition text-white ${
+                            alreadyPlayed
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-purple-600 hover:bg-purple-700'
+                          }`}
+                        >
+                          {alreadyPlayed ? 'Kamp spillet' : 'Start Kamp'}
+                        </button>
+                      ) : (
+                        <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded">
+                          Simuleres sammen med din kamp
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Play button */}
-                  <button
-                    onClick={() => simulateMatch(match)}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition"
-                  >
-                    Start Kamp
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* History Tab */}
       {activeTab === 'history' && (
         <div>
           <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
@@ -289,11 +297,11 @@ const MatchView: React.FC = () => {
                     match.result === 'WIN'
                       ? 'border-green-500 bg-green-50'
                       : match.result === 'LOSS'
-                      ? 'border-red-500 bg-red-50'
-                      : 'border-yellow-500 bg-yellow-50'
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-yellow-500 bg-yellow-50'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center gap-4">
                     <div className="flex-1">
                       <p className="text-sm text-gray-600">Uge {match.date}</p>
                       <h3 className="text-lg font-bold">{match.opponent}</h3>
@@ -301,16 +309,16 @@ const MatchView: React.FC = () => {
 
                     <div className="text-center">
                       <p className="text-3xl font-bold">
-                        {match.homeGoals} - {match.awayGoals}
+                        {match.goalsFor} - {match.goalsAgainst}
                       </p>
                       <p className={`text-sm font-bold ${
                         match.result === 'WIN'
                           ? 'text-green-700'
                           : match.result === 'LOSS'
-                          ? 'text-red-700'
-                          : 'text-yellow-700'
+                            ? 'text-red-700'
+                            : 'text-yellow-700'
                       }`}>
-                        {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nedlag' : '⚖️ Uafgjort'}
+                        {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nederlag' : '⚖️ Uafgjort'}
                       </p>
                     </div>
                   </div>
