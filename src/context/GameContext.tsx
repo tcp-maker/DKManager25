@@ -137,7 +137,7 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
     return [];
   }
 
-  const validFixtureIds = new Set(fixtures.map((fixture) => fixture.id));
+  const fixturesById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
   const seenFixtureIds = new Set<string>();
 
   return results.reduce((acc, result) => {
@@ -146,14 +146,12 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
     }
 
     const rawResult = result as Partial<LeagueResult>;
+    const fixture = rawResult.fixtureId ? fixturesById.get(rawResult.fixtureId) : undefined;
 
     if (
       !rawResult.fixtureId ||
-      !validFixtureIds.has(rawResult.fixtureId) ||
+      !fixture ||
       seenFixtureIds.has(rawResult.fixtureId) ||
-      typeof rawResult.round !== 'number' ||
-      typeof rawResult.homeTeamId !== 'string' ||
-      typeof rawResult.awayTeamId !== 'string' ||
       typeof rawResult.homeGoals !== 'number' ||
       typeof rawResult.awayGoals !== 'number'
     ) {
@@ -162,9 +160,9 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
 
     acc.push({
       fixtureId: rawResult.fixtureId,
-      round: rawResult.round,
-      homeTeamId: rawResult.homeTeamId,
-      awayTeamId: rawResult.awayTeamId,
+      round: fixture.round,
+      homeTeamId: fixture.homeTeamId,
+      awayTeamId: fixture.awayTeamId,
       homeGoals: rawResult.homeGoals,
       awayGoals: rawResult.awayGoals,
     });

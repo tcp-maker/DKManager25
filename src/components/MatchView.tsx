@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { getLeagueById, getLeagueStandings, getTeamById, LeagueResult } from '../data/leagues';
 import { useGame } from '../context/GameContext';
 import LeagueTable from './LeagueTable';
@@ -7,6 +7,7 @@ const MatchView: React.FC = () => {
   const { gameState, playCurrentWeek, handleNextWeek } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'table' | 'history'>('upcoming');
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
+  const matchTimerRef = useRef<number | null>(null);
 
   const league = getLeagueById(gameState.leagueId);
   const standings = league ? getLeagueStandings(league, gameState.results) : [];
@@ -48,9 +49,10 @@ const MatchView: React.FC = () => {
 
     setIsMatchPlaying(true);
 
-    window.setTimeout(() => {
+    matchTimerRef.current = window.setTimeout(() => {
       playCurrentWeek();
       setIsMatchPlaying(false);
+      matchTimerRef.current = null;
     }, 1200);
   };
 
@@ -75,6 +77,14 @@ const MatchView: React.FC = () => {
         }
       : null;
   const displaySummary = currentSummary ?? fallbackSummary;
+  const maxRound = gameState.fixtures.length > 0 ? Math.max(...gameState.fixtures.map((fixture) => fixture.round)) : 0;
+  const hasSeasonFinished = Boolean(league) && gameState.week > maxRound && maxRound > 0;
+
+  useEffect(() => () => {
+    if (matchTimerRef.current !== null) {
+      window.clearTimeout(matchTimerRef.current);
+    }
+  }, []);
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -125,10 +135,20 @@ const MatchView: React.FC = () => {
 
       {activeTab === 'upcoming' && (
         <div className="space-y-6">
-          {!league || !userFixture ? (
+          {!league ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center">
+              <h2 className="text-2xl font-bold mb-2">Liga ikke klar</h2>
+              <p className="text-gray-600">Vælg eller genstart dit hold for at indlæse en gyldig liga og kampprogram.</p>
+            </div>
+          ) : hasSeasonFinished ? (
             <div className="bg-white rounded-lg shadow p-6 text-center">
               <h2 className="text-2xl font-bold mb-2">Sæsonen er afsluttet</h2>
               <p className="text-gray-600">Der er ingen flere ligakampe planlagt i den aktuelle sæson.</p>
+            </div>
+          ) : !userFixture ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center">
+              <h2 className="text-2xl font-bold mb-2">Kampdata mangler</h2>
+              <p className="text-gray-600">Det lykkedes ikke at finde denne uges kamp i den valgte liga.</p>
             </div>
           ) : displaySummary && playedUserResult ? (
             <div className="bg-white border-2 border-green-500 rounded-lg p-6">
