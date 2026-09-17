@@ -66,6 +66,12 @@ const TransferMarketView: React.FC = () => {
     }
   };
 
+  const handleSelectBuyPlayer = (player: Player) => {
+    const nextSelectedPlayer = selectedBuyPlayer?.id === player.id ? null : player;
+    setSelectedBuyPlayer(nextSelectedPlayer);
+    setConfirmingBuyPlayer(null);
+  };
+
   return (
     <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Transfermarked</h1>
@@ -171,11 +177,16 @@ const TransferMarketView: React.FC = () => {
               {availableForBuy.map(player => (
                 <div
                   key={player.id}
-                  onClick={() => {
-                    const nextSelectedPlayer = selectedBuyPlayer?.id === player.id ? null : player;
-                    setSelectedBuyPlayer(nextSelectedPlayer);
-                    setConfirmingBuyPlayer(null);
+                  onClick={() => handleSelectBuyPlayer(player)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelectBuyPlayer(player);
+                    }
                   }}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={selectedBuyPlayer?.id === player.id}
                   className={`bg-white border rounded-lg p-4 cursor-pointer transition ${
                     selectedBuyPlayer?.id === player.id
                       ? 'border-blue-500 bg-blue-50 shadow-md'

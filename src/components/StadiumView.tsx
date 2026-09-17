@@ -15,10 +15,11 @@ const StadiumView: React.FC = () => {
   const stadiumName = gameState.selectedTeam ? `${gameState.selectedTeam.name} Stadion` : 'Dit Stadion';
 
   const handleUpgrade = () => {
+    setIsConfirmingUpgrade(false);
+
     if (gameState.budget >= 500000) {
       upgradeStadium();
       setUpgrades(prev => prev + 1);
-      setIsConfirmingUpgrade(false);
     }
   };
 
