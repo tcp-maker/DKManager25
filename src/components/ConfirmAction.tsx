@@ -69,7 +69,12 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
       )}
 
       {isOpen && !disabled && (
-        <div id={confirmationId} className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm">
+        <div
+          id={confirmationId}
+          role="region"
+          aria-label="Bekræft handling"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm"
+        >
           <p className="font-semibold text-amber-900">Bekræft handling</p>
           <p className="mt-1">{confirmMessage}</p>
 

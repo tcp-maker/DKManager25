@@ -211,7 +211,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const isCurrentWeekPlayed = currentWeekFixture
         ? prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === currentWeekFixture.id)
         : true;
-      const isSeasonFinished = completedMatches > 0 && currentWeekFixture?.id === seasonFixtures[seasonFixtures.length - 1]?.id;
+      const isSeasonFinished = seasonFixtures.length > 0 && completedMatches >= seasonFixtures.length;
 
       if (!isCurrentWeekPlayed) {
         return prev;

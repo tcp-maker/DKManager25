@@ -180,8 +180,8 @@ const MatchView: React.FC = () => {
 
                   <button
                     onClick={() => {
-                      setMatchResult(null);
                       handleNextWeek();
+                      setMatchResult(null);
                     }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                   >
@@ -206,9 +206,19 @@ const MatchView: React.FC = () => {
                 <>
                   {upcomingMatches.length === 0 ? (
                     <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-600">
-                      {isSeasonComplete
-                        ? 'Sæsonen er færdigspillet. Åbn den sidste kampresultat-visning eller gå videre til næste sæson.'
-                        : 'Ingen kommende kampe tilgængelige endnu.'}
+                      <p>
+                        {isSeasonComplete
+                          ? 'Sæsonen er færdigspillet. Start næste sæson for at få en ny ligatabel og nye kampe.'
+                          : 'Ingen kommende kampe tilgængelige endnu.'}
+                      </p>
+                      {isSeasonComplete && (
+                        <button
+                          onClick={handleNextWeek}
+                          className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
+                        >
+                          Start næste sæson
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
