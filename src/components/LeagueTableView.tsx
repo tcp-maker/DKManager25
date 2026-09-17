@@ -48,16 +48,16 @@ const LeagueTableView: React.FC = () => {
           <table className="min-w-full">
             <thead className="bg-gray-200">
               <tr>
-                <th className="p-3 text-left">#</th>
+                <th className="p-3 text-left">Placering</th>
                 <th className="p-3 text-left">Klub</th>
-                <th className="p-3 text-center">K</th>
-                <th className="p-3 text-center">V</th>
-                <th className="p-3 text-center">U</th>
-                <th className="p-3 text-center">T</th>
-                <th className="p-3 text-center">MF</th>
-                <th className="p-3 text-center">MA</th>
-                <th className="p-3 text-center">+/-</th>
-                <th className="p-3 text-center">P</th>
+                <th className="p-3 text-center"><abbr title="Kampe spillet" className="no-underline">K</abbr></th>
+                <th className="p-3 text-center"><abbr title="Vundne" className="no-underline">V</abbr></th>
+                <th className="p-3 text-center"><abbr title="Uafgjorte" className="no-underline">U</abbr></th>
+                <th className="p-3 text-center"><abbr title="Tabte" className="no-underline">T</abbr></th>
+                <th className="p-3 text-center"><abbr title="Mål for" className="no-underline">MF</abbr></th>
+                <th className="p-3 text-center"><abbr title="Mål imod" className="no-underline">MA</abbr></th>
+                <th className="p-3 text-center"><abbr title="Målforskel" className="no-underline">+/-</abbr></th>
+                <th className="p-3 text-center"><abbr title="Point" className="no-underline">P</abbr></th>
               </tr>
             </thead>
             <tbody>

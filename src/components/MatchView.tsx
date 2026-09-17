@@ -263,13 +263,14 @@ const MatchView: React.FC = () => {
                         <button
                           onClick={() => simulateMatch(fixture)}
                           disabled={alreadyPlayed}
+                          aria-disabled={alreadyPlayed}
                           className={`font-bold py-2 px-4 rounded transition text-white ${
                             alreadyPlayed
-                              ? 'bg-gray-400 cursor-not-allowed'
+                              ? 'bg-gray-400 cursor-not-allowed opacity-70'
                               : 'bg-purple-600 hover:bg-purple-700'
                           }`}
                         >
-                          {alreadyPlayed ? 'Kamp spillet' : 'Start Kamp'}
+                          {alreadyPlayed ? '✓ Kamp spillet' : 'Start Kamp'}
                         </button>
                       ) : (
                         <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded">
