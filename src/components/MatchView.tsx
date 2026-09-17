@@ -97,7 +97,7 @@ const MatchView: React.FC = () => {
   const playedMatches = useMemo(() => (
     gameState.playedLeagueMatches
       .filter(match => match.homeTeamId === selectedTeam?.id || match.awayTeamId === selectedTeam?.id)
-      .sort((left, right) => right.week - left.week || left.id.localeCompare(right.id, 'da'))
+      .sort((left, right) => right.season - left.season || right.week - left.week || left.id.localeCompare(right.id, 'da'))
       .map(mapToClubPerspective)
   ), [gameState.playedLeagueMatches, selectedTeam?.id, currentLeague]);
 

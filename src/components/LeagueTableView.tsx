@@ -47,6 +47,7 @@ const LeagueTableView: React.FC = () => {
       <div className="bg-white rounded shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full">
+            <caption className="sr-only">Stilling i {league.name}, sæson {currentSeason}</caption>
             <thead className="bg-gray-200">
               <tr>
                 <th className="p-3 text-left">Placering</th>

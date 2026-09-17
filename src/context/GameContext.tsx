@@ -130,9 +130,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   }, [gameState]);
 
   const selectTeam = (team: Team) => {
+    const normalizedTeam = getLeagueByTeamId(team.id)?.teams.find(leagueTeam => leagueTeam.id === team.id) ?? team;
+
     setGameState({
       ...initialGameState,
-      selectedTeam: team,
+      selectedTeam: normalizedTeam,
       players: generateDummyPlayers(),
     });
   };
