@@ -65,10 +65,17 @@ const TeamView: React.FC = () => {
                 {players.map(player => (
                   <tr
                     key={player.id}
-                    onClick={() => setSelectedPlayerId(player.id)}
-                    className={`border-t cursor-pointer hover:bg-gray-50 ${selectedPlayer?.id === player.id ? 'bg-blue-50' : ''}`}
+                    className={`border-t hover:bg-gray-50 ${selectedPlayer?.id === player.id ? 'bg-blue-50' : ''}`}
                   >
-                    <td className="p-3 font-semibold">{player.name}</td>
+                    <td className="p-3 font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlayerId(player.id)}
+                        className="w-full text-left text-blue-700 hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                      >
+                        {player.name}
+                      </button>
+                    </td>
                     <td className="p-3">{ROLE_LABELS[player.primaryRole]}</td>
                     <td className="p-3">{player.age}</td>
                     <td className="p-3 font-bold text-blue-600">{player.asi}</td>

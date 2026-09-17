@@ -73,7 +73,8 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
       {isOpen && !disabled && (
         <div
           id={confirmationId}
-          role="region"
+          role="dialog"
+          aria-modal="false"
           aria-labelledby={titleId}
           aria-describedby={descriptionId}
           className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm"

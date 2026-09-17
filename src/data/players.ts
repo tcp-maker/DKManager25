@@ -426,7 +426,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     return null;
   }
 
-  if (rawPlayer.skills && rawPlayer.primaryRole && typeof rawPlayer.asi === 'number') {
+  if (rawPlayer.skills && rawPlayer.primaryRole) {
     const skills = normalizeAbsoluteSkills(rawPlayer.skills);
     const normalizedPlayer = {
       id: rawPlayer.id ?? fallbackId ?? rawPlayer.name,
@@ -436,7 +436,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
       primaryRole: rawPlayer.primaryRole,
       secondaryRoles: rawPlayer.secondaryRoles ?? [],
       skills,
-      asi: rawPlayer.asi ?? calculateASI(skills),
+      asi: typeof rawPlayer.asi === 'number' ? rawPlayer.asi : calculateASI(skills),
       value: rawPlayer.value ?? 0,
       isForSale: rawPlayer.isForSale ?? false,
       askingPrice: rawPlayer.askingPrice,

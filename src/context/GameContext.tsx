@@ -108,11 +108,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   }, [gameState]);
 
   const selectTeam = (team: Team) => {
-    setGameState({
+    setGameState(() => ({
       ...initialGameState,
       selectedTeam: getTeamById(team.id) ?? team,
       players: generateDummyPlayers(),
-    });
+    }));
   };
 
   const addPlayer = (player: Player): boolean => {
