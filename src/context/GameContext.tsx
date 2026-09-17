@@ -138,6 +138,7 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
   }
 
   const validFixtureIds = new Set(fixtures.map((fixture) => fixture.id));
+  const seenFixtureIds = new Set<string>();
 
   return results.reduce((acc, result) => {
     if (!result || typeof result !== 'object') {
@@ -149,6 +150,7 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
     if (
       !rawResult.fixtureId ||
       !validFixtureIds.has(rawResult.fixtureId) ||
+      seenFixtureIds.has(rawResult.fixtureId) ||
       typeof rawResult.round !== 'number' ||
       typeof rawResult.homeTeamId !== 'string' ||
       typeof rawResult.awayTeamId !== 'string' ||
@@ -166,6 +168,7 @@ const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueRe
       homeGoals: rawResult.homeGoals,
       awayGoals: rawResult.awayGoals,
     });
+    seenFixtureIds.add(rawResult.fixtureId);
 
     return acc;
   }, [] as LeagueResult[]);
@@ -218,7 +221,8 @@ const normalizeGameState = (savedState: unknown): GameState => {
   const fixtures = league ? createLeagueFixtures(league) : [];
   const results = normalizeResults(rawState.results, fixtures);
   const maxRound = fixtures.length > 0 ? Math.max(...fixtures.map((fixture) => fixture.round)) : 1;
-  const seasonComplete = fixtures.length > 0 && results.length >= fixtures.length;
+  const playedFixtureIds = new Set(results.map((result) => result.fixtureId));
+  const seasonComplete = fixtures.length > 0 && playedFixtureIds.size === fixtures.length;
   const maxAllowedWeek = seasonComplete ? maxRound + 1 : maxRound;
   const normalizedWeek =
     typeof rawState.week === 'number' && rawState.week > 0

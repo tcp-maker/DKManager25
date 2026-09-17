@@ -75,9 +75,17 @@ export const getPlayerAbilities = ({
     return acc;
   }, {} as PlayerAbilities);
 
+  const normalizedOverrides = Object.entries(abilities ?? {}).reduce((acc, [key, value]) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      acc[key as PlayerAbilityKey] = clampAbility(value);
+    }
+
+    return acc;
+  }, {} as Partial<PlayerAbilities>);
+
   return {
     ...generated,
-    ...abilities,
+    ...normalizedOverrides,
   };
 };
 
