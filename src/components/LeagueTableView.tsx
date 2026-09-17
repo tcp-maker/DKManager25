@@ -17,7 +17,7 @@ const LeagueTableView: React.FC = () => {
 
   const standings = calculateLeagueStandings(league, gameState.playedLeagueMatches);
   const selectedStanding = standings.find(standing => standing.teamId === selectedTeam.id);
-  const roundsPlayed = standings[0]?.played ?? 0;
+  const roundsPlayed = selectedStanding?.played ?? 0;
 
   return (
     <div className="p-4 max-w-5xl mx-auto">

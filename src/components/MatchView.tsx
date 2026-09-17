@@ -107,11 +107,13 @@ const MatchView: React.FC = () => {
       return;
     }
 
+    const fixturesForWeek = [...currentFixtures];
+
     setIsMatchPlaying(true);
     setCurrentMatch(fixture);
 
     setTimeout(() => {
-      const weeklyResults = currentFixtures.map(currentFixture => simulateFixtureResult(currentFixture));
+      const weeklyResults = fixturesForWeek.map(currentFixture => simulateFixtureResult(currentFixture));
       const userResult = weeklyResults.find(result => result.id === fixture.id) ?? null;
 
       if (!userResult) {
