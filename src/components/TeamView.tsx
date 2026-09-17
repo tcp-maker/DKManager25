@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 
 const TeamView: React.FC = () => {
   const { gameState } = useGame();
-  const team = gameState.teams[gameState.selectedTeamId];
+  const team = gameState.selectedTeam;
 
   if (!team) return <div>Ingen trup valgt</div>;
 
