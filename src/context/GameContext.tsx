@@ -205,8 +205,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const handleNextWeek = (): number => {
     const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
     setGameState(prev => {
+      if (!prev.selectedTeam) {
+        return prev;
+      }
+
       const completedMatches = prev.leagueMatches.filter(match => match.season === prev.season && match.isUserMatch).length;
-      const seasonFixtures = prev.selectedTeam ? getSeasonFixtures(prev.selectedTeam) : [];
+      const seasonFixtures = getSeasonFixtures(prev.selectedTeam);
       const currentWeekFixture = seasonFixtures.find(match => match.week === prev.week);
       const isCurrentWeekPlayed = currentWeekFixture
         ? prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === currentWeekFixture.id)

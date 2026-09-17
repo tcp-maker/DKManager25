@@ -25,6 +25,8 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmationId = useId();
+  const titleId = useId();
+  const descriptionId = useId();
 
   const handleConfirm = async () => {
     if (disabled || isSubmitting) return;
@@ -72,11 +74,12 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
         <div
           id={confirmationId}
           role="region"
-          aria-label="Bekræft handling"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
           className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-gray-800 shadow-sm"
         >
-          <p className="font-semibold text-amber-900">Bekræft handling</p>
-          <p className="mt-1">{confirmMessage}</p>
+          <p id={titleId} className="font-semibold text-amber-900">Bekræft handling</p>
+          <p id={descriptionId} className="mt-1">{confirmMessage}</p>
 
           {error && (
             <p className="mt-3 rounded bg-red-100 px-3 py-2 text-red-700">{error}</p>

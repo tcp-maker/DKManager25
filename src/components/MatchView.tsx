@@ -219,7 +219,11 @@ const MatchView: React.FC = () => {
                       </p>
                       {isSeasonComplete && (
                         <button
-                          onClick={handleNextWeek}
+                          onClick={() => {
+                            handleNextWeek();
+                            setMatchResult(null);
+                            setCurrentMatch(null);
+                          }}
                           className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                         >
                           Start næste sæson
