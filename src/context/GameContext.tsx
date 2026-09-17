@@ -102,7 +102,7 @@ const normalizePlayers = (players: unknown): Record<string, Player> => {
     const normalized = normalizePlayer(player);
     acc[playerKey] = {
       ...normalized,
-      id: player.id,
+      id: playerKey,
     };
     return acc;
   }, {} as Record<string, Player>);
@@ -235,11 +235,8 @@ const normalizeGameState = (savedState: unknown): GameState => {
   const maxRound = fixtures.length > 0 ? Math.max(...fixtures.map((fixture) => fixture.round)) : 1;
   const playedFixtureIds = new Set(results.map((result) => result.fixtureId));
   const seasonComplete = fixtures.length > 0 && playedFixtureIds.size === fixtures.length;
-  const maxAllowedWeek = seasonComplete ? maxRound + 1 : maxRound;
-  const normalizedWeek =
-    typeof rawState.week === 'number' && rawState.week > 0
-      ? Math.max(1, Math.min(Math.floor(rawState.week), maxAllowedWeek))
-      : 1;
+  const firstUnplayedFixture = fixtures.find((fixture) => !playedFixtureIds.has(fixture.id));
+  const normalizedWeek = seasonComplete ? maxRound + 1 : Math.max(1, firstUnplayedFixture?.round ?? 1);
 
   return {
     selectedTeam,
