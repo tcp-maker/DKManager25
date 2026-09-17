@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { calculateLeagueStandings, getCurrentSeason, getLeagueByTeamId, getLeagueFixtureSet } from '../data/leagues';
 import { useGame } from '../context/GameContext';
 import { LeagueFixture, LeagueMatchResult } from '../types/teams';
@@ -100,10 +100,6 @@ const MatchView: React.FC = () => {
       .sort((left, right) => right.season - left.season || right.week - left.week || left.id.localeCompare(right.id, 'da'))
       .map(mapToClubPerspective)
   ), [gameState.playedLeagueMatches, selectedTeam?.id, currentLeague]);
-
-  useEffect(() => {
-    setMatchResult(null);
-  }, [gameState.week]);
 
   const displayResult = recordedCurrentWeekMatch ?? matchResult ?? null;
   const displayPerspectiveMatch = displayResult ? mapToClubPerspective(displayResult) : null;
@@ -216,7 +212,6 @@ const MatchView: React.FC = () => {
 
               <button
                 onClick={() => {
-                  setMatchResult(null);
                   handleNextWeek();
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
@@ -238,7 +233,7 @@ const MatchView: React.FC = () => {
             </div>
           )}
 
-          {!isMatchPlaying && !displayPerspectiveMatch && playerFixture && (
+          {!isMatchPlaying && playerFixture && (
             <div className="space-y-3">
               {currentFixtures.map((fixture) => {
                 const isPlayerMatch = fixture.id === playerFixture.id;
@@ -270,18 +265,23 @@ const MatchView: React.FC = () => {
                       </div>
 
                       {isPlayerMatch ? (
-                        <button
-                          onClick={() => simulateMatch(fixture)}
-                          disabled={alreadyPlayed}
-                          aria-disabled={alreadyPlayed}
-                          className={`font-bold py-2 px-4 rounded transition text-white ${
-                            alreadyPlayed
-                              ? 'bg-gray-400 cursor-not-allowed opacity-70'
-                              : 'bg-purple-600 hover:bg-purple-700'
-                          }`}
-                        >
-                          {alreadyPlayed ? '✓ Kamp spillet' : 'Start Kamp'}
-                        </button>
+                        <div className="text-right">
+                          <button
+                            onClick={() => simulateMatch(fixture)}
+                            disabled={alreadyPlayed}
+                            aria-disabled={alreadyPlayed}
+                            className={`font-bold py-2 px-4 rounded transition text-white ${
+                              alreadyPlayed
+                                ? 'bg-gray-400 cursor-not-allowed opacity-70'
+                                : 'bg-purple-600 hover:bg-purple-700'
+                            }`}
+                          >
+                            {alreadyPlayed ? '✓ Kamp spillet' : 'Start Kamp'}
+                          </button>
+                          {alreadyPlayed && (
+                            <p className="text-xs text-gray-500 mt-2">Afsluttet for denne runde</p>
+                          )}
+                        </div>
                       ) : (
                         <div className="text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded">
                           Simuleres sammen med din kamp
@@ -294,7 +294,7 @@ const MatchView: React.FC = () => {
             </div>
           )}
 
-          {!isMatchPlaying && !displayPerspectiveMatch && !playerFixture && (
+          {!isMatchPlaying && !playerFixture && (
             <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-gray-600">
               Der er ingen aktiv rundekamp for din klub lige nu, men du kan stadig se kamp-historikken og ligatabellen.
             </div>
