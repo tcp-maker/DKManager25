@@ -1,5 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { PlayedMatch } from '../game/matches';
+import {
+  deleteStoredGameState,
+  isUsingNativeStorage,
+  loadNativeStoredGameState,
+  loadStoredGameState,
+  saveStoredGameState,
+} from '../platform/storage';
 import { Team } from '../types/teams';
 
 export interface Player {
@@ -162,31 +169,6 @@ const initialGameState: GameState = {
   stadiumUpgrades: 0,
 };
 
-const STORAGE_KEY = 'dkmanager25_gamestate';
-
-const saveGameState = (state: GameState) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error('Fejl ved gemning af game state:', error);
-  }
-};
-
-const loadRawGameState = (): unknown => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-
-    if (!saved) {
-      return null;
-    }
-
-    return JSON.parse(saved);
-  } catch (error) {
-    console.error('Fejl ved indlæsning af game state:', error);
-    return null;
-  }
-};
-
 const normalizeGameState = (value: unknown): GameState | null => {
   if (!isObject(value)) {
     return null;
@@ -222,23 +204,45 @@ const normalizeGameState = (value: unknown): GameState | null => {
   };
 };
 
-const deleteGameState = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.error('Fejl ved sletning af game state:', error);
-  }
-};
-
 const getWeeklyTicketRevenue = (fanCount: number, stadiumCapacity: number): number =>
   Math.min(fanCount, stadiumCapacity) * 150;
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => normalizeGameState(loadRawGameState()) ?? initialGameState);
+  const [gameState, setGameState] = useState<GameState>(() => normalizeGameState(loadStoredGameState()) ?? initialGameState);
+  const [isStorageHydrated, setIsStorageHydrated] = useState(() => !isUsingNativeStorage());
 
   useEffect(() => {
-    saveGameState(gameState);
-  }, [gameState]);
+    if (!isUsingNativeStorage()) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const hydrateNativeStorage = async () => {
+      const normalizedState = normalizeGameState(await loadNativeStoredGameState()) ?? normalizeGameState(loadStoredGameState()) ?? initialGameState;
+
+      if (!isMounted) {
+        return;
+      }
+
+      setGameState(normalizedState);
+      setIsStorageHydrated(true);
+    };
+
+    hydrateNativeStorage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isStorageHydrated) {
+      return;
+    }
+
+    void saveStoredGameState(gameState);
+  }, [gameState, isStorageHydrated]);
 
   const selectTeam = (team: Team) => {
     setGameState({
@@ -371,7 +375,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetGame = () => {
-    deleteGameState();
+    void deleteStoredGameState();
     setGameState(initialGameState);
   };
 

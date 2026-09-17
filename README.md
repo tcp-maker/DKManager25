@@ -15,6 +15,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 - Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app
 - Android-venlig navigation med hardware-tilbageknap mellem faner og native statuslinje-farver
+- Native gemning på Android via Capacitor Preferences og mere brandet splash-/ikonoplevelse
 
 ## Gameplay- og state-model
 
@@ -117,6 +118,8 @@ Android-wrapperen bruger nu en mere app-venlig opsætning med:
 
 - native statuslinje i appens farver
 - Android-tilbageknap, der går tilbage mellem faner før appen lukkes
+- native persistence-spejling via Capacitor Preferences
+- splash screen baseret på appens farver og launcher-ikon
 - justeret layout til smallere mobilskærme
 
 ## Preview af produktionsbuild
