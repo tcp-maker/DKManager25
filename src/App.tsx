@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { useGame } from './context/GameContext';
 import SelectTeamView from './components/SelectTeamView';
 import TransferMarketView from './components/TransferMarketView';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
           </main>
         </>
       )}
+      <Analytics />
     </div>
   );
 };
