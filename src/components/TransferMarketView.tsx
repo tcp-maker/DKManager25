@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useGame, Player } from '../context/GameContext';
+import ConfirmationPanel from './ConfirmationPanel';
 
 const TransferMarketView: React.FC = () => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
   const [activeTab, setActiveTab] = useState<'squad' | 'market'>('squad');
   const [selectedBuyPlayer, setSelectedBuyPlayer] = useState<Player | null>(null);
+  const [confirmingBuyPlayer, setConfirmingBuyPlayer] = useState<Player | null>(null);
 
   // Konverter Record til Array
   const playerList = Object.values(gameState.players);
@@ -32,10 +34,16 @@ const TransferMarketView: React.FC = () => {
         isForSale: false,
         askingPrice: undefined
       };
-      addPlayer(newPlayer);
+      const wasAdded = addPlayer(newPlayer);
+      setConfirmingBuyPlayer(null);
       setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+      if (wasAdded) {
+        alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+      } else {
+        alert(`${player.name} er allerede i truppen.`);
+      }
     } else {
+      setConfirmingBuyPlayer(null);
       alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
     }
   };
@@ -155,7 +163,11 @@ const TransferMarketView: React.FC = () => {
               {availableForBuy.map(player => (
                 <div
                   key={player.id}
-                  onClick={() => setSelectedBuyPlayer(selectedBuyPlayer?.id === player.id ? null : player)}
+                  onClick={() => {
+                    const nextSelectedPlayer = selectedBuyPlayer?.id === player.id ? null : player;
+                    setSelectedBuyPlayer(nextSelectedPlayer);
+                    setConfirmingBuyPlayer(null);
+                  }}
                   className={`bg-white border rounded-lg p-4 cursor-pointer transition ${
                     selectedBuyPlayer?.id === player.id
                       ? 'border-blue-500 bg-blue-50 shadow-md'
@@ -184,7 +196,7 @@ const TransferMarketView: React.FC = () => {
                   {selectedBuyPlayer?.id === player.id && (
                     <div className="mt-4 pt-4 border-t">
                       <p className="text-sm text-gray-700 mb-4">
-                        Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
+                        Køb denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
                         <span className="font-bold text-green-600">
                           {(gameState.budget - player.value).toLocaleString('da-DK')} kr
                         </span>{' '}
@@ -193,7 +205,7 @@ const TransferMarketView: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleBuyPlayer(player);
+                          setConfirmingBuyPlayer(player);
                         }}
                         disabled={gameState.budget < player.value}
                         className={`w-full font-bold py-3 px-4 rounded transition ${
@@ -204,6 +216,29 @@ const TransferMarketView: React.FC = () => {
                       >
                         {gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
                       </button>
+                      {confirmingBuyPlayer?.id === player.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ConfirmationPanel
+                            title="Bekræft spillerkøb"
+                            message={
+                              <>
+                                Køb <span className="font-bold">{player.name}</span> for{' '}
+                                <span className="font-bold">{player.value.toLocaleString('da-DK')} kr</span>?
+                                Du vil have{' '}
+                                <span className="font-bold text-green-600">
+                                  {(gameState.budget - player.value).toLocaleString('da-DK')} kr
+                                </span>{' '}
+                                tilbage.
+                              </>
+                            }
+                            confirmLabel="Bekræft køb"
+                            onConfirm={() => handleBuyPlayer(player)}
+                            onCancel={() => setConfirmingBuyPlayer(null)}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

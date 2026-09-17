@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
+import ConfirmationPanel from './ConfirmationPanel';
 
 const StadiumView: React.FC = () => {
   const { gameState, upgradeStadium } = useGame();
   const [upgrades, setUpgrades] = useState(0);
+  const [isConfirmingUpgrade, setIsConfirmingUpgrade] = useState(false);
 
   // Calculate weekly revenue
   const weeklyRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
@@ -16,6 +18,7 @@ const StadiumView: React.FC = () => {
     if (gameState.budget >= 500000) {
       upgradeStadium();
       setUpgrades(prev => prev + 1);
+      setIsConfirmingUpgrade(false);
     }
   };
 
@@ -112,7 +115,7 @@ const StadiumView: React.FC = () => {
         </div>
 
         <button
-          onClick={handleUpgrade}
+          onClick={() => setIsConfirmingUpgrade(true)}
           disabled={gameState.budget < 500000}
           className={`w-full font-bold py-3 px-4 rounded transition text-white ${
             gameState.budget >= 500000
@@ -124,6 +127,21 @@ const StadiumView: React.FC = () => {
             ? '🏗️ Udvid Stadion (500.000 kr)'
             : `❌ Ikke råd - Du mangler ${(500000 - gameState.budget).toLocaleString('da-DK')} kr`}
         </button>
+        {isConfirmingUpgrade && gameState.budget >= 500000 && (
+          <ConfirmationPanel
+            title="Bekræft klubkøb"
+            message={
+              <>
+                Udvid <span className="font-bold">{stadiumName}</span> for{' '}
+                <span className="font-bold">500.000 kr</span> og få{' '}
+                <span className="font-bold text-green-600">2.500 nye pladser</span>.
+              </>
+            }
+            confirmLabel="Bekræft køb"
+            onConfirm={handleUpgrade}
+            onCancel={() => setIsConfirmingUpgrade(false)}
+          />
+        )}
       </div>
 
       {/* Facilities */}
