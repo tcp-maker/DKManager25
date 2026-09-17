@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useGame, Player } from '../context/GameContext';
+import { TRANSFER_MARKET_PLAYERS } from '../data/players';
+import PlayerAbilities from './PlayerAbilities';
 
 const TransferMarketView: React.FC = () => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
@@ -12,13 +14,7 @@ const TransferMarketView: React.FC = () => {
   const squadPlayers = playerList.filter(p => !p.isForSale);
 
   // Dummy spillere der kan købes
-  const availableForBuy: Player[] = [
-    { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', rating: 79, value: 650000, isForSale: false },
-    { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', rating: 81, value: 800000, isForSale: false },
-    { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', rating: 75, value: 550000, isForSale: false },
-    { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', rating: 72, value: 420000, isForSale: false },
-    { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false },
-  ];
+  const availableForBuy: Player[] = TRANSFER_MARKET_PLAYERS;
 
   const handleSellPlayer = (playerId: string) => {
     sellPlayer(playerId);
@@ -98,6 +94,7 @@ const TransferMarketView: React.FC = () => {
                     <h3 className="font-bold text-lg">{player.name}</h3>
                     <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
                     <p className="text-sm font-semibold text-green-600">Værdi: {player.value.toLocaleString('da-DK')} kr</p>
+                    <PlayerAbilities player={player} />
                   </div>
                   <button
                     onClick={() => handleToggleSale(player.id)}
@@ -119,8 +116,9 @@ const TransferMarketView: React.FC = () => {
                   <div key={player.id} className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4 flex justify-between items-center">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{player.position} • Rating: {player.rating}</p>
+                      <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
                       <p className="text-sm font-semibold text-orange-600">Prisønsker: {player.askingPrice?.toLocaleString('da-DK')} kr</p>
+                      <PlayerAbilities player={player} />
                     </div>
                     <div className="space-x-2">
                       <button
@@ -167,6 +165,7 @@ const TransferMarketView: React.FC = () => {
                       <h3 className="font-bold text-lg">{player.name}</h3>
                       <p className="text-sm text-gray-600">{player.position} • {player.age} år • Rating: {player.rating}</p>
                       <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
+                      <PlayerAbilities player={player} />
                     </div>
                     {gameState.budget >= player.value && (
                       <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">

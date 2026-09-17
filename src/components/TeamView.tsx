@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
+import PlayerAbilities from './PlayerAbilities';
 
 const TeamView: React.FC = () => {
   const { gameState } = useGame();
@@ -36,14 +37,15 @@ const TeamView: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded shadow overflow-hidden">
-        <table className="w-full">
+      <div className="bg-white rounded shadow overflow-x-auto">
+        <table className="w-full min-w-[860px]">
           <thead className="bg-gray-200">
             <tr>
               <th className="p-3 text-left">Spiller</th>
               <th className="p-3 text-left">Position</th>
               <th className="p-3 text-left">Alder</th>
               <th className="p-3 text-left">Rating</th>
+              <th className="p-3 text-left">Evner</th>
               <th className="p-3 text-left">Værdi</th>
             </tr>
           </thead>
@@ -54,7 +56,8 @@ const TeamView: React.FC = () => {
                 <td className="p-3">{player.position}</td>
                 <td className="p-3">{player.age}</td>
                 <td className="p-3">{player.rating}</td>
-                <td className="p-3">{player.value.toLocaleString()}</td>
+                <td className="p-3 min-w-[220px]"><PlayerAbilities player={player} compact /></td>
+                <td className="p-3">{player.value.toLocaleString('da-DK')} kr</td>
               </tr>
             ))}
           </tbody>
