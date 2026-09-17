@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
+import ConfirmAction from './ConfirmAction';
 import { useGame } from '../context/GameContext';
 
 const StadiumView: React.FC = () => {
   const { gameState, upgradeStadium } = useGame();
-  const [upgrades, setUpgrades] = useState(0);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Calculate weekly revenue
   const weeklyRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
   const capacityUsage = (gameState.fanCount / gameState.stadiumCapacity) * 100;
+  const upgrades = Math.max(0, (gameState.stadiumCapacity - 3000) / 2500);
 
   // Stadium name based on team
   const stadiumName = gameState.selectedTeam ? `${gameState.selectedTeam.name} Stadion` : 'Dit Stadion';
 
-  const handleUpgrade = () => {
-    if (gameState.budget >= 500000) {
-      upgradeStadium();
-      setUpgrades(prev => prev + 1);
+  const handleUpgrade = (): string | null => {
+    if (gameState.budget < 500000) {
+      return `Du mangler ${(500000 - gameState.budget).toLocaleString('da-DK')} kr for at udvide stadion.`;
     }
+
+    upgradeStadium();
+    setStatusMessage('Stadionet blev udvidet med 2.500 pladser.');
+    return null;
   };
 
   return (
@@ -33,6 +38,7 @@ const StadiumView: React.FC = () => {
             <p className="text-2xl font-bold text-orange-600">{gameState.stadiumCapacity.toLocaleString('da-DK')}</p>
             <p className="text-xs text-gray-500 mt-1">pladser</p>
           </div>
+
           <div>
             <p className="text-sm text-gray-600">Nuværende Fans</p>
             <p className="text-2xl font-bold text-blue-600">{gameState.fanCount.toLocaleString('da-DK')}</p>
@@ -85,6 +91,12 @@ const StadiumView: React.FC = () => {
         </div>
       </div>
 
+      {statusMessage && (
+        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {statusMessage}
+        </div>
+      )}
+
       {/* Stadium Upgrades */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
         <h2 className="text-2xl font-bold mb-4">Stadion Udvidelse</h2>
@@ -111,19 +123,16 @@ const StadiumView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleUpgrade}
+        <ConfirmAction
+          label={gameState.budget >= 500000 ? '🏗️ Udvid Stadion (500.000 kr)' : '❌ Ikke råd'}
+          confirmLabel="Bekræft udvidelse"
+          confirmMessage={`Bekræft stadionudvidelse for 500.000 kr. Du går fra ${gameState.stadiumCapacity.toLocaleString('da-DK')} til ${(gameState.stadiumCapacity + 2500).toLocaleString('da-DK')} pladser.`}
+          onConfirm={handleUpgrade}
           disabled={gameState.budget < 500000}
-          className={`w-full font-bold py-3 px-4 rounded transition text-white ${
-            gameState.budget >= 500000
-              ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-              : 'bg-gray-400 cursor-not-allowed'
-          }`}
-        >
-          {gameState.budget >= 500000
-            ? '🏗️ Udvid Stadion (500.000 kr)'
-            : `❌ Ikke råd - Du mangler ${(500000 - gameState.budget).toLocaleString('da-DK')} kr`}
-        </button>
+          disabledMessage={gameState.budget < 500000 ? `Du mangler ${(500000 - gameState.budget).toLocaleString('da-DK')} kr.` : undefined}
+          buttonClassName="bg-blue-600 hover:bg-blue-700 text-white"
+          confirmButtonClassName="bg-blue-700 hover:bg-blue-800 text-white"
+        />
       </div>
 
       {/* Facilities */}

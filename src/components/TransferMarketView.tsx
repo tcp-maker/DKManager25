@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import ConfirmAction from './ConfirmAction';
 import { useGame, Player } from '../context/GameContext';
 
 const TransferMarketView: React.FC = () => {
   const { gameState, sellPlayer, updatePlayer, addPlayer } = useGame();
   const [activeTab, setActiveTab] = useState<'squad' | 'market'>('squad');
   const [selectedBuyPlayer, setSelectedBuyPlayer] = useState<Player | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Konverter Record til Array
   const playerList = Object.values(gameState.players);
@@ -20,24 +22,37 @@ const TransferMarketView: React.FC = () => {
     { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false },
   ];
 
-  const handleSellPlayer = (playerId: string) => {
+  const handleSellPlayer = (playerId: string): string | null => {
+    const player = gameState.players[playerId];
+    if (!player) {
+      return 'Spilleren findes ikke længere i truppen.';
+    }
+
     sellPlayer(playerId);
+    setStatusMessage(`${player.name} blev solgt for ${player.value.toLocaleString('da-DK')} kr.`);
+    return null;
   };
 
-  const handleBuyPlayer = (player: Player) => {
-    if (gameState.budget >= player.value) {
-      const newPlayer = {
-        ...player,
-        id: `own_${player.id}`,
-        isForSale: false,
-        askingPrice: undefined
-      };
-      addPlayer(newPlayer);
-      setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
-    } else {
-      alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
+  const handleBuyPlayer = (player: Player): string | null => {
+    if (gameState.budget < player.value) {
+      return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`;
     }
+
+    const newPlayer = {
+      ...player,
+      id: `own_${player.id}`,
+      isForSale: false,
+      askingPrice: undefined
+    };
+
+    const wasAdded = addPlayer(newPlayer);
+    if (!wasAdded) {
+      return `Købet af ${player.name} kunne ikke gennemføres.`;
+    }
+
+    setSelectedBuyPlayer(null);
+    setStatusMessage(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr.`);
+    return null;
   };
 
   const handleToggleSale = (playerId: string) => {
@@ -57,8 +72,14 @@ const TransferMarketView: React.FC = () => {
       {/* Budget Info */}
       <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6 rounded">
         <p className="text-lg font-semibold">Budget: <span className="text-blue-600">{gameState.budget.toLocaleString('da-DK')} kr</span></p>
-        <p className="text-sm text-gray-600">Uge {gameState.week}</p>
+        <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
       </div>
+
+      {statusMessage && (
+        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {statusMessage}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex space-x-4 mb-6 border-b">
@@ -129,12 +150,16 @@ const TransferMarketView: React.FC = () => {
                       >
                         Annuller
                       </button>
-                      <button
-                        onClick={() => handleSellPlayer(player.id)}
-                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition"
-                      >
-                        Sælg Nu
-                      </button>
+                      <div className="mt-2 sm:mt-0 sm:inline-block">
+                        <ConfirmAction
+                          label="Sælg Nu"
+                          confirmLabel="Bekræft salg"
+                          confirmMessage={`Sælg ${player.name} nu for ${player.value.toLocaleString('da-DK')} kr? Denne handling kan ikke fortrydes.`}
+                          onConfirm={() => handleSellPlayer(player.id)}
+                          buttonClassName="bg-green-500 hover:bg-green-600 text-white"
+                          confirmButtonClassName="bg-green-600 hover:bg-green-700 text-white"
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -190,20 +215,18 @@ const TransferMarketView: React.FC = () => {
                         </span>{' '}
                         tilbage.
                       </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBuyPlayer(player);
-                        }}
-                        disabled={gameState.budget < player.value}
-                        className={`w-full font-bold py-3 px-4 rounded transition ${
-                          gameState.budget >= player.value
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
-                      </button>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <ConfirmAction
+                          label={gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
+                          confirmLabel="Bekræft køb"
+                          confirmMessage={`Køb ${player.name} for ${player.value.toLocaleString('da-DK')} kr? Du vil have ${(gameState.budget - player.value).toLocaleString('da-DK')} kr tilbage bagefter.`}
+                          onConfirm={() => handleBuyPlayer(player)}
+                          disabled={gameState.budget < player.value}
+                          disabledMessage={gameState.budget < player.value ? `Du mangler ${(player.value - gameState.budget).toLocaleString('da-DK')} kr.` : undefined}
+                          buttonClassName="bg-blue-600 hover:bg-blue-700 text-white"
+                          confirmButtonClassName="bg-blue-700 hover:bg-blue-800 text-white"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
