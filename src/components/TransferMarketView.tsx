@@ -13,11 +13,11 @@ const TransferMarketView: React.FC = () => {
 
   // Dummy spillere der kan købes
   const availableForBuy: Player[] = [
-    { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', rating: 79, value: 650000, isForSale: false },
-    { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', rating: 81, value: 800000, isForSale: false },
-    { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', rating: 75, value: 550000, isForSale: false },
-    { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', rating: 72, value: 420000, isForSale: false },
-    { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false },
+    { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', rating: 79, value: 650000, isForSale: false, pace: 86, shooting: 83, passing: 76, defending: 55, physical: 78 },
+    { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', rating: 81, value: 800000, isForSale: false, pace: 74, shooting: 85, passing: 73, defending: 50, physical: 90 },
+    { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', rating: 75, value: 550000, isForSale: false, pace: 74, shooting: 71, passing: 82, defending: 68, physical: 73 },
+    { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', rating: 72, value: 420000, isForSale: false, pace: 70, shooting: 58, passing: 69, defending: 78, physical: 76 },
+    { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', rating: 76, value: 380000, isForSale: false, pace: 52, shooting: 29, passing: 68, defending: 60, physical: 74, goalkeeping: 83 },
   ];
 
   const handleSellPlayer = (playerId: string) => {
