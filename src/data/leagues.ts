@@ -91,10 +91,11 @@ export const getLeagueFixtureSet = (leagueId: string, week: number): LeagueFixtu
   }
 
   const season = getCurrentSeason(week);
-  const roundIndex = getSeasonWeek(week) - 1;
+  const seasonWeek = getSeasonWeek(week);
+  const roundIndex = seasonWeek - 1;
 
   return ROUND_TEMPLATES[roundIndex].map(([homeIndex, awayIndex], matchIndex) => ({
-    id: `${league.id}-saeson-${season}-uge-${week}-kamp-${matchIndex + 1}`,
+    id: `${league.id}-saeson-${season}-runde-${seasonWeek}-kamp-${matchIndex + 1}`,
     leagueId: league.id,
     season,
     week,

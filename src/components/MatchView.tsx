@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { calculateLeagueStandings, getCurrentSeason, getLeagueByTeamId, getLeagueFixtureSet } from '../data/leagues';
 import { useGame } from '../context/GameContext';
 import { LeagueFixture, LeagueMatchResult } from '../types/teams';
@@ -101,7 +101,11 @@ const MatchView: React.FC = () => {
       .map(mapToClubPerspective)
   ), [gameState.playedLeagueMatches, selectedTeam?.id, currentLeague]);
 
-  const displayResult = matchResult ?? recordedCurrentWeekMatch ?? null;
+  useEffect(() => {
+    setMatchResult(null);
+  }, [gameState.week]);
+
+  const displayResult = recordedCurrentWeekMatch ?? matchResult ?? null;
   const displayPerspectiveMatch = displayResult ? mapToClubPerspective(displayResult) : null;
   const standings = currentLeague
     ? calculateLeagueStandings(currentLeague, gameState.playedLeagueMatches, currentSeason)
