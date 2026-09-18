@@ -53,6 +53,7 @@ export interface Player {
   skills: PlayerSkills;
   asi: number;
   value: number;
+  salary: number;
   isForSale: boolean;
   askingPrice?: number;
 }

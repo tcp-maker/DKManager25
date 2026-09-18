@@ -174,17 +174,17 @@ const MatchView: React.FC = () => {
                 <div className="text-center mb-4">
                   {matchResult.result === 'WIN' && (
                     <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
-                      🏆 SEJR! +50 fans, +100.000 kr
+                      🏆 SEJR! +50 fans og bedre sponsorgrundlag
                     </span>
                   )}
                   {matchResult.result === 'DRAW' && (
                     <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
-                      ⚖️ UAFGJORT +10 fans
+                      ⚖️ UAFGJORT +10 fans og stabil sponsorværdi
                     </span>
                   )}
                   {matchResult.result === 'LOSS' && (
                     <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
-                      ❌ NEDERLAG -20 fans
+                      ❌ NEDERLAG -20 fans og lavere sponsorværdi
                     </span>
                   )}
                 </div>

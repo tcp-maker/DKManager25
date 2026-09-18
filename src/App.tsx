@@ -6,12 +6,13 @@ import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
+import EconomyView from './components/EconomyView';
 import LeagueTableCard from './components/LeagueTableCard';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
 
 const App: React.FC = () => {
   const { gameState, selectTeam, resetGame } = useGame();
-  const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium' | 'table'>('team');
+  const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table'>('team');
 
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const leagueTable = useMemo(
@@ -53,6 +54,12 @@ const App: React.FC = () => {
 
       if (event.key === '5') {
         event.preventDefault();
+        setActiveView('economy');
+        return;
+      }
+
+      if (event.key === '6') {
+        event.preventDefault();
         setActiveView('table');
       }
     };
@@ -71,6 +78,8 @@ const App: React.FC = () => {
         return <MatchView />;
       case 'stadium':
         return <StadiumView />;
+      case 'economy':
+        return <EconomyView />;
       case 'table':
         return (
           <LeagueTableCard
@@ -97,6 +106,7 @@ const App: React.FC = () => {
               <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
               <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
               <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
+              <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
               <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
             </div>
           </nav>

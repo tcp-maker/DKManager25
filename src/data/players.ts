@@ -1,5 +1,6 @@
 import { Player, PlayerRole, PlayerSkills, SkillKey } from '../types/player';
 import { Team } from '../types/teams';
+import { estimateWeeklySalary } from '../lib/economy';
 
 export const SKILL_KEYS: SkillKey[] = [
   'intelligence',
@@ -398,6 +399,7 @@ export const createPlayer = ({
     skills,
     asi,
     value,
+    salary: estimateWeeklySalary({ age: seed.age, asi, value, primaryRole: seed.primaryRole }),
     isForSale,
     askingPrice: askingPrice ?? (isForSale ? value : undefined),
   };
@@ -558,6 +560,13 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
       skills,
       asi: typeof rawPlayer.asi === 'number' ? rawPlayer.asi : calculateASI(skills),
       value: rawPlayer.value ?? 0,
+      salary: estimateWeeklySalary({
+        age: rawPlayer.age ?? 24,
+        asi: typeof rawPlayer.asi === 'number' ? rawPlayer.asi : calculateASI(skills),
+        value: rawPlayer.value ?? 0,
+        primaryRole: rawPlayer.primaryRole,
+        salary: rawPlayer.salary,
+      }),
       isForSale: rawPlayer.isForSale ?? false,
       askingPrice: rawPlayer.askingPrice,
     } as Player;
@@ -565,6 +574,13 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     return {
       ...normalizedPlayer,
       value: rawPlayer.value ?? estimatePlayerValue(normalizedPlayer),
+      salary: estimateWeeklySalary({
+        age: normalizedPlayer.age,
+        asi: normalizedPlayer.asi,
+        value: rawPlayer.value ?? estimatePlayerValue(normalizedPlayer),
+        primaryRole: normalizedPlayer.primaryRole,
+        salary: rawPlayer.salary,
+      }),
     };
   }
 
