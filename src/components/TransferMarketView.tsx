@@ -29,13 +29,16 @@ const TransferMarketView: React.FC = () => {
 
   const handleBuyPlayer = (player: Player) => {
     if (gameState.budget >= player.value) {
-      addPlayer({
+      const wasPurchased = addPlayer({
         ...player,
         isForSale: false,
         askingPrice: undefined,
       });
-      setSelectedBuyPlayer(null);
-      alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+
+      if (wasPurchased) {
+        setSelectedBuyPlayer(null);
+        alert(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr!`);
+      }
     } else {
       alert(`Ikke tilstrækkelige midler! Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr`);
     }

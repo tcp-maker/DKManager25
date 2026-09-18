@@ -1,6 +1,6 @@
 import { getTeamRosterPlayers } from '../data/players';
 import { getLeagueTeams, getTeamById } from '../data/teams';
-import { LeagueStandingEntry } from '../types/game';
+import { LeagueStandingEntry, MatchResult, PlayedMatch } from '../types/game';
 import { GameState } from '../types/gameState';
 import { Player, PlayerPosition } from '../types/players';
 import { Team } from '../types/teams';
@@ -17,6 +17,24 @@ interface NormalizablePlayerRecord extends Record<string, unknown> {
   age: number;
   position: PlayerPosition;
   value: number;
+}
+
+interface NormalizableMatchRecord extends Record<string, unknown> {
+  id: string;
+  fixtureId: string;
+  week: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeGoals: number;
+  awayGoals: number;
+  selectedTeamId: string;
+  opponentTeamId: string;
+  selectedTeamGoals: number;
+  opponentGoals: number;
+  isHome: boolean;
+  result: MatchResult;
 }
 
 const createPlayerRecord = (players: Player[]): Record<string, Player> => (
@@ -126,11 +144,52 @@ const normalizeCompletedFixtureIds = (fixtureIds: unknown): string[] => (
     : []
 );
 
-const normalizeMatchHistory = (matchHistory: unknown) => (
-  Array.isArray(matchHistory)
-    ? matchHistory.filter((entry): entry is GameState['matchHistory'][number] => typeof entry === 'object' && entry !== null)
-    : []
+const isMatchResult = (value: unknown): value is MatchResult => (
+  value === 'WIN' || value === 'DRAW' || value === 'LOSS'
 );
+
+const normalizeMatchHistory = (matchHistory: unknown): PlayedMatch[] => {
+  if (!Array.isArray(matchHistory)) {
+    return [];
+  }
+
+  return matchHistory
+    .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+    .filter((entry): entry is NormalizableMatchRecord => (
+      typeof entry.id === 'string'
+      && typeof entry.fixtureId === 'string'
+      && typeof entry.week === 'number'
+      && typeof entry.homeTeamId === 'string'
+      && typeof entry.awayTeamId === 'string'
+      && typeof entry.homeTeamName === 'string'
+      && typeof entry.awayTeamName === 'string'
+      && typeof entry.homeGoals === 'number'
+      && typeof entry.awayGoals === 'number'
+      && typeof entry.selectedTeamId === 'string'
+      && typeof entry.opponentTeamId === 'string'
+      && typeof entry.selectedTeamGoals === 'number'
+      && typeof entry.opponentGoals === 'number'
+      && typeof entry.isHome === 'boolean'
+      && isMatchResult(entry.result)
+    ))
+    .map((entry) => ({
+      id: entry.id,
+      fixtureId: entry.fixtureId,
+      week: Math.max(1, Math.round(entry.week)),
+      homeTeamId: entry.homeTeamId,
+      awayTeamId: entry.awayTeamId,
+      homeTeamName: entry.homeTeamName,
+      awayTeamName: entry.awayTeamName,
+      homeGoals: Math.max(0, Math.round(entry.homeGoals)),
+      awayGoals: Math.max(0, Math.round(entry.awayGoals)),
+      selectedTeamId: entry.selectedTeamId,
+      opponentTeamId: entry.opponentTeamId,
+      selectedTeamGoals: Math.max(0, Math.round(entry.selectedTeamGoals)),
+      opponentGoals: Math.max(0, Math.round(entry.opponentGoals)),
+      isHome: entry.isHome,
+      result: entry.result,
+    }));
+};
 
 export const initialGameState: GameState = {
   selectedTeam: null,

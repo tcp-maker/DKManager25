@@ -149,84 +149,88 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const playMatch = (fixtureId: string): PlayedMatch | null => {
-    if (!gameState.selectedTeam) {
-      return null;
-    }
+    let resolvedMatch: PlayedMatch | null = null;
 
-    const selectedTeam = gameState.selectedTeam;
-    const leagueTeams = getLeagueTeams(selectedTeam.leagueId);
-    const fixtures = generateLeagueFixtures(leagueTeams);
-    const fixture = fixtures.find((item) => item.id === fixtureId);
-
-    if (!fixture || fixture.week !== gameState.week || gameState.completedFixtureIds.includes(fixtureId)) {
-      return null;
-    }
-
-    const teamLookup = leagueTeams.reduce<Record<string, Team>>((accumulator, team) => {
-      accumulator[team.id] = team;
-      return accumulator;
-    }, {});
-
-    const weekFixtures = getFixturesForWeek(fixtures, gameState.week);
-    const squadRating = calculateSquadRating(Object.values(gameState.players));
-    let leagueStandings = gameState.leagueStandings.length > 0
-      ? gameState.leagueStandings
-      : createInitialStandings(leagueTeams);
-    let selectedMatch: PlayedMatch | null = null;
-
-    weekFixtures.forEach((weekFixture) => {
-      if (gameState.completedFixtureIds.includes(weekFixture.id)) {
-        return;
+    setGameState((previous) => {
+      if (!previous.selectedTeam) {
+        return previous;
       }
 
-      const homeTeam = teamLookup[weekFixture.homeTeamId];
-      const awayTeam = teamLookup[weekFixture.awayTeamId];
-      if (!homeTeam || !awayTeam) {
-        return;
+      const selectedTeam = previous.selectedTeam;
+      const leagueTeams = getLeagueTeams(selectedTeam.leagueId);
+      const fixtures = generateLeagueFixtures(leagueTeams);
+      const fixture = fixtures.find((item) => item.id === fixtureId);
+
+      if (!fixture || fixture.week !== previous.week || previous.completedFixtureIds.includes(fixtureId)) {
+        return previous;
       }
 
-      const homeRating = weekFixture.homeTeamId === selectedTeam.id ? squadRating : homeTeam.strength;
-      const awayRating = weekFixture.awayTeamId === selectedTeam.id ? squadRating : awayTeam.strength;
-      const score = simulateFixtureScore(homeRating, awayRating, `${weekFixture.id}-${gameState.week}-${squadRating}`);
+      const teamLookup = leagueTeams.reduce<Record<string, Team>>((accumulator, team) => {
+        accumulator[team.id] = team;
+        return accumulator;
+      }, {});
 
-      leagueStandings = applyMatchToStandings(
-        leagueStandings,
-        weekFixture.homeTeamId,
-        weekFixture.awayTeamId,
-        score.homeGoals,
-        score.awayGoals,
-      );
+      const weekFixtures = getFixturesForWeek(fixtures, previous.week);
+      const squadRating = calculateSquadRating(Object.values(previous.players));
+      let leagueStandings = previous.leagueStandings.length > 0
+        ? previous.leagueStandings
+        : createInitialStandings(leagueTeams);
+      let selectedMatch: PlayedMatch | null = null;
 
-      if (weekFixture.id === fixtureId) {
-        selectedMatch = createPlayedMatch(
-          weekFixture.id,
-          gameState.week,
-          homeTeam,
-          awayTeam,
-          selectedTeam.id,
+      weekFixtures.forEach((weekFixture) => {
+        if (previous.completedFixtureIds.includes(weekFixture.id)) {
+          return;
+        }
+
+        const homeTeam = teamLookup[weekFixture.homeTeamId];
+        const awayTeam = teamLookup[weekFixture.awayTeamId];
+        if (!homeTeam || !awayTeam) {
+          return;
+        }
+
+        const homeRating = weekFixture.homeTeamId === selectedTeam.id ? squadRating : homeTeam.strength;
+        const awayRating = weekFixture.awayTeamId === selectedTeam.id ? squadRating : awayTeam.strength;
+        const score = simulateFixtureScore(homeRating, awayRating, `${weekFixture.id}-${previous.week}-${squadRating}`);
+
+        leagueStandings = applyMatchToStandings(
+          leagueStandings,
+          weekFixture.homeTeamId,
+          weekFixture.awayTeamId,
           score.homeGoals,
           score.awayGoals,
         );
+
+        if (weekFixture.id === fixtureId) {
+          selectedMatch = createPlayedMatch(
+            weekFixture.id,
+            previous.week,
+            homeTeam,
+            awayTeam,
+            selectedTeam.id,
+            score.homeGoals,
+            score.awayGoals,
+          );
+        }
+      });
+
+      if (!selectedMatch) {
+        return previous;
       }
+
+      resolvedMatch = selectedMatch;
+      const { budgetDelta, fanDelta, moodDelta } = getResultEffects(selectedMatch);
+      return {
+        ...previous,
+        budget: previous.budget + budgetDelta,
+        fanCount: Math.max(0, previous.fanCount + fanDelta),
+        fanMood: Math.max(0, Math.min(100, previous.fanMood + moodDelta)),
+        leagueStandings,
+        matchHistory: [selectedMatch, ...previous.matchHistory.filter((match) => match.id !== selectedMatch?.id)].slice(0, 12),
+        completedFixtureIds: Array.from(new Set([...previous.completedFixtureIds, ...weekFixtures.map((weekFixture) => weekFixture.id)])),
+      };
     });
 
-    if (!selectedMatch) {
-      return null;
-    }
-
-    const { budgetDelta, fanDelta, moodDelta } = getResultEffects(selectedMatch);
-    const nextState: GameState = {
-      ...gameState,
-      budget: gameState.budget + budgetDelta,
-      fanCount: Math.max(0, gameState.fanCount + fanDelta),
-      fanMood: Math.max(0, Math.min(100, gameState.fanMood + moodDelta)),
-      leagueStandings,
-      matchHistory: [selectedMatch, ...gameState.matchHistory.filter((match) => match.id !== selectedMatch?.id)].slice(0, 12),
-      completedFixtureIds: Array.from(new Set([...gameState.completedFixtureIds, ...weekFixtures.map((weekFixture) => weekFixture.id)])),
-    };
-
-    setGameState(nextState);
-    return selectedMatch;
+    return resolvedMatch;
   };
 
   const upgradeStadium = () => {

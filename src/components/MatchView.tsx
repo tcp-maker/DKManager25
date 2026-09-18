@@ -94,15 +94,21 @@ const MatchView: React.FC = () => {
               <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
               <div className="flex justify-between items-center mb-4">
                 <div className="text-center flex-1">
-                  <p className="text-sm text-gray-600">{matchResult.homeTeamName}</p>
-                  <p className="text-4xl font-bold text-blue-600">{matchResult.homeGoals}</p>
+                  <p className="text-sm text-gray-600">
+                    {matchResult.homeTeamName}
+                    {matchResult.isHome ? ' (Dit Hold)' : ''}
+                  </p>
+                  <p className={`text-4xl font-bold ${matchResult.isHome ? 'text-green-600' : 'text-blue-600'}`}>{matchResult.homeGoals}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">-</p>
                 </div>
                 <div className="text-center flex-1">
-                  <p className="text-sm text-gray-600">{matchResult.awayTeamName}</p>
-                  <p className="text-4xl font-bold text-green-600">{matchResult.awayGoals}</p>
+                  <p className="text-sm text-gray-600">
+                    {matchResult.awayTeamName}
+                    {!matchResult.isHome ? ' (Dit Hold)' : ''}
+                  </p>
+                  <p className={`text-4xl font-bold ${matchResult.isHome ? 'text-blue-600' : 'text-green-600'}`}>{matchResult.awayGoals}</p>
                 </div>
               </div>
 
