@@ -37,20 +37,24 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
             <div key={league.name}>
               {/* League Header */}
               <div className={`bg-gradient-to-r ${league.color} rounded-lg px-6 py-4 mb-4`}>
-                <h2 className="text-2xl font-bold text-white">{league.name}</h2>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                  <h2 className="text-2xl font-bold text-white">{league.name}</h2>
+                  <p className="text-sm text-white/85">{league.teams.length} klubber</p>
+                </div>
               </div>
 
               {/* Team Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {league.teams.map((team) => (
                   <button
                     key={team.id}
                     onClick={() => onSelectTeam(team as Team)}
-                    className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all p-6 text-center card-hover border-2 border-transparent hover:border-blue-500"
+                    className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all p-5 text-center card-hover border-2 border-transparent hover:border-blue-500"
                   >
-                    <div className="text-5xl mb-3">{team.logo}</div>
-                    <h3 className="font-bold text-lg text-gray-900 mb-2">{team.name}</h3>
-                    <p className="text-sm text-gray-600 mb-4">Klik for at vælge</p>
+                    <div className="text-4xl mb-3">{team.logo}</div>
+                    <h3 className="font-bold text-lg text-gray-900 mb-1">{team.name}</h3>
+                    <p className="text-sm text-gray-600 mb-1">{team.league}</p>
+                    <p className="text-xs text-gray-500 mb-4">Prototype-rating {team.baseRating}</p>
                     <div className="bg-blue-100 text-blue-700 font-semibold py-2 px-4 rounded hover:bg-blue-200 transition w-full">
                       Vælg Klub
                     </div>
@@ -67,7 +71,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
           <ul className="text-gray-700 space-y-2">
             <li>✓ Vælg din klub fra en af de fire danske ligaer</li>
             <li>✓ Du starter med 1.000.000 kr i budget</li>
-            <li>✓ Din trup har 13 spillere klar til at spille</li>
+            <li>✓ Hver klub starter med en separat, deterministisk trup på 18 spillere</li>
             <li>✓ Brug topbaren efter klubvalg til hurtigt at følge med i uge, fans og økonomi</li>
             <li>✓ Administrer transfers, kampe og stadion for at blive Danmarks bedste manager!</li>
           </ul>

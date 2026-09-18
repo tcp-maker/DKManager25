@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, LeagueMatchRecord, ScheduledMatch, simulateScore } from '../data/leagues';
-import { normalizePlayerRecord, STARTER_PLAYERS } from '../data/players';
+import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
 import { Team } from '../types/teams';
 import { Player } from '../types/player';
 
@@ -29,14 +29,6 @@ interface GameContextType {
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
-
-// Dummy spillere til start
-const generateDummyPlayers = (): Record<string, Player> => {
-  return STARTER_PLAYERS.reduce((acc, player) => {
-    acc[player.id] = player;
-    return acc;
-  }, {} as Record<string, Player>);
-};
 
 // Initial game state
 const initialGameState: GameState = {
@@ -70,12 +62,13 @@ const loadGameState = (): GameState | null => {
     if (saved) {
       const parsed = JSON.parse(saved) as Partial<GameState>;
       const selectedTeam = parsed.selectedTeam ? (getTeamById(parsed.selectedTeam.id) ?? parsed.selectedTeam) : null;
+      const normalizedPlayers = normalizePlayerRecord(parsed.players);
 
       return {
         ...initialGameState,
         ...parsed,
         selectedTeam,
-        players: normalizePlayerRecord(parsed.players),
+        players: Object.keys(normalizedPlayers).length > 0 ? normalizedPlayers : getTeamSquadRecord(selectedTeam),
         season: typeof parsed.season === 'number' ? parsed.season : initialGameState.season,
         week: typeof parsed.week === 'number' ? parsed.week : initialGameState.week,
         leagueMatches: Array.isArray(parsed.leagueMatches) ? parsed.leagueMatches : [],
@@ -108,10 +101,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   }, [gameState]);
 
   const selectTeam = (team: Team) => {
+    const resolvedTeam = getTeamById(team.id) ?? team;
+
     setGameState(() => ({
       ...initialGameState,
-      selectedTeam: getTeamById(team.id) ?? team,
-      players: generateDummyPlayers(),
+      selectedTeam: resolvedTeam,
+      players: getTeamSquadRecord(resolvedTeam),
     }));
   };
 

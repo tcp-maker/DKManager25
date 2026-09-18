@@ -6,6 +6,7 @@ import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
+import LeagueTableCard from './components/LeagueTableCard';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
 
 const App: React.FC = () => {
@@ -73,44 +74,16 @@ const App: React.FC = () => {
           </div>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,2.4fr)_minmax(280px,0.9fr)]">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]">
               <div>{renderMainView()}</div>
 
               <aside className="xl:sticky xl:top-4 xl:self-start">
-                <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-                  <div className="border-b border-gray-100 px-4 py-4">
-                    <h2 className="text-xl font-bold">Ligatabel</h2>
-                    <p className="text-sm text-gray-600">{selectedTeam.league} • Sæson {gameState.season}</p>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-gray-50 text-gray-600">
-                        <tr>
-                          <th className="px-3 py-2 text-left">#</th>
-                          <th className="px-3 py-2 text-left">Hold</th>
-                          <th className="px-3 py-2 text-center">K</th>
-                          <th className="px-3 py-2 text-center">+/-</th>
-                          <th className="px-3 py-2 text-center">P</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {leagueTable.map((team, index) => (
-                          <tr
-                            key={team.teamId}
-                            className={`border-t ${team.teamId === selectedTeam.id ? 'bg-blue-50 font-semibold' : 'bg-white'}`}
-                          >
-                            <td className="px-3 py-2">{index + 1}</td>
-                            <td className="px-3 py-2">{team.teamName}</td>
-                            <td className="px-3 py-2 text-center">{team.played}</td>
-                            <td className="px-3 py-2 text-center">{team.goalDifference}</td>
-                            <td className="px-3 py-2 text-center">{team.points}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <LeagueTableCard
+                  leagueName={selectedTeam.league}
+                  season={gameState.season}
+                  selectedTeamId={selectedTeam.id}
+                  standings={leagueTable}
+                />
               </aside>
             </div>
           </main>
