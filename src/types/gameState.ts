@@ -1,4 +1,4 @@
-import { PlayedMatch, LeagueStandingEntry } from './game';
+import { LeagueMatchResult, PlayedMatch, LeagueStandingEntry } from './game';
 import { Player } from './players';
 import { Team } from './teams';
 
@@ -12,5 +12,6 @@ export interface GameState {
   week: number;
   leagueStandings: LeagueStandingEntry[];
   matchHistory: PlayedMatch[];
+  leagueResults: LeagueMatchResult[];
   completedFixtureIds: string[];
 }

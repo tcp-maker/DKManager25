@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { getLeagueTeams } from '../data/teams';
 import { LeagueFixture, PlayedMatch } from '../types/game';
@@ -28,6 +28,7 @@ const MatchView: React.FC = () => {
   const [currentMatch, setCurrentMatch] = useState<LeagueFixture | null>(null);
   const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
+  const matchTimeoutRef = useRef<number | null>(null);
 
   const selectedTeam = gameState.selectedTeam;
   const leagueTeams = useMemo(() => (selectedTeam ? getLeagueTeams(selectedTeam.leagueId) : []), [selectedTeam]);
@@ -38,18 +39,33 @@ const MatchView: React.FC = () => {
   );
   const teamRating = calculateSquadRating(Object.values(gameState.players));
 
+  useEffect(() => (
+    () => {
+      if (matchTimeoutRef.current !== null) {
+        window.clearTimeout(matchTimeoutRef.current);
+      }
+    }
+  ), []);
+
   if (!selectedTeam) {
     return <div>Ingen klub valgt</div>;
   }
 
   const simulateMatch = (fixture: LeagueFixture) => {
+    if (matchTimeoutRef.current !== null) {
+      window.clearTimeout(matchTimeoutRef.current);
+    }
+
+    setMatchResult(null);
     setIsMatchPlaying(true);
     setCurrentMatch(fixture);
 
-    window.setTimeout(() => {
+    matchTimeoutRef.current = window.setTimeout(() => {
       const played = playMatch(fixture.id);
       setMatchResult(played);
       setIsMatchPlaying(false);
+      setCurrentMatch(null);
+      matchTimeoutRef.current = null;
     }, 1200);
   };
 
@@ -134,6 +150,7 @@ const MatchView: React.FC = () => {
                 onClick={() => {
                   setMatchResult(null);
                   handleNextWeek();
+                  setCurrentMatch(null);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
               >

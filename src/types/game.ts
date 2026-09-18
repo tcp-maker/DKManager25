@@ -21,7 +21,7 @@ export interface LeagueFixture {
   awayTeamId: string;
 }
 
-export interface PlayedMatch {
+export interface LeagueMatchResult {
   id: string;
   fixtureId: string;
   week: number;
@@ -31,6 +31,9 @@ export interface PlayedMatch {
   awayTeamName: string;
   homeGoals: number;
   awayGoals: number;
+}
+
+export interface PlayedMatch extends LeagueMatchResult {
   selectedTeamId: string;
   opponentTeamId: string;
   selectedTeamGoals: number;

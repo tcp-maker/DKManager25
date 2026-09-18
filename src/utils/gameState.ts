@@ -1,6 +1,6 @@
 import { getTeamRosterPlayers } from '../data/players';
 import { getLeagueTeams, getTeamById } from '../data/teams';
-import { LeagueStandingEntry, MatchResult, PlayedMatch } from '../types/game';
+import { LeagueMatchResult, LeagueStandingEntry, MatchResult, PlayedMatch } from '../types/game';
 import { GameState } from '../types/gameState';
 import { Player, PlayerPosition } from '../types/players';
 import { Team } from '../types/teams';
@@ -19,7 +19,7 @@ interface NormalizablePlayerRecord extends Record<string, unknown> {
   value: number;
 }
 
-interface NormalizableMatchRecord extends Record<string, unknown> {
+interface NormalizableLeagueResultRecord extends Record<string, unknown> {
   id: string;
   fixtureId: string;
   week: number;
@@ -29,6 +29,9 @@ interface NormalizableMatchRecord extends Record<string, unknown> {
   awayTeamName: string;
   homeGoals: number;
   awayGoals: number;
+}
+
+interface NormalizableMatchRecord extends NormalizableLeagueResultRecord {
   selectedTeamId: string;
   opponentTeamId: string;
   selectedTeamGoals: number;
@@ -148,6 +151,37 @@ const isMatchResult = (value: unknown): value is MatchResult => (
   value === 'WIN' || value === 'DRAW' || value === 'LOSS'
 );
 
+const normalizeLeagueResults = (leagueResults: unknown): LeagueMatchResult[] => {
+  if (!Array.isArray(leagueResults)) {
+    return [];
+  }
+
+  return leagueResults
+    .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null)
+    .filter((entry): entry is NormalizableLeagueResultRecord => (
+      typeof entry.id === 'string'
+      && typeof entry.fixtureId === 'string'
+      && typeof entry.week === 'number'
+      && typeof entry.homeTeamId === 'string'
+      && typeof entry.awayTeamId === 'string'
+      && typeof entry.homeTeamName === 'string'
+      && typeof entry.awayTeamName === 'string'
+      && typeof entry.homeGoals === 'number'
+      && typeof entry.awayGoals === 'number'
+    ))
+    .map((entry) => ({
+      id: entry.id,
+      fixtureId: entry.fixtureId,
+      week: Math.max(1, Math.round(entry.week)),
+      homeTeamId: entry.homeTeamId,
+      awayTeamId: entry.awayTeamId,
+      homeTeamName: entry.homeTeamName,
+      awayTeamName: entry.awayTeamName,
+      homeGoals: Math.max(0, Math.round(entry.homeGoals)),
+      awayGoals: Math.max(0, Math.round(entry.awayGoals)),
+    }));
+};
+
 const normalizeMatchHistory = (matchHistory: unknown): PlayedMatch[] => {
   if (!Array.isArray(matchHistory)) {
     return [];
@@ -201,6 +235,7 @@ export const initialGameState: GameState = {
   week: 1,
   leagueStandings: [],
   matchHistory: [],
+  leagueResults: [],
   completedFixtureIds: [],
 };
 
@@ -220,6 +255,7 @@ export const normalizeGameState = (savedState: unknown): GameState => {
     week: typeof (savedState as Record<string, unknown>).week === 'number' ? Math.max(1, Math.round((savedState as Record<string, number>).week)) : initialGameState.week,
     leagueStandings: normalizeStandings((savedState as Record<string, unknown>).leagueStandings, selectedTeam),
     matchHistory: normalizeMatchHistory((savedState as Record<string, unknown>).matchHistory),
+    leagueResults: normalizeLeagueResults((savedState as Record<string, unknown>).leagueResults),
     completedFixtureIds: normalizeCompletedFixtureIds((savedState as Record<string, unknown>).completedFixtureIds),
   };
 };

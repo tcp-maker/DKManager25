@@ -1,4 +1,4 @@
-import { MatchResult, PlayedMatch } from '../types/game';
+import { LeagueMatchResult, MatchResult, PlayedMatch } from '../types/game';
 import { Player } from '../types/players';
 import { Team } from '../types/teams';
 
@@ -35,6 +35,25 @@ export const simulateFixtureScore = (
   return { homeGoals, awayGoals };
 };
 
+export const createLeagueMatchResult = (
+  fixtureId: string,
+  week: number,
+  homeTeam: Team,
+  awayTeam: Team,
+  homeGoals: number,
+  awayGoals: number,
+): LeagueMatchResult => ({
+  id: `${fixtureId}-league-result`,
+  fixtureId,
+  week,
+  homeTeamId: homeTeam.id,
+  awayTeamId: awayTeam.id,
+  homeTeamName: homeTeam.name,
+  awayTeamName: awayTeam.name,
+  homeGoals,
+  awayGoals,
+});
+
 export const getSelectedMatchResult = (selectedTeamId: string, homeTeamId: string, homeGoals: number, awayGoals: number): MatchResult => {
   const selectedGoals = selectedTeamId === homeTeamId ? homeGoals : awayGoals;
   const opponentGoals = selectedTeamId === homeTeamId ? awayGoals : homeGoals;
@@ -57,17 +76,11 @@ export const createPlayedMatch = (
   homeGoals: number,
   awayGoals: number,
 ): PlayedMatch => {
+  const leagueMatch = createLeagueMatchResult(fixtureId, week, homeTeam, awayTeam, homeGoals, awayGoals);
   const isHome = selectedTeamId === homeTeam.id;
   return {
+    ...leagueMatch,
     id: `${fixtureId}-result`,
-    fixtureId,
-    week,
-    homeTeamId: homeTeam.id,
-    awayTeamId: awayTeam.id,
-    homeTeamName: homeTeam.name,
-    awayTeamName: awayTeam.name,
-    homeGoals,
-    awayGoals,
     selectedTeamId,
     opponentTeamId: isHome ? awayTeam.id : homeTeam.id,
     selectedTeamGoals: isHome ? homeGoals : awayGoals,

@@ -13,7 +13,7 @@ const LeagueTableView: React.FC = () => {
     <div className="p-4 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">Ligatabel</h1>
-        <p className="text-gray-600">{selectedTeam.name} spiller i en tabel, der gemmes mellem genindlæsninger.</p>
+        <p className="text-gray-600">Stillingen for {selectedTeam.name}s liga gemmes mellem genindlæsninger og opdateres efter spillede kampe.</p>
       </div>
 
       <div className="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
