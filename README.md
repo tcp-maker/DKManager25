@@ -182,7 +182,7 @@ npm run preview
 
 ## Klubbaser og prototypedata
 
-- Divisionerne er nu modelleret som `Superligaen`, `1. Division`, `2. Division` og `3. Division`
+- Divisionerne er nu modelleret som `Superliga`, `1. division`, `2. division` og `3. division`
 - Hver division har 12 klubber og et komplet hjemme/ude-program, så hvert hold spiller 22 ligakampe pr. sæson
 - Når du vælger en klub, får du netop denne klubs deterministiske 18-mandstrup med stabile spiller-id'er
 - Eksisterende saves indlæses fortsat via normalisering af `selectedTeam`, `players` og `leagueMatches`
