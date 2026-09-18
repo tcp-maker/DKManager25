@@ -53,69 +53,130 @@ export interface LeagueStanding {
   points: number;
 }
 
+interface TeamSeed {
+  id: string;
+  name: string;
+  logo: string;
+  baseRating: number;
+}
+
+const createLeagueTeams = (league: string, teams: TeamSeed[]): Team[] =>
+  teams.map(team => ({
+    ...team,
+    league,
+  }));
+
+const LEGACY_TEAM_ID_ALIASES: Record<string, string> = {
+  lolland: 'nykoebing',
+  fredriksberg: 'fa-2000',
+  ballerup: 'ab',
+  kastrup: 'sundby',
+  glostrup: 'vanloese',
+  'tårnby': 'fremad-amager',
+  virum: 'hik',
+};
+
 export const LEAGUES: LeagueDefinition[] = [
   {
     name: 'Superligaen',
     color: 'from-blue-500 to-blue-600',
-    teams: [
-      { id: 'fckoebenhavn', name: 'FC København', logo: '🔵', league: 'Superligaen', baseRating: 82 },
-      { id: 'broendby', name: 'Brøndby IF', logo: '🟡', league: 'Superligaen', baseRating: 79 },
-      { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴', league: 'Superligaen', baseRating: 78 },
-      { id: 'aalborg', name: 'AaB Aalborg', logo: '⚫', league: 'Superligaen', baseRating: 76 },
-    ]
+    teams: createLeagueTeams('Superligaen', [
+      { id: 'fckoebenhavn', name: 'FC København', logo: '🔵', baseRating: 82 },
+      { id: 'broendby', name: 'Brøndby IF', logo: '🟡', baseRating: 81 },
+      { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴', baseRating: 81 },
+      { id: 'nordsjælland', name: 'FC Nordsjælland', logo: '⚪', baseRating: 79 },
+      { id: 'agf', name: 'AGF', logo: '🔷', baseRating: 78 },
+      { id: 'silkeborg', name: 'Silkeborg IF', logo: '🔶', baseRating: 77 },
+      { id: 'randers', name: 'Randers FC', logo: '🟠', baseRating: 76 },
+      { id: 'viborg', name: 'Viborg FF', logo: '🟢', baseRating: 75 },
+      { id: 'ob', name: 'OB', logo: '⚪', baseRating: 75 },
+      { id: 'soenderjyske', name: 'Sønderjyske', logo: '🔹', baseRating: 74 },
+      { id: 'lyngby', name: 'Lyngby BK', logo: '🔵', baseRating: 73 },
+      { id: 'horsens', name: 'AC Horsens', logo: '🟡', baseRating: 72 },
+    ]),
   },
   {
     name: '1. Division',
     color: 'from-orange-500 to-orange-600',
-    teams: [
-      { id: 'silkeborg', name: 'Silkeborg IF', logo: '🔶', league: '1. Division', baseRating: 74 },
-      { id: 'randers', name: 'Randers FC', logo: '🟠', league: '1. Division', baseRating: 75 },
-      { id: 'ob', name: 'OB Odense', logo: '🔵', league: '1. Division', baseRating: 73 },
-      { id: 'lolland', name: 'Lolland-Falster Alliancen', logo: '🟣', league: '1. Division', baseRating: 68 },
-    ]
+    teams: createLeagueTeams('1. Division', [
+      { id: 'aalborg', name: 'AaB', logo: '⚫', baseRating: 71 },
+      { id: 'vejle', name: 'Vejle BK', logo: '🔴', baseRating: 71 },
+      { id: 'fredericia', name: 'FC Fredericia', logo: '⚪', baseRating: 70 },
+      { id: 'hvidovre', name: 'Hvidovre IF', logo: '🔴', baseRating: 69 },
+      { id: 'hilleroed', name: 'Hillerød Fodbold', logo: '🟠', baseRating: 69 },
+      { id: 'kolding', name: 'Kolding IF', logo: '🔴', baseRating: 68 },
+      { id: 'esbjerg', name: 'Esbjerg fB', logo: '🔵', baseRating: 68 },
+      { id: 'hobro', name: 'Hobro IK', logo: '🟡', baseRating: 67 },
+      { id: 'hb-koege', name: 'HB Køge', logo: '🔷', baseRating: 67 },
+      { id: 'vendsyssel', name: 'Vendsyssel FF', logo: '🔵', baseRating: 66 },
+      { id: 'aarhus-fremad', name: 'Aarhus Fremad', logo: '🟣', baseRating: 66 },
+      { id: 'ab', name: 'AB', logo: '🟢', baseRating: 65 },
+    ]),
   },
   {
-    name: 'Nordsjaelland Serien',
+    name: '2. Division',
     color: 'from-green-500 to-green-600',
-    teams: [
-      { id: 'frem', name: 'BK FREM', logo: '🟢', league: 'Nordsjaelland Serien', baseRating: 71 },
-      { id: 'nordsjælland', name: 'Nordsjælland FC', logo: '⚪', league: 'Nordsjaelland Serien', baseRating: 77 },
-      { id: 'fredriksberg', name: 'Fredriksberg IF', logo: '🔴', league: 'Nordsjaelland Serien', baseRating: 69 },
-      { id: 'ballerup', name: 'Ballerup IF', logo: '🟡', league: 'Nordsjaelland Serien', baseRating: 67 },
-    ]
+    teams: createLeagueTeams('2. Division', [
+      { id: 'naestved', name: 'Næstved BK', logo: '🟢', baseRating: 64 },
+      { id: 'roskilde', name: 'FC Roskilde', logo: '🟡', baseRating: 64 },
+      { id: 'fremad-amager', name: 'Fremad Amager', logo: '🔵', baseRating: 63 },
+      { id: 'b93', name: 'B.93', logo: '⚪', baseRating: 63 },
+      { id: 'thisted', name: 'Thisted FC', logo: '🔵', baseRating: 63 },
+      { id: 'middelfart', name: 'Middelfart BK', logo: '⚪', baseRating: 62 },
+      { id: 'skive', name: 'Skive IK', logo: '🔵', baseRating: 62 },
+      { id: 'brabrand', name: 'Brabrand IF', logo: '🟡', baseRating: 61 },
+      { id: 'vsk-aarhus', name: 'VSK Aarhus', logo: '🔷', baseRating: 61 },
+      { id: 'fa-2000', name: 'FA 2000', logo: '🟣', baseRating: 60 },
+      { id: 'hik', name: 'HIK', logo: '⚫', baseRating: 60 },
+      { id: 'nykoebing', name: 'Nykøbing FC', logo: '🟠', baseRating: 59 },
+    ]),
   },
   {
-    name: 'Regionsmesterskaberne',
+    name: '3. Division',
     color: 'from-purple-500 to-purple-600',
-    teams: [
-      { id: 'kastrup', name: 'Kastrup BK', logo: '🟣', league: 'Regionsmesterskaberne', baseRating: 70 },
-      { id: 'glostrup', name: 'Glostrup FK', logo: '⚪', league: 'Regionsmesterskaberne', baseRating: 69 },
-      { id: 'tårnby', name: 'Tårnby FF', logo: '🟠', league: 'Regionsmesterskaberne', baseRating: 68 },
-      { id: 'virum', name: 'Virum-Skovlunde IF', logo: '🔵', league: 'Regionsmesterskaberne', baseRating: 67 },
-    ]
+    teams: createLeagueTeams('3. Division', [
+      { id: 'fc-helsingoer', name: 'FC Helsingør', logo: '🔴', baseRating: 58 },
+      { id: 'frem', name: 'BK Frem', logo: '🟠', baseRating: 58 },
+      { id: 'holbaek', name: 'Holbæk B&I', logo: '🔵', baseRating: 57 },
+      { id: 'broenshoej', name: 'Brønshøj', logo: '🟡', baseRating: 57 },
+      { id: 'ishoej', name: 'Ishøj IF', logo: '🔴', baseRating: 56 },
+      { id: 'vanloese', name: 'Vanløse IF', logo: '⚪', baseRating: 56 },
+      { id: 'naesby', name: 'Næsby BK', logo: '🟢', baseRating: 55 },
+      { id: 'holstebro', name: 'Holstebro BK', logo: '🔵', baseRating: 55 },
+      { id: 'asa-aarhus', name: 'ASA Aarhus', logo: '🔷', baseRating: 54 },
+      { id: 'sundby', name: 'Sundby BK', logo: '🟡', baseRating: 54 },
+      { id: 'ringsted', name: 'Ringsted IF', logo: '🟣', baseRating: 53 },
+      { id: 'hoersholm-usseroed', name: 'Hørsholm-Usserød IK', logo: '⚪', baseRating: 53 },
+    ]),
   },
 ];
 
 const getDifficulty = (rating: number): MatchDifficulty => {
-  if (rating > 80) return 'Svær';
-  if (rating > 75) return 'Moderat';
+  if (rating > 78) return 'Svær';
+  if (rating > 66) return 'Moderat';
   return 'Nem';
 };
 
 export const getTeamById = (teamId?: string | null): Team | null => {
   if (!teamId) return null;
+
+  const resolvedTeamId = LEGACY_TEAM_ID_ALIASES[teamId] ?? teamId;
+
   for (const league of LEAGUES) {
-    const team = league.teams.find(candidate => candidate.id === teamId);
+    const team = league.teams.find(candidate => candidate.id === resolvedTeamId);
     if (team) {
       return team;
     }
   }
+
   return null;
 };
 
 export const getLeagueByTeamId = (teamId?: string | null): LeagueDefinition | null => {
   if (!teamId) return null;
-  return LEAGUES.find(league => league.teams.some(team => team.id === teamId)) ?? null;
+
+  const resolvedTeamId = LEGACY_TEAM_ID_ALIASES[teamId] ?? teamId;
+  return LEAGUES.find(league => league.teams.some(team => team.id === resolvedTeamId)) ?? null;
 };
 
 const buildRoundRobinFixtures = (teams: Team[]): LeagueFixture[] => {

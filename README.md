@@ -4,11 +4,11 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 
 ## Hvad fungerer nu
 
-- Klubbvalg på tværs af fire danske ligaer
+- Klubbvalg på tværs af 4 danske divisioner med 12 klubber i hver (48 hold i alt)
 - Fælles game state for klub, spillere, økonomi, fans, stadion og ugeforløb
-- Trupvisning med positionsfordeling og spilleroversigt
+- Holdspecificerede, deterministiske starttrupper med positionsfordeling, ASI, roller, skills og værdi
 - Transferflow for køb, sætte til salg, annullere salg og sælge med budgetopdatering
-- Stabil ugentlig kampplan, som kun ændres ved ny uge
+- Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
 - Kampsimulering med begrænsede sandsynligheder, konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
@@ -35,8 +35,8 @@ State indeholder:
 
 Spilflowet er:
 
-1. Vælg en klub
-2. Gennemgå trup og transfermarked
+1. Vælg en klub i en af de fire 12-holds divisioner
+2. Gennemgå klubbens egen trup og transfermarked
 3. Spil den planlagte ligakamp i den aktuelle uge
 4. Få billetindtægter og kampbonus/-tab anvendt direkte på økonomi og fans
 5. Gå videre til næste uge, eller start næste sæson når kampprogrammet er færdigspillet
@@ -52,8 +52,9 @@ Kampresultater påvirker nu faktisk state:
 ## Kendte begrænsninger
 
 - Der er stadig ingen automatiserede tests eller lint-scripts i repoet
-- Trupper, modstandere og købsspillere er stadig statiske prototype-data
-- Ligaforløbet er stadig en prototype med statiske holddata og begrænset sæsonhistorik
+- Klubrækkerne er baseret på aktuelle/relevante DBU-/Divisionsforeningen-referencer, men `baseRating` og spillerdata er stadig spilbalancerede prototypeværdier
+- Holdsquad-navne genereres deterministisk pr. klub og er ikke tænkt som 1:1 gengivelser af virkelige spillertrupper
+- Ligaforløbet er stadig en prototype med begrænset sæsonhistorik og uden op-/nedrykning
 - Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
 
 ## Teknologi
@@ -175,15 +176,29 @@ npm run preview
 - `npm run build:mobile`
 - `npm run mobile:apk`
 - `npm run mobile:apk:release` er klargjort, men kræver lokal adgang til Android/Google build-afhængigheder og release-keystore
-- stabil ugentlig kampgenerering blev kontrolleret via målrettet TypeScript-kørsel
+- stabil kampgenerering og build for 12-holds divisioner blev kontrolleret via TypeScript/build-verifikation
 - dev-server svarede korrekt på `/`, `/manifest.webmanifest`, `/sw.js` og `/icon.svg`
 - Android CLI-build blev forberedt, men fuld `assembleDebug` i denne sandbox blev stoppet af netværksadgang til `dl.google.com`
+
+## Klubbaser og prototypedata
+
+- Divisionerne er nu modelleret som `Superligaen`, `1. Division`, `2. Division` og `3. Division`
+- Hver division har 12 klubber og et komplet hjemme/ude-program, så hvert hold spiller 22 ligakampe pr. sæson
+- Når du vælger en klub, får du netop denne klubs deterministiske 18-mandstrup med stabile spiller-id'er
+- Eksisterende saves indlæses fortsat via normalisering af `selectedTeam`, `players` og `leagueMatches`
+
+### Kilder til klubvalg
+
+- DBU / Divisionsforeningen blev brugt som primære referencepunkter for divisionsstrukturen
+- Officielle/nær-officielle oversigter over 2026/27-felterne blev krydstjekket via søgninger mod Superliga, worldfootball.net, 2-division.dk og 3-division.dk, da direkte fetch mod DBU-domænet var blokeret i denne sandbox
+- Klubberne er placeret i divisioner efter disse aktuelle/relevante kilder, mens ratings fortsat er gameplay-balancerede prototyper
 
 ## Repository-struktur
 
 - `src/App.tsx` – hovednavigation mellem visninger
 - `src/context/GameContext.tsx` – delt game state, persistence og økonomiopdateringer
-- `src/data/leagues.ts` – ligadata, kampprogram, simulering og stillingsberegning
+- `src/data/leagues.ts` – 4x12 ligadata, kampprogram, simulering og stillingsberegning
+- `src/data/players.ts` – deterministiske holdspecifikke trupper, spillerattributter og normalisering af gamle saves
 - `src/components/` – UI for holdvalg, trup, transfermarked, kampe og stadion
 - `public/manifest.webmanifest` og `public/sw.js` – minimal PWA-understøttelse
 - `android/` og `capacitor.config.ts` – Android-wrapper for mobil-app

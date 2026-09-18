@@ -1,4 +1,5 @@
 import { Player, PlayerRole, PlayerSkills, SkillKey } from '../types/player';
+import { Team } from '../types/teams';
 
 export const SKILL_KEYS: SkillKey[] = [
   'intelligence',
@@ -77,6 +78,15 @@ interface PlayerValueInput {
   primaryRole: PlayerRole;
   skills: PlayerSkills;
   asi: number;
+}
+
+interface SquadTemplateSlot {
+  position: Player['position'];
+  primaryRole: PlayerRole;
+  secondaryRoles?: PlayerRole[];
+  ageRange: [number, number];
+  baseOffset: number;
+  overrides?: SkillOverrides;
 }
 
 const clampSkill = (value: number) => Math.max(1, Math.min(99, Math.round(value)));
@@ -393,21 +403,109 @@ export const createPlayer = ({
   };
 };
 
-const starterSeeds: PlayerSeed[] = [
-  { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', primaryRole: 'goalkeeper', base: 63, overrides: { goalkeeping: 21, passing: 8, intelligence: 10, vision: 7 } },
-  { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', primaryRole: 'goalkeeper', base: 60, overrides: { goalkeeping: 19, intelligence: 11, heading: 5 }, isForSale: true },
-  { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', primaryRole: 'center-back', secondaryRoles: ['full-back'], base: 64, overrides: { defending: 18, heading: 15, passing: 7 } },
-  { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', primaryRole: 'center-back', base: 62, overrides: { defending: 16, intelligence: 11, heading: 14, pace: -6 } },
-  { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', primaryRole: 'full-back', secondaryRoles: ['winger'], base: 58, overrides: { pace: 14, wingPlay: 12, dribbling: 7 }, isForSale: true },
-  { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', primaryRole: 'full-back', secondaryRoles: ['defensive-midfielder'], base: 60, overrides: { defending: 12, stamina: 11, passing: 8, wingPlay: 8 } },
-  { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['attacking-midfielder'], base: 63, overrides: { midfieldPlay: 15, passing: 13, vision: 12 } },
-  { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', primaryRole: 'defensive-midfielder', secondaryRoles: ['central-midfielder'], base: 60, overrides: { defending: 11, passing: 10, stamina: 10 } },
-  { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', primaryRole: 'attacking-midfielder', secondaryRoles: ['winger', 'striker'], base: 61, overrides: { attackingPlay: 12, finishing: 9, dribbling: 10, vision: 10 }, isForSale: true },
-  { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 57, overrides: { wingPlay: 14, pace: 12, dribbling: 9 } },
-  { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', primaryRole: 'striker', secondaryRoles: ['winger'], base: 65, overrides: { attackingPlay: 15, finishing: 14, pace: 10 } },
-  { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', primaryRole: 'winger', secondaryRoles: ['striker'], base: 63, overrides: { wingPlay: 15, pace: 13, dribbling: 12, attackingPlay: 9 } },
-  { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', primaryRole: 'striker', secondaryRoles: ['attacking-midfielder'], base: 61, overrides: { attackingPlay: 13, heading: 10, finishing: 11 }, isForSale: true },
+const SQUAD_TEMPLATE: SquadTemplateSlot[] = [
+  { position: 'GK', primaryRole: 'goalkeeper', ageRange: [30, 35], baseOffset: 3, overrides: { goalkeeping: 22, passing: 6, vision: 4 } },
+  { position: 'GK', primaryRole: 'goalkeeper', ageRange: [19, 24], baseOffset: 0, overrides: { goalkeeping: 18, intelligence: 5, passing: 4 } },
+  { position: 'DF', primaryRole: 'center-back', secondaryRoles: ['full-back'], ageRange: [27, 32], baseOffset: 3, overrides: { defending: 18, heading: 15, passing: 6 } },
+  { position: 'DF', primaryRole: 'center-back', ageRange: [24, 29], baseOffset: 2, overrides: { defending: 16, heading: 13, pace: -2 } },
+  { position: 'DF', primaryRole: 'center-back', ageRange: [20, 25], baseOffset: 0, overrides: { defending: 13, heading: 9, pace: 1 } },
+  { position: 'DF', primaryRole: 'full-back', secondaryRoles: ['winger'], ageRange: [23, 28], baseOffset: 1, overrides: { pace: 13, wingPlay: 10, dribbling: 5 } },
+  { position: 'DF', primaryRole: 'full-back', secondaryRoles: ['defensive-midfielder'], ageRange: [19, 24], baseOffset: 0, overrides: { defending: 10, pace: 10, stamina: 11, passing: 6 } },
+  { position: 'MF', primaryRole: 'defensive-midfielder', secondaryRoles: ['center-back'], ageRange: [25, 31], baseOffset: 2, overrides: { midfieldPlay: 12, defending: 11, passing: 9 } },
+  { position: 'MF', primaryRole: 'defensive-midfielder', secondaryRoles: ['central-midfielder'], ageRange: [20, 25], baseOffset: 0, overrides: { midfieldPlay: 10, defending: 9, stamina: 9 } },
+  { position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['defensive-midfielder'], ageRange: [26, 31], baseOffset: 3, overrides: { midfieldPlay: 15, passing: 13, vision: 11 } },
+  { position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['attacking-midfielder'], ageRange: [22, 27], baseOffset: 1, overrides: { midfieldPlay: 13, passing: 11, vision: 10 } },
+  { position: 'MF', primaryRole: 'central-midfielder', ageRange: [18, 22], baseOffset: -1, overrides: { midfieldPlay: 10, passing: 8, stamina: 8 } },
+  { position: 'MF', primaryRole: 'attacking-midfielder', secondaryRoles: ['winger'], ageRange: [23, 28], baseOffset: 2, overrides: { attackingPlay: 12, dribbling: 10, vision: 10, finishing: 6 } },
+  { position: 'MF', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], ageRange: [20, 26], baseOffset: 1, overrides: { wingPlay: 14, pace: 13, dribbling: 10 } },
+  { position: 'MF', primaryRole: 'winger', secondaryRoles: ['full-back'], ageRange: [18, 23], baseOffset: 0, overrides: { wingPlay: 11, pace: 12, dribbling: 8 } },
+  { position: 'FW', primaryRole: 'striker', secondaryRoles: ['winger'], ageRange: [26, 31], baseOffset: 3, overrides: { attackingPlay: 15, finishing: 14, heading: 9 } },
+  { position: 'FW', primaryRole: 'striker', secondaryRoles: ['attacking-midfielder'], ageRange: [22, 27], baseOffset: 1, overrides: { attackingPlay: 13, finishing: 11, pace: 8 } },
+  { position: 'FW', primaryRole: 'striker', secondaryRoles: ['winger'], ageRange: [18, 22], baseOffset: 0, overrides: { attackingPlay: 11, finishing: 10, pace: 10 } },
 ];
+
+const FIRST_NAMES = [
+  'Andreas', 'Mads', 'Lukas', 'Mathias', 'Oliver', 'Emil', 'Frederik', 'Victor', 'Magnus', 'Sebastian',
+  'Nicolai', 'Mikkel', 'Rasmus', 'Jonas', 'Casper', 'Morten', 'Sander', 'Tobias', 'Kristian', 'Jeppe',
+  'Noah', 'Malthe', 'Villads', 'August', 'Felix', 'Alexander', 'Oscar', 'Patrick', 'Anton', 'Nikolaj',
+  'Valdemar', 'Birk', 'Kasper', 'Joachim', 'Lasse', 'Laurits', 'Silas', 'William', 'Elias', 'Carl',
+];
+
+const LAST_NAMES = [
+  'Jensen', 'Nielsen', 'Hansen', 'Pedersen', 'Andersen', 'Christensen', 'Larsen', 'Sørensen', 'Rasmussen', 'Jørgensen',
+  'Madsen', 'Kristensen', 'Olsen', 'Thomsen', 'Poulsen', 'Knudsen', 'Mortensen', 'Henriksen', 'Jeppesen', 'Jacobsen',
+  'Johansen', 'Bach', 'Friis', 'Lund', 'Vestergaard', 'Mogensen', 'Kjær', 'Bruun', 'Iversen', 'Skov',
+  'Bundgaard', 'Høgh', 'Bertelsen', 'Winther', 'Dahl', 'Nørgaard', 'Overgaard', 'Agergaard', 'Buch', 'Torp',
+];
+
+const clampBase = (value: number) => Math.max(42, Math.min(74, Math.round(value)));
+
+const hashString = (value: string) => {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+
+  return hash || 1;
+};
+
+const createDeterministicGenerator = (seed: string) => {
+  let state = hashString(seed);
+
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+};
+
+const randomInt = (rng: () => number, min: number, max: number) =>
+  min + Math.floor(rng() * (max - min + 1));
+
+const buildPlayerName = (teamId: string, slotIndex: number, usedNames: Set<string>) => {
+  const rng = createDeterministicGenerator(`${teamId}-name-${slotIndex}`);
+  let attempts = 0;
+
+  while (attempts < FIRST_NAMES.length * LAST_NAMES.length) {
+    const firstName = FIRST_NAMES[randomInt(rng, 0, FIRST_NAMES.length - 1)];
+    const lastName = LAST_NAMES[randomInt(rng, 0, LAST_NAMES.length - 1)];
+    const candidate = `${firstName} ${lastName}`;
+
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate);
+      return candidate;
+    }
+
+    attempts += 1;
+  }
+
+  return `${FIRST_NAMES[slotIndex % FIRST_NAMES.length]} ${LAST_NAMES[(slotIndex + hashString(teamId)) % LAST_NAMES.length]}`;
+};
+
+const buildTeamSquad = (team: Team): Player[] => {
+  const rng = createDeterministicGenerator(team.id);
+  const usedNames = new Set<string>();
+  const baseLevel = clampBase(team.baseRating - 13);
+
+  return SQUAD_TEMPLATE.map((slot, index) => {
+    const age = randomInt(rng, slot.ageRange[0], slot.ageRange[1]);
+    const variation = randomInt(rng, -1, 1);
+    const base = clampBase(baseLevel + slot.baseOffset + variation);
+    const isForSale = index >= SQUAD_TEMPLATE.length - 2 && rng() > 0.55;
+
+    return createPlayer({
+      id: `${team.id}-player-${index + 1}`,
+      name: buildPlayerName(team.id, index, usedNames),
+      age,
+      position: slot.position,
+      primaryRole: slot.primaryRole,
+      secondaryRoles: slot.secondaryRoles ?? [],
+      base,
+      overrides: slot.overrides,
+      isForSale,
+    });
+  });
+};
 
 const transferSeeds: PlayerSeed[] = [
   { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 64, overrides: { wingPlay: 16, dribbling: 15, pace: 14, finishing: 8 } },
@@ -417,7 +515,29 @@ const transferSeeds: PlayerSeed[] = [
   { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', primaryRole: 'goalkeeper', base: 61, overrides: { goalkeeping: 18, intelligence: 9, passing: 8 } },
 ];
 
-export const STARTER_PLAYERS = starterSeeds.map(createPlayer);
+const FALLBACK_TEAM: Team = {
+  id: 'starter-team',
+  name: 'Starterholdet',
+  logo: '⚽',
+  league: 'Prototype',
+  baseRating: 68,
+};
+
+export const STARTER_PLAYERS = buildTeamSquad(FALLBACK_TEAM);
+
+export const getTeamSquad = (team: Team | null): Player[] => {
+  if (!team) {
+    return STARTER_PLAYERS;
+  }
+
+  return buildTeamSquad(team);
+};
+
+export const getTeamSquadRecord = (team: Team | null): Record<string, Player> =>
+  getTeamSquad(team).reduce((acc, player) => {
+    acc[player.id] = player;
+    return acc;
+  }, {} as Record<string, Player>);
 
 export const TRANSFER_MARKET_PLAYERS = transferSeeds.map(createPlayer);
 
