@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { getTeamRosterPlayers } from '../data/players';
 import { getLeagueTeams, getTeamById } from '../data/teams';
 import { PlayedMatch } from '../types/game';
@@ -153,7 +153,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
 
-    const leagueTeams = getLeagueTeams(gameState.selectedTeam.leagueId);
+    const selectedTeam = gameState.selectedTeam;
+    const leagueTeams = getLeagueTeams(selectedTeam.leagueId);
     const fixtures = generateLeagueFixtures(leagueTeams);
     const fixture = fixtures.find((item) => item.id === fixtureId);
 
@@ -184,8 +185,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const homeRating = weekFixture.homeTeamId === gameState.selectedTeam?.id ? squadRating : homeTeam.strength;
-      const awayRating = weekFixture.awayTeamId === gameState.selectedTeam?.id ? squadRating : awayTeam.strength;
+      const homeRating = weekFixture.homeTeamId === selectedTeam.id ? squadRating : homeTeam.strength;
+      const awayRating = weekFixture.awayTeamId === selectedTeam.id ? squadRating : awayTeam.strength;
       const score = simulateFixtureScore(homeRating, awayRating, `${weekFixture.id}-${gameState.week}-${squadRating}`);
 
       leagueStandings = applyMatchToStandings(
@@ -202,7 +203,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           gameState.week,
           homeTeam,
           awayTeam,
-          gameState.selectedTeam.id,
+          selectedTeam.id,
           score.homeGoals,
           score.awayGoals,
         );

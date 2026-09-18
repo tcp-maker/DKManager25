@@ -11,6 +11,14 @@ const isPlayerPosition = (value: unknown): value is PlayerPosition => (
   value === 'GK' || value === 'DF' || value === 'MF' || value === 'FW'
 );
 
+interface NormalizablePlayerRecord extends Record<string, unknown> {
+  id: string;
+  name: string;
+  age: number;
+  position: PlayerPosition;
+  value: number;
+}
+
 const createPlayerRecord = (players: Player[]): Record<string, Player> => (
   players.reduce<Record<string, Player>>((accumulator, player) => {
     accumulator[player.id] = player;
@@ -32,20 +40,34 @@ const normalizePlayers = (players: unknown, selectedTeam: Team | null): Record<s
   }
 
   const normalizedPlayers = Object.values(players)
-    .filter((player): player is Partial<Player> & Record<string, unknown> => typeof player === 'object' && player !== null)
-    .filter((player) => typeof player.id === 'string' && typeof player.name === 'string' && typeof player.age === 'number' && typeof player.value === 'number' && isPlayerPosition(player.position))
-    .map((player) => normalizePlayer({
-      id: player.id,
-      teamId: typeof player.teamId === 'string' ? player.teamId : selectedTeam?.id ?? 'legacy-team',
-      name: player.name,
-      age: player.age,
-      position: player.position,
-      rating: typeof player.rating === 'number' ? player.rating : undefined,
-      value: player.value,
-      attributes: typeof player.attributes === 'object' && player.attributes !== null ? player.attributes : undefined,
-      isForSale: typeof player.isForSale === 'boolean' ? player.isForSale : false,
-      askingPrice: typeof player.askingPrice === 'number' ? player.askingPrice : undefined,
-    }, selectedTeam?.id ?? 'legacy-team'));
+    .filter((player): player is Record<string, unknown> => typeof player === 'object' && player !== null)
+    .filter((player): player is NormalizablePlayerRecord => (
+      typeof player.id === 'string'
+      && typeof player.name === 'string'
+      && typeof player.age === 'number'
+      && typeof player.value === 'number'
+      && isPlayerPosition(player.position)
+    ))
+    .map((player) => {
+      const position = player.position;
+      const id = player.id;
+      const name = player.name;
+      const age = player.age;
+      const value = player.value;
+
+      return normalizePlayer({
+        id,
+        teamId: typeof player.teamId === 'string' ? player.teamId : selectedTeam?.id ?? 'legacy-team',
+        name,
+        age,
+        position,
+        rating: typeof player.rating === 'number' ? player.rating : undefined,
+        value,
+        attributes: typeof player.attributes === 'object' && player.attributes !== null ? player.attributes as Player['attributes'] : undefined,
+        isForSale: typeof player.isForSale === 'boolean' ? player.isForSale : false,
+        askingPrice: typeof player.askingPrice === 'number' ? player.askingPrice : undefined,
+      }, selectedTeam?.id ?? 'legacy-team');
+    });
 
   if (normalizedPlayers.length > 0) {
     return createPlayerRecord(normalizedPlayers);
