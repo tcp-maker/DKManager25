@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useGame, Player } from '../context/GameContext';
-import { getLeagueTransferShortlist } from '../data/players';
 import PlayerAttributesGrid from './PlayerAttributesGrid';
 
 const TransferMarketView: React.FC = () => {
@@ -12,15 +11,8 @@ const TransferMarketView: React.FC = () => {
   const playersForSale = playerList.filter((player) => player.isForSale);
   const squadPlayers = playerList.filter((player) => !player.isForSale);
   const availableForBuy = useMemo(
-    () => {
-      if (!gameState.selectedTeam) {
-        return [];
-      }
-
-      return getLeagueTransferShortlist(gameState.selectedTeam.leagueId, gameState.selectedTeam.id)
-        .filter((player) => !gameState.players[player.id]);
-    },
-    [gameState.players, gameState.selectedTeam],
+    () => Object.values(gameState.marketPlayers).filter((player) => !gameState.players[player.id]),
+    [gameState.marketPlayers, gameState.players],
   );
 
   const handleSellPlayer = (playerId: string) => {

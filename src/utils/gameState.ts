@@ -1,10 +1,10 @@
-import { getTeamRosterPlayers } from '../data/players';
+import { getLeagueTransferShortlist, getTeamRosterPlayers } from '../data/players';
 import { getLeagueTeams, getTeamById } from '../data/teams';
 import { LeagueMatchResult, LeagueStandingEntry, MatchResult, PlayedMatch } from '../types/game';
 import { GameState } from '../types/gameState';
 import { Player, PlayerPosition } from '../types/players';
 import { Team } from '../types/teams';
-import { createInitialStandings, sortStandings } from './leagueUtils';
+import { applyMatchToStandings, createInitialStandings, sortStandings } from './leagueUtils';
 import { normalizePlayer } from './playerUtils';
 
 const isPlayerPosition = (value: unknown): value is PlayerPosition => (
@@ -55,9 +55,9 @@ const normalizeSelectedTeam = (selectedTeam: unknown): Team | null => {
   return getTeamById(teamId);
 };
 
-const normalizePlayers = (players: unknown, selectedTeam: Team | null): Record<string, Player> => {
+const normalizePlayerRecord = (players: unknown, fallbackTeamId: string): Record<string, Player> => {
   if (typeof players !== 'object' || players === null) {
-    return selectedTeam ? createPlayerRecord(getTeamRosterPlayers(selectedTeam.id)) : {};
+    return {};
   }
 
   const normalizedPlayers = Object.values(players)
@@ -71,80 +71,49 @@ const normalizePlayers = (players: unknown, selectedTeam: Team | null): Record<s
     ))
     .map((player) => {
       const position = player.position;
-      const id = player.id;
-      const name = player.name;
-      const age = player.age;
-      const value = player.value;
-
       return normalizePlayer({
-        id,
-        teamId: typeof player.teamId === 'string' ? player.teamId : selectedTeam?.id ?? 'legacy-team',
-        name,
-        age,
+        id: player.id,
+        teamId: typeof player.teamId === 'string' ? player.teamId : fallbackTeamId,
+        name: player.name,
+        age: player.age,
         position,
         rating: typeof player.rating === 'number' ? player.rating : undefined,
-        value,
+        value: player.value,
         attributes: typeof player.attributes === 'object' && player.attributes !== null ? player.attributes as Player['attributes'] : undefined,
         isForSale: typeof player.isForSale === 'boolean' ? player.isForSale : false,
         askingPrice: typeof player.askingPrice === 'number' ? player.askingPrice : undefined,
-      }, selectedTeam?.id ?? 'legacy-team');
+      }, fallbackTeamId);
     });
 
-  if (normalizedPlayers.length > 0) {
-    return createPlayerRecord(normalizedPlayers);
+  return createPlayerRecord(normalizedPlayers);
+};
+
+const normalizePlayers = (players: unknown, selectedTeam: Team | null): Record<string, Player> => {
+  if (!selectedTeam) {
+    return {};
   }
 
-  return selectedTeam ? createPlayerRecord(getTeamRosterPlayers(selectedTeam.id)) : {};
+  const normalizedPlayers = normalizePlayerRecord(players, selectedTeam.id);
+  return Object.keys(normalizedPlayers).length > 0
+    ? normalizedPlayers
+    : createPlayerRecord(getTeamRosterPlayers(selectedTeam.id));
+};
+
+const normalizeMarketPlayers = (marketPlayers: unknown, selectedTeam: Team | null): Record<string, Player> => {
+  if (!selectedTeam) {
+    return {};
+  }
+
+  const normalizedMarketPlayers = normalizePlayerRecord(marketPlayers, 'transfer-market');
+  if (Object.keys(normalizedMarketPlayers).length > 0) {
+    return normalizedMarketPlayers;
+  }
+
+  return createPlayerRecord(getLeagueTransferShortlist(selectedTeam.leagueId, selectedTeam.id));
 };
 
 const normalizeStandingNumber = (value: unknown): number => (
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0
-);
-
-const normalizeStandings = (standings: unknown, selectedTeam: Team | null): LeagueStandingEntry[] => {
-  if (!selectedTeam) {
-    return [];
-  }
-
-  const baseStandings = createInitialStandings(getLeagueTeams(selectedTeam.leagueId));
-  if (!Array.isArray(standings)) {
-    return baseStandings;
-  }
-
-  const merged = new Map(baseStandings.map((entry) => [entry.teamId, entry]));
-  standings.forEach((entry) => {
-    if (typeof entry !== 'object' || entry === null || !('teamId' in entry)) {
-      return;
-    }
-
-    const teamId = String(entry.teamId);
-    const baseEntry = merged.get(teamId);
-    if (!baseEntry) {
-      return;
-    }
-
-    merged.set(teamId, {
-      ...baseEntry,
-      played: normalizeStandingNumber((entry as Record<string, unknown>).played),
-      wins: normalizeStandingNumber((entry as Record<string, unknown>).wins),
-      draws: normalizeStandingNumber((entry as Record<string, unknown>).draws),
-      losses: normalizeStandingNumber((entry as Record<string, unknown>).losses),
-      goalsFor: normalizeStandingNumber((entry as Record<string, unknown>).goalsFor),
-      goalsAgainst: normalizeStandingNumber((entry as Record<string, unknown>).goalsAgainst),
-      goalDifference: typeof (entry as Record<string, unknown>).goalDifference === 'number'
-        ? Math.round((entry as Record<string, number>).goalDifference)
-        : normalizeStandingNumber((entry as Record<string, unknown>).goalsFor) - normalizeStandingNumber((entry as Record<string, unknown>).goalsAgainst),
-      points: normalizeStandingNumber((entry as Record<string, unknown>).points),
-    });
-  });
-
-  return sortStandings([...merged.values()]);
-};
-
-const normalizeCompletedFixtureIds = (fixtureIds: unknown): string[] => (
-  Array.isArray(fixtureIds)
-    ? fixtureIds.filter((fixtureId): fixtureId is string => typeof fixtureId === 'string')
-    : []
 );
 
 const isMatchResult = (value: unknown): value is MatchResult => (
@@ -225,16 +194,78 @@ const normalizeMatchHistory = (matchHistory: unknown): PlayedMatch[] => {
     }));
 };
 
+const normalizeStandings = (
+  standings: unknown,
+  leagueResults: LeagueMatchResult[],
+  selectedTeam: Team | null,
+): LeagueStandingEntry[] => {
+  if (!selectedTeam) {
+    return [];
+  }
+
+  const baseStandings = createInitialStandings(getLeagueTeams(selectedTeam.leagueId));
+  if (leagueResults.length > 0) {
+    return leagueResults.reduce((currentStandings, result) => (
+      applyMatchToStandings(currentStandings, result.homeTeamId, result.awayTeamId, result.homeGoals, result.awayGoals)
+    ), baseStandings);
+  }
+
+  if (!Array.isArray(standings)) {
+    return baseStandings;
+  }
+
+  const merged = new Map(baseStandings.map((entry) => [entry.teamId, entry]));
+  standings.forEach((entry) => {
+    if (typeof entry !== 'object' || entry === null || !('teamId' in entry)) {
+      return;
+    }
+
+    const teamId = String(entry.teamId);
+    const baseEntry = merged.get(teamId);
+    if (!baseEntry) {
+      return;
+    }
+
+    const wins = normalizeStandingNumber((entry as Record<string, unknown>).wins);
+    const draws = normalizeStandingNumber((entry as Record<string, unknown>).draws);
+    const losses = normalizeStandingNumber((entry as Record<string, unknown>).losses);
+    const goalsFor = normalizeStandingNumber((entry as Record<string, unknown>).goalsFor);
+    const goalsAgainst = normalizeStandingNumber((entry as Record<string, unknown>).goalsAgainst);
+
+    merged.set(teamId, {
+      ...baseEntry,
+      played: wins + draws + losses,
+      wins,
+      draws,
+      losses,
+      goalsFor,
+      goalsAgainst,
+      goalDifference: goalsFor - goalsAgainst,
+      points: wins * 3 + draws,
+    });
+  });
+
+  return sortStandings([...merged.values()]);
+};
+
+const normalizeCompletedFixtureIds = (fixtureIds: unknown): string[] => (
+  Array.isArray(fixtureIds)
+    ? fixtureIds.filter((fixtureId): fixtureId is string => typeof fixtureId === 'string')
+    : []
+);
+
 export const initialGameState: GameState = {
   selectedTeam: null,
   budget: 1000000,
   players: {},
+  marketPlayers: {},
   fanCount: 1200,
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
   leagueStandings: [],
   matchHistory: [],
+  latestMatchResult: null,
   leagueResults: [],
   completedFixtureIds: [],
 };
@@ -244,18 +275,24 @@ export const normalizeGameState = (savedState: unknown): GameState => {
     return initialGameState;
   }
 
-  const selectedTeam = normalizeSelectedTeam((savedState as Record<string, unknown>).selectedTeam);
+  const state = savedState as Record<string, unknown>;
+  const selectedTeam = normalizeSelectedTeam(state.selectedTeam);
+  const matchHistory = normalizeMatchHistory(state.matchHistory);
+  const leagueResults = normalizeLeagueResults(state.leagueResults);
+
   return {
     selectedTeam,
-    budget: typeof (savedState as Record<string, unknown>).budget === 'number' ? Math.max(0, Math.round((savedState as Record<string, number>).budget)) : initialGameState.budget,
-    players: normalizePlayers((savedState as Record<string, unknown>).players, selectedTeam),
-    fanCount: typeof (savedState as Record<string, unknown>).fanCount === 'number' ? Math.max(0, Math.round((savedState as Record<string, number>).fanCount)) : initialGameState.fanCount,
-    stadiumCapacity: typeof (savedState as Record<string, unknown>).stadiumCapacity === 'number' ? Math.max(1000, Math.round((savedState as Record<string, number>).stadiumCapacity)) : initialGameState.stadiumCapacity,
-    fanMood: typeof (savedState as Record<string, unknown>).fanMood === 'number' ? Math.min(100, Math.max(0, Math.round((savedState as Record<string, number>).fanMood))) : initialGameState.fanMood,
-    week: typeof (savedState as Record<string, unknown>).week === 'number' ? Math.max(1, Math.round((savedState as Record<string, number>).week)) : initialGameState.week,
-    leagueStandings: normalizeStandings((savedState as Record<string, unknown>).leagueStandings, selectedTeam),
-    matchHistory: normalizeMatchHistory((savedState as Record<string, unknown>).matchHistory),
-    leagueResults: normalizeLeagueResults((savedState as Record<string, unknown>).leagueResults),
-    completedFixtureIds: normalizeCompletedFixtureIds((savedState as Record<string, unknown>).completedFixtureIds),
+    budget: typeof state.budget === 'number' ? Math.max(0, Math.round(state.budget)) : initialGameState.budget,
+    players: normalizePlayers(state.players, selectedTeam),
+    marketPlayers: normalizeMarketPlayers(state.marketPlayers, selectedTeam),
+    fanCount: typeof state.fanCount === 'number' ? Math.max(0, Math.round(state.fanCount)) : initialGameState.fanCount,
+    stadiumCapacity: typeof state.stadiumCapacity === 'number' ? Math.max(1000, Math.round(state.stadiumCapacity)) : initialGameState.stadiumCapacity,
+    fanMood: typeof state.fanMood === 'number' ? Math.min(100, Math.max(0, Math.round(state.fanMood))) : initialGameState.fanMood,
+    week: typeof state.week === 'number' ? Math.max(1, Math.round(state.week)) : initialGameState.week,
+    leagueStandings: normalizeStandings(state.leagueStandings, leagueResults, selectedTeam),
+    matchHistory,
+    latestMatchResult: matchHistory[0] ?? null,
+    leagueResults,
+    completedFixtureIds: normalizeCompletedFixtureIds(state.completedFixtureIds),
   };
 };

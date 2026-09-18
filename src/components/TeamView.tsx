@@ -50,6 +50,8 @@ const TeamView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
+                aria-expanded={isExpanded}
+                aria-controls={`player-details-${player.id}`}
                 className="w-full text-left p-4 hover:bg-gray-50 transition"
               >
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -78,7 +80,7 @@ const TeamView: React.FC = () => {
                 </div>
               </button>
               {isExpanded && (
-                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                <div id={`player-details-${player.id}`} className="border-t border-gray-200 p-4 bg-gray-50">
                   <PlayerAttributesGrid attributes={player.attributes} />
                 </div>
               )}

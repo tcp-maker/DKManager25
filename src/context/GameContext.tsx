@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getTeamRosterPlayers } from '../data/players';
+import { getLeagueTransferShortlist, getTeamRosterPlayers } from '../data/players';
 import { getLeagueTeams, getTeamById } from '../data/teams';
 import { LeagueMatchResult, PlayedMatch } from '../types/game';
 import { GameState } from '../types/gameState';
@@ -16,14 +16,13 @@ interface GameContextType {
   addPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
-  playMatch: (fixtureId: string) => PlayedMatch | null;
+  playMatch: (fixtureId: string) => void;
   upgradeStadium: () => void;
   handleNextWeek: () => number;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
-
 const STORAGE_KEY = 'dkmanager25_gamestate';
 
 const createPlayerRecord = (players: Player[]): Record<string, Player> => (
@@ -87,46 +86,59 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       ...initialGameState,
       selectedTeam,
       players: createPlayerRecord(getTeamRosterPlayers(selectedTeam.id)),
+      marketPlayers: createPlayerRecord(getLeagueTransferShortlist(selectedTeam.leagueId, selectedTeam.id)),
       leagueStandings: createInitialStandings(leagueTeams),
     });
   };
 
   const addPlayer = (player: Player): boolean => {
-    const ownerTeamId = gameState.selectedTeam?.id ?? player.teamId;
-    const normalizedPlayer = normalizePlayer({ ...player, teamId: ownerTeamId }, ownerTeamId);
-    const cost = normalizedPlayer.askingPrice ?? normalizedPlayer.value;
+    let wasAdded = false;
 
-    if (gameState.players[normalizedPlayer.id]) {
-      console.warn(`Spiller ${normalizedPlayer.name} er allerede i truppen`);
-      return false;
-    }
+    setGameState((previous) => {
+      const ownerTeamId = previous.selectedTeam?.id ?? player.teamId;
+      const normalizedPlayer = normalizePlayer({ ...player, teamId: ownerTeamId }, ownerTeamId);
+      const cost = normalizedPlayer.askingPrice ?? normalizedPlayer.value;
 
-    if (gameState.budget < cost) {
-      console.warn(`Ikke budget nok til at købe ${normalizedPlayer.name}. Mangler: ${cost - gameState.budget} kr`);
-      return false;
-    }
+      if (previous.players[normalizedPlayer.id] || previous.budget < cost) {
+        return previous;
+      }
 
-    setGameState((previous) => ({
-      ...previous,
-      budget: previous.budget - cost,
-      players: {
-        ...previous.players,
-        [normalizedPlayer.id]: { ...normalizedPlayer, isForSale: false, askingPrice: undefined },
-      },
-    }));
+      wasAdded = true;
+      const updatedMarketPlayers = { ...previous.marketPlayers };
+      delete updatedMarketPlayers[normalizedPlayer.id];
 
-    return true;
+      return {
+        ...previous,
+        budget: previous.budget - cost,
+        players: {
+          ...previous.players,
+          [normalizedPlayer.id]: { ...normalizedPlayer, teamId: ownerTeamId, isForSale: false, askingPrice: undefined },
+        },
+        marketPlayers: updatedMarketPlayers,
+      };
+    });
+
+    return wasAdded;
   };
 
   const sellPlayer = (playerId: string) => {
     setGameState((previous) => {
+      const player = previous.players[playerId];
+      if (!player) {
+        return previous;
+      }
+
       const updatedPlayers = { ...previous.players };
-      const price = updatedPlayers[playerId]?.value ?? 0;
       delete updatedPlayers[playerId];
+
       return {
         ...previous,
-        budget: previous.budget + price,
+        budget: previous.budget + player.value,
         players: updatedPlayers,
+        marketPlayers: {
+          ...previous.marketPlayers,
+          [playerId]: { ...player, teamId: 'transfer-market', isForSale: false, askingPrice: undefined },
+        },
       };
     });
   };
@@ -149,9 +161,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const playMatch = (fixtureId: string): PlayedMatch | null => {
-    let resolvedMatch: PlayedMatch | null = null;
-
+  const playMatch = (fixtureId: string) => {
     setGameState((previous) => {
       if (!previous.selectedTeam) {
         return previous;
@@ -224,8 +234,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const finalizedMatch = selectedMatch as PlayedMatch;
-      const finalizedMatchId = finalizedMatch.id;
-      resolvedMatch = finalizedMatch;
       const { budgetDelta, fanDelta, moodDelta } = getResultEffects(finalizedMatch);
       return {
         ...previous,
@@ -233,13 +241,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         fanCount: Math.max(0, previous.fanCount + fanDelta),
         fanMood: Math.max(0, Math.min(100, previous.fanMood + moodDelta)),
         leagueStandings,
-        matchHistory: [finalizedMatch, ...previous.matchHistory.filter((match) => match.id !== finalizedMatchId)].slice(0, 12),
+        matchHistory: [finalizedMatch, ...previous.matchHistory.filter((match) => match.id !== finalizedMatch.id)].slice(0, 12),
+        latestMatchResult: finalizedMatch,
         leagueResults: [...weeklyResults, ...previous.leagueResults.filter((result) => !weekFixtures.some((weekFixture) => weekFixture.id === result.fixtureId))],
         completedFixtureIds: Array.from(new Set([...previous.completedFixtureIds, ...weekFixtures.map((weekFixture) => weekFixture.id)])),
       };
     });
-
-    return resolvedMatch;
   };
 
   const upgradeStadium = () => {
@@ -271,6 +278,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       ...previous,
       week: previous.week + 1,
       budget: previous.budget + ticketRevenue,
+      latestMatchResult: null,
     }));
     return ticketRevenue;
   };

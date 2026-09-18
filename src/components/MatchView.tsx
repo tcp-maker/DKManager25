@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { getLeagueTeams } from '../data/teams';
-import { LeagueFixture, PlayedMatch } from '../types/game';
+import { LeagueFixture } from '../types/game';
 import { Team } from '../types/teams';
 import { generateLeagueFixtures, getUpcomingFixtures } from '../utils/leagueUtils';
 import { calculateSquadRating } from '../utils/matchUtils';
@@ -26,11 +26,11 @@ const MatchView: React.FC = () => {
   const { gameState, handleNextWeek, playMatch } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
   const [currentMatch, setCurrentMatch] = useState<LeagueFixture | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
   const matchTimeoutRef = useRef<number | null>(null);
 
   const selectedTeam = gameState.selectedTeam;
+  const matchResult = gameState.latestMatchResult;
   const leagueTeams = useMemo(() => (selectedTeam ? getLeagueTeams(selectedTeam.leagueId) : []), [selectedTeam]);
   const fixtures = useMemo(() => generateLeagueFixtures(leagueTeams), [leagueTeams]);
   const upcomingMatches = useMemo(
@@ -56,13 +56,11 @@ const MatchView: React.FC = () => {
       window.clearTimeout(matchTimeoutRef.current);
     }
 
-    setMatchResult(null);
     setIsMatchPlaying(true);
     setCurrentMatch(fixture);
 
     matchTimeoutRef.current = window.setTimeout(() => {
-      const played = playMatch(fixture.id);
-      setMatchResult(played);
+      playMatch(fixture.id);
       setIsMatchPlaying(false);
       setCurrentMatch(null);
       matchTimeoutRef.current = null;
@@ -148,7 +146,6 @@ const MatchView: React.FC = () => {
 
               <button
                 onClick={() => {
-                  setMatchResult(null);
                   handleNextWeek();
                   setCurrentMatch(null);
                 }}
