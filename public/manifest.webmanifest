@@ -1,7 +1,7 @@
 {
   "name": "DKManager25 - Danish Football Manager",
   "short_name": "DKM25",
-  "description": "Manage your Danish football club in an exciting season of competition",
+  "description": "Administrer din danske klub gennem trup, transfers, kampe og stadion.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,38 +9,12 @@
   "theme_color": "#2563eb",
   "background_color": "#f9fafb",
   "categories": ["games", "sports"],
-  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/pwa-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/pwa-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/pwa-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/pwa-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "wide"
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

@@ -1,311 +1,383 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Match, PlayedMatch, getMatchReward, useGame } from '../context/GameContext';
+import React, { useMemo, useState } from 'react';
+import { useGame } from '../context/GameContext';
+import { calculateSquadStrength, getBalancedOpponentStrength, getMatchPerformanceRating } from '../data/players';
+import { buildLeagueStandings, getSeasonFixtures, getTeamById, ScheduledMatch, simulateScore } from '../data/leagues';
+
+interface PlayedMatchSummary {
+  id: string;
+  opponent: string;
+  result: 'WIN' | 'DRAW' | 'LOSS';
+  userGoals: number;
+  opponentGoals: number;
+  date: number;
+}
 
 const MatchView: React.FC = () => {
-  const { gameState, handleNextWeek, applyMatchResult } = useGame();
+  const { gameState, handleNextWeek, recordMatchResult } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatch | null>(null);
+  const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
+  const [matchResult, setMatchResult] = useState<PlayedMatchSummary | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
-  const simulationLockRef = useRef<string | null>(null);
-  const simulationTimeoutRef = useRef<number | null>(null);
+  const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
+  const fixtures = useMemo(() => getSeasonFixtures(selectedTeam), [selectedTeam]);
+  const seasonMatches = useMemo(
+    () => gameState.leagueMatches.filter(match => match.season === gameState.season),
+    [gameState.leagueMatches, gameState.season],
+  );
+  const playedFixtureIds = useMemo(
+    () => new Set(seasonMatches.filter(match => match.isUserMatch).map(match => match.fixtureId)),
+    [seasonMatches],
+  );
+  const nextPlayableWeek = useMemo(
+    () => fixtures.find(match => !playedFixtureIds.has(match.id))?.week ?? null,
+    [fixtures, playedFixtureIds],
+  );
+  const upcomingMatches = useMemo(
+    () => fixtures
+      .filter(match => !playedFixtureIds.has(match.id) && match.week === nextPlayableWeek)
+      .slice(0, 3),
+    [fixtures, playedFixtureIds, nextPlayableWeek],
+  );
+  const leagueTable = useMemo(
+    () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
+    [selectedTeam, gameState.season, gameState.leagueMatches],
+  );
+  const playedMatches = useMemo<PlayedMatchSummary[]>(
+    () => seasonMatches
+      .filter(match => match.isUserMatch && selectedTeam)
+      .map(match => {
+        const isHome = match.homeTeamId === selectedTeam?.id;
+        const homeGoals = isHome ? match.homeGoals : match.awayGoals;
+        const awayGoals = isHome ? match.awayGoals : match.homeGoals;
+        const result: PlayedMatchSummary['result'] = homeGoals > awayGoals ? 'WIN' : homeGoals < awayGoals ? 'LOSS' : 'DRAW';
+        return {
+          id: match.fixtureId,
+          opponent: isHome ? match.awayTeamName : match.homeTeamName,
+          result,
+          userGoals: homeGoals,
+          opponentGoals: awayGoals,
+          date: match.week,
+        };
+      })
+      .sort((a, b) => b.date - a.date),
+    [seasonMatches, selectedTeam],
+  );
+  const isSeasonComplete = fixtures.length > 0 && playedFixtureIds.size >= fixtures.length;
+  const nextAdvanceStartsNewSeason = Boolean(
+    matchResult &&
+    currentMatch &&
+    fixtures.length > 0 &&
+    (playedFixtureIds.has(currentMatch.id) ? playedFixtureIds.size : playedFixtureIds.size + 1) >= fixtures.length
+  );
 
-  useEffect(() => {
-    return () => {
-      if (simulationTimeoutRef.current !== null) {
-        window.clearTimeout(simulationTimeoutRef.current);
-      }
-      simulationLockRef.current = null;
-    };
-  }, []);
+  const squadStrength = useMemo(
+    () => calculateSquadStrength(Object.values(gameState.players)),
+    [gameState.players],
+  );
+  const leftSideIsUser = Boolean(currentMatch?.isHome);
+  const rightSideIsUser = currentMatch ? !currentMatch.isHome : false;
 
-  const getTeamRating = (): number => {
-    const players = Object.values(gameState.players);
-    if (players.length === 0) return 70;
-    return players.reduce((sum, player) => sum + player.rating, 0) / players.length;
-  };
+  // Simulate match
+  const simulateMatch = (match: ScheduledMatch) => {
+    if (isMatchPlaying) return;
 
-  const getRandomGoals = (max: number): number => Math.floor(Math.random() * (max + 1));
-  const formatSigned = (value: number): string => `${value >= 0 ? '+' : ''}${value.toLocaleString('da-DK')}`;
-
-  const simulateMatch = (match: Match) => {
-    if (isMatchPlaying || simulationLockRef.current) return;
-
-    simulationLockRef.current = match.id;
     setIsMatchPlaying(true);
     setCurrentMatch(match);
 
-    simulationTimeoutRef.current = window.setTimeout(() => {
-      const teamRating = getTeamRating() + (match.isHome ? 1.5 : 0);
-      const opponentRating = match.opponentRating + (match.isHome ? 0 : 1.5);
-      const ratingDiff = teamRating - opponentRating;
+    // Simulate match delay
+    setTimeout(() => {
+      const opponentStrength = getBalancedOpponentStrength(match.opponentRating);
+      const simulated = simulateScore(
+        match.isHome ? getMatchPerformanceRating(squadStrength, true) : getMatchPerformanceRating(opponentStrength, true),
+        match.isHome ? getMatchPerformanceRating(opponentStrength, false) : getMatchPerformanceRating(squadStrength, false),
+      );
+      const userGoals = match.isHome ? simulated.homeGoals : simulated.awayGoals;
+      const opponentGoals = match.isHome ? simulated.awayGoals : simulated.homeGoals;
 
-      const winProb = Math.max(0.2, Math.min(0.7, 0.42 + ratingDiff / 110));
-      const drawProb = 0.23;
-
-      const roll = Math.random();
-      let result: 'WIN' | 'DRAW' | 'LOSS';
-      let playerGoals: number;
-      let opponentGoals: number;
-
-      if (roll < winProb) {
-        result = 'WIN';
-        opponentGoals = getRandomGoals(2);
-        playerGoals = opponentGoals + 1 + getRandomGoals(2);
-      } else if (roll < winProb + drawProb) {
-        result = 'DRAW';
-        playerGoals = getRandomGoals(3);
-        opponentGoals = playerGoals;
-      } else {
-        result = 'LOSS';
-        playerGoals = getRandomGoals(2);
-        opponentGoals = playerGoals + 1 + getRandomGoals(2);
-      }
-
-      const reward = getMatchReward(result);
-      const played: PlayedMatch = {
-        id: `${match.id}_played_${Date.now()}`,
-        fixtureId: match.id,
+      const played: PlayedMatchSummary = {
+        id: match.id,
         opponent: match.opponent,
-        result,
-        playerGoals,
+        result: userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW',
+        userGoals,
         opponentGoals,
-        homeGoals: match.isHome ? playerGoals : opponentGoals,
-        awayGoals: match.isHome ? opponentGoals : playerGoals,
-        isHome: match.isHome,
-        date: Date.now(),
-        week: match.week,
-        reward,
+        date: gameState.week,
       };
 
+      recordMatchResult(match, userGoals, opponentGoals);
       setMatchResult(played);
-      applyMatchResult(played);
       setIsMatchPlaying(false);
-      simulationLockRef.current = null;
-      simulationTimeoutRef.current = null;
     }, 2000);
   };
 
-  const upcomingMatches = gameState.upcomingMatches;
-  const teamRating = getTeamRating();
-  const teamName = gameState.selectedTeam?.name ?? 'Dit Hold';
-
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className="p-4 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Kampe</h1>
 
-      <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
-        <p className="text-lg font-semibold">Din Trup Rating: <span className="text-purple-600">{teamRating.toFixed(1)}</span></p>
-        <p className="text-sm text-gray-600">Uge {gameState.week}</p>
-      </div>
-
-      <div className="flex space-x-4 mb-6 border-b">
-        <button
-          onClick={() => setActiveTab('upcoming')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'upcoming' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Kommende Kampe
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-semibold border-b-2 ${
-            activeTab === 'history' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Kamp Historie ({gameState.playedMatches.length})
-        </button>
-      </div>
-
-      {activeTab === 'upcoming' && (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div>
-          <h2 className="text-2xl font-bold mb-4">Kommende Kampe</h2>
-
-          {matchResult && !isMatchPlaying && (
-            <div className="bg-white border-2 border-green-500 rounded-lg p-6 mb-6">
-              <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
-              <div className="flex justify-between items-center mb-4">
-                <div className="text-center flex-1">
-                  <p className="text-sm text-gray-600">{matchResult.isHome ? teamName : matchResult.opponent}</p>
-                  <p className="text-4xl font-bold text-green-600">{matchResult.homeGoals}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold">-</p>
-                </div>
-                <div className="text-center flex-1">
-                  <p className="text-sm text-gray-600">{matchResult.isHome ? matchResult.opponent : teamName}</p>
-                  <p className="text-4xl font-bold text-blue-600">{matchResult.awayGoals}</p>
-                </div>
-              </div>
-
-              <div className="text-center mb-4">
-                {matchResult.result === 'WIN' && (
-                  <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
-                    🏆 SEJR! {formatSigned(matchResult.reward.fanCount)} fans, {formatSigned(matchResult.reward.budget)} kr, {formatSigned(matchResult.reward.fanMood)} fanmood
-                  </span>
-                )}
-                {matchResult.result === 'DRAW' && (
-                  <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
-                    ⚖️ UAFGJORT {formatSigned(matchResult.reward.fanCount)} fans, {formatSigned(matchResult.reward.budget)} kr, {formatSigned(matchResult.reward.fanMood)} fanmood
-                  </span>
-                )}
-                {matchResult.result === 'LOSS' && (
-                  <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
-                    ❌ NEDERLAG {formatSigned(matchResult.reward.fanCount)} fans, {formatSigned(matchResult.reward.budget)} kr, {formatSigned(matchResult.reward.fanMood)} fanmood
-                  </span>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setMatchResult(null);
-                  handleNextWeek();
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
-              >
-                {gameState.upcomingMatches.length === 0 ? 'Gå til næste uge' : 'Tilbage til kampliste'}
-              </button>
+          {/* Match Info */}
+          <div className="bg-purple-50 border-l-4 border-purple-500 p-4 mb-6 rounded">
+            <p className="text-lg font-semibold">Samlet Holdstyrke: <span className="text-purple-600">{squadStrength.overall}</span></p>
+            <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+              <div className="rounded bg-white/70 px-3 py-2">Målmand: <span className="font-bold">{squadStrength.goalkeeping}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Forsvar: <span className="font-bold">{squadStrength.defense}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Midtbane: <span className="font-bold">{squadStrength.midfield}</span></div>
+              <div className="rounded bg-white/70 px-3 py-2">Angreb: <span className="font-bold">{squadStrength.attack}</span></div>
             </div>
-          )}
+          </div>
 
-          {isMatchPlaying && currentMatch && (
-            <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
-              <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
-              <div className="flex justify-between items-center mb-4 animate-pulse">
-                <p className="text-lg font-semibold">{currentMatch.isHome ? teamName : currentMatch.opponent}</p>
-                <p className="text-2xl font-bold">vs</p>
-                <p className="text-lg font-semibold">{currentMatch.isHome ? currentMatch.opponent : teamName}</p>
-              </div>
-              <p className="text-gray-600">Resultat beregnes...</p>
-            </div>
-          )}
+          {/* Tabs */}
+          <div className="flex space-x-4 mb-6 border-b">
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`px-4 py-2 font-semibold border-b-2 ${
+                activeTab === 'upcoming'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Kommende Kampe
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-2 font-semibold border-b-2 ${
+                activeTab === 'history'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Kamp Historie ({playedMatches.length})
+            </button>
+          </div>
 
-          {!isMatchPlaying && !matchResult && (
-            <div className="space-y-3">
-              {upcomingMatches.map((match, index) => (
-                <div key={match.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-600">Uge {match.week}, Kamp {index + 1}</span>
-                        <span className={`text-xs font-bold px-2 py-1 rounded ${
-                          match.isHome ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {match.isHome ? '🏠 Hjemme' : '✈️ Ude'}
-                        </span>
-                      </div>
-                      <h3 className="text-xl font-bold">{match.isHome ? `${teamName} vs ${match.opponent}` : `${match.opponent} vs ${teamName}`}</h3>
-                      <p className="text-sm text-gray-600">
-                        Modstanders Rating: {match.opponentRating.toFixed(1)} • Sværhedsgrad: {match.difficulty}
+          {activeTab === 'upcoming' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Kommende Kampe</h2>
+
+              {matchResult && !isMatchPlaying && (
+                <div className="bg-white border-2 border-green-500 rounded-lg p-6 mb-6">
+                  <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="text-center flex-1">
+                      <p className="text-sm text-gray-600">{leftSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
+                      <p className={`text-4xl font-bold ${leftSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
+                        {leftSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
                       </p>
                     </div>
-
-                    <div className="text-right">
-                      <p className={`text-xs font-bold px-3 py-1 rounded ${
-                        match.difficulty === 'Nem'
-                          ? 'bg-green-100 text-green-800'
-                          : match.difficulty === 'Moderat'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                      }`}>
-                        {match.difficulty}
+                    <div className="text-center">
+                      <p className="text-2xl font-bold">-</p>
+                    </div>
+                    <div className="text-center flex-1">
+                      <p className="text-sm text-gray-600">{rightSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
+                      <p className={`text-4xl font-bold ${rightSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
+                        {rightSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="text-center mb-4">
+                    {matchResult.result === 'WIN' && (
+                      <span className="bg-green-100 text-green-800 text-lg font-bold px-4 py-2 rounded">
+                        🏆 SEJR! +50 fans, +100.000 kr
+                      </span>
+                    )}
+                    {matchResult.result === 'DRAW' && (
+                      <span className="bg-yellow-100 text-yellow-800 text-lg font-bold px-4 py-2 rounded">
+                        ⚖️ UAFGJORT +10 fans
+                      </span>
+                    )}
+                    {matchResult.result === 'LOSS' && (
+                      <span className="bg-red-100 text-red-800 text-lg font-bold px-4 py-2 rounded">
+                        ❌ NEDERLAG -20 fans
+                      </span>
+                    )}
                   </div>
 
                   <button
-                    onClick={() => simulateMatch(match)}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition"
+                    onClick={() => {
+                      handleNextWeek();
+                      setMatchResult(null);
+                      setCurrentMatch(null);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                   >
-                    Start Kamp
+                    {nextAdvanceStartsNewSeason || isSeasonComplete ? 'Start næste sæson' : 'Gå til næste uge'}
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              )}
 
-      {activeTab === 'history' && (
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
-          {gameState.playedMatches.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Ingen kampe spillet endnu</p>
-          ) : (
-            <div className="space-y-3">
-              {gameState.playedMatches.map(match => (
-                <div
-                  key={match.id}
-                  className={`bg-white border-l-4 rounded-lg p-4 ${
-                    match.result === 'WIN'
-                      ? 'border-green-500 bg-green-50'
-                      : match.result === 'LOSS'
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-yellow-500 bg-yellow-50'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-600">Uge {match.week} • {match.isHome ? 'Hjemme' : 'Ude'}</p>
-                      <h3 className="text-lg font-bold">{match.isHome ? `${teamName} vs ${match.opponent}` : `${match.opponent} vs ${teamName}`}</h3>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="text-3xl font-bold">{match.homeGoals} - {match.awayGoals}</p>
-                      <p className={`text-sm font-bold ${
-                        match.result === 'WIN'
-                          ? 'text-green-700'
-                          : match.result === 'LOSS'
-                            ? 'text-red-700'
-                            : 'text-yellow-700'
-                      }`}>
-                        {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nedlag' : '⚖️ Uafgjort'}
-                      </p>
-                    </div>
+              {isMatchPlaying && currentMatch && (
+                <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
+                  <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
+                  <div className="flex justify-between items-center mb-4 animate-pulse">
+                    <p className="text-lg font-semibold">{currentMatch.opponent}</p>
+                    <p className="text-2xl font-bold">vs</p>
+                    <p className="text-lg font-semibold">{gameState.selectedTeam?.name}</p>
                   </div>
+                  <p className="text-gray-600">Resultat beregnes...</p>
                 </div>
-              ))}
+              )}
+
+              {!isMatchPlaying && !matchResult && (
+                <>
+                  {upcomingMatches.length === 0 ? (
+                    <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-gray-600">
+                      <p>
+                        {isSeasonComplete
+                          ? 'Sæsonen er færdigspillet. Start næste sæson for at få en ny ligatabel og nye kampe.'
+                          : 'Ingen kommende kampe tilgængelige endnu.'}
+                      </p>
+                      {isSeasonComplete && (
+                        <button
+                          onClick={() => {
+                            handleNextWeek();
+                            setMatchResult(null);
+                            setCurrentMatch(null);
+                          }}
+                          className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
+                        >
+                          Start næste sæson
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {upcomingMatches.map((match) => (
+                        <div
+                          key={match.id}
+                          className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+                        >
+                          <div className="flex justify-between items-start mb-3 gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <span className="text-sm font-semibold text-gray-600">Uge {match.week}</span>
+                                <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                  match.isHome
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {match.isHome ? '🏠 Hjemme' : '✈️ Ude'}
+                                </span>
+                              </div>
+                              <h3 className="text-xl font-bold">{match.opponent}</h3>
+                              <p className="text-sm text-gray-600">
+                                Modstanders Rating: {match.opponentRating.toFixed(1)} • Sværhedsgrad: {match.difficulty}
+                              </p>
+                            </div>
+
+                            <div className="text-right">
+                              <p className={`text-xs font-bold px-3 py-1 rounded ${
+                                match.difficulty === 'Nem'
+                                  ? 'bg-green-100 text-green-800'
+                                  : match.difficulty === 'Moderat'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {match.difficulty}
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => simulateMatch(match)}
+                            disabled={isMatchPlaying}
+                            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                          >
+                            Start Kamp
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div>
+              <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
+              {playedMatches.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Ingen kampe spillet i sæson {gameState.season} endnu</p>
+              ) : (
+                <div className="space-y-3">
+                  {playedMatches.map((match) => (
+                    <div
+                      key={match.id}
+                      className={`bg-white border-l-4 rounded-lg p-4 ${
+                        match.result === 'WIN'
+                          ? 'border-green-500 bg-green-50'
+                          : match.result === 'LOSS'
+                          ? 'border-red-500 bg-red-50'
+                          : 'border-yellow-500 bg-yellow-50'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center gap-4">
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {match.date}</p>
+                          <h3 className="text-lg font-bold">{match.opponent}</h3>
+                        </div>
+
+                        <div className="text-center">
+                          <p className="text-3xl font-bold">
+                            {match.userGoals} - {match.opponentGoals}
+                          </p>
+                          <p className={`text-sm font-bold ${
+                            match.result === 'WIN'
+                              ? 'text-green-700'
+                              : match.result === 'LOSS'
+                              ? 'text-red-700'
+                              : 'text-yellow-700'
+                          }`}>
+                            {match.result === 'WIN' ? '✓ Sejr' : match.result === 'LOSS' ? '✗ Nederlag' : '⚖️ Uafgjort'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
-      )}
 
-      <div className="mt-8 bg-white border border-gray-200 rounded-lg p-4 overflow-x-auto">
-        <h2 className="text-2xl font-bold mb-4">Ligatabel</h2>
-        <table className="w-full text-sm">
-          <caption className="sr-only">Ligatabel med stilling for holdene</caption>
-          <thead>
-            <tr className="border-b bg-gray-50">
-              <th className="p-2 text-left">#</th>
-              <th className="p-2 text-left">Hold</th>
-              <th className="p-2 text-center">K</th>
-              <th className="p-2 text-center">V</th>
-              <th className="p-2 text-center">U</th>
-              <th className="p-2 text-center">T</th>
-              <th className="p-2 text-center">MF</th>
-              <th className="p-2 text-center">MI</th>
-              <th className="p-2 text-center">MD</th>
-              <th className="p-2 text-center">P</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gameState.standings.map((entry, index) => (
-              <tr key={entry.teamName} className={`border-b ${entry.teamName === teamName ? 'bg-blue-50 font-semibold' : ''}`}>
-                <td className="p-2">{index + 1}</td>
-                <td className="p-2">{entry.teamName}</td>
-                <td className="p-2 text-center">{entry.played}</td>
-                <td className="p-2 text-center">{entry.wins}</td>
-                <td className="p-2 text-center">{entry.draws}</td>
-                <td className="p-2 text-center">{entry.losses}</td>
-                <td className="p-2 text-center">{entry.goalsFor}</td>
-                <td className="p-2 text-center">{entry.goalsAgainst}</td>
-                <td className="p-2 text-center">{entry.goalDifference}</td>
-                <td className="p-2 text-center font-bold">{entry.points}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <aside className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 px-4 py-4">
+              <h2 className="text-xl font-bold">Ligatabel</h2>
+              <p className="text-sm text-gray-600">{selectedTeam?.league ?? 'Liga'} • Sæson {gameState.season}</p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-gray-50 text-gray-600">
+                  <tr>
+                    <th className="px-3 py-2 text-left">#</th>
+                    <th className="px-3 py-2 text-left">Hold</th>
+                    <th className="px-3 py-2 text-center">K</th>
+                    <th className="px-3 py-2 text-center">+/-</th>
+                    <th className="px-3 py-2 text-center">P</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leagueTable.map((team, index) => (
+                    <tr
+                      key={team.teamId}
+                      className={`border-t ${team.teamId === selectedTeam?.id ? 'bg-blue-50 font-semibold' : 'bg-white'}`}
+                    >
+                      <td className="px-3 py-2">{index + 1}</td>
+                      <td className="px-3 py-2">{team.teamName}</td>
+                      <td className="px-3 py-2 text-center">{team.played}</td>
+                      <td className="px-3 py-2 text-center">{team.goalDifference}</td>
+                      <td className="px-3 py-2 text-center">{team.points}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
