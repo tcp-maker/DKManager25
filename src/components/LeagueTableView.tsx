@@ -6,7 +6,7 @@ const LeagueTableView: React.FC = () => {
   const { selectedTeam, leagueStandings } = gameState;
 
   if (!selectedTeam) {
-    return <div>Ingen liga valgt</div>;
+    return <div>Ingen klub valgt</div>;
   }
 
   return (
