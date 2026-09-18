@@ -1,26 +1,32 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { PlayedMatch } from '../game/matches';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { STARTER_PLAYERS } from '../data/players';
 import {
-  deleteStoredGameState,
-  isUsingNativeStorage,
-  loadNativeStoredGameState,
-  loadStoredGameState,
-  saveStoredGameState,
-} from '../platform/storage';
+  createLeagueFixtures,
+  getLeagueById,
+  getLeagueByTeamId,
+  getTeamById,
+  LeagueFixture,
+  LeagueResult,
+} from '../data/leagues';
 import { Team } from '../types/teams';
+import { Player, normalizePlayer } from '../types/players';
 
-export interface Player {
-  id: string;
-  name: string;
-  age: number;
-  position: 'GK' | 'DF' | 'MF' | 'FW';
-  rating: number;
-  value: number;
-  isForSale: boolean;
-  askingPrice?: number;
+export type { Player } from '../types/players';
+
+type MatchOutcome = 'WIN' | 'DRAW' | 'LOSS';
+
+export interface WeekSummary {
+  round: number;
+  userFixtureId: string;
+  userResult: MatchOutcome;
+  userGoals: number;
+  opponentGoals: number;
+  ticketRevenue: number;
+  fanDelta: number;
+  moodDelta: number;
 }
 
-export interface GameState {
+interface GameState {
   selectedTeam: Team | null;
   budget: number;
   players: Record<string, Player>;
@@ -28,134 +34,28 @@ export interface GameState {
   stadiumCapacity: number;
   fanMood: number;
   week: number;
-  playedMatches: PlayedMatch[];
-  stadiumUpgrades: number;
+  leagueId: string | null;
+  leagueName: string | null;
+  fixtures: LeagueFixture[];
+  results: LeagueResult[];
+  latestWeekSummary: WeekSummary | null;
 }
 
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
   addPlayer: (player: Player) => boolean;
-  sellPlayer: (playerId: string) => boolean;
+  sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
-  upgradeStadium: () => boolean;
-  handleNextWeek: () => number;
-  recordMatchResult: (match: PlayedMatch) => void;
+  upgradeStadium: () => void;
+  playCurrentWeek: () => WeekSummary | null;
+  handleNextWeek: () => void;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-const clampNumber = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
-const isPosition = (value: unknown): value is Player['position'] =>
-  value === 'GK' || value === 'DF' || value === 'MF' || value === 'FW';
-
-const normalizeNumber = (
-  value: unknown,
-  fallback: number,
-  min = Number.NEGATIVE_INFINITY,
-  max = Number.POSITIVE_INFINITY
-): number => {
-  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value)) {
-    return fallback;
-  }
-
-  return clampNumber(value, min, max);
-};
-
-const normalizeTeam = (value: unknown): Team | null => {
-  if (!isObject(value)) {
-    return null;
-  }
-
-  if (typeof value.id !== 'string' || typeof value.name !== 'string' || typeof value.logo !== 'string') {
-    return null;
-  }
-
-  return {
-    id: value.id,
-    name: value.name,
-    logo: value.logo,
-  };
-};
-
-const normalizePlayer = (value: unknown): Player | null => {
-  if (!isObject(value) || typeof value.id !== 'string' || typeof value.name !== 'string' || !isPosition(value.position)) {
-    return null;
-  }
-
-  return {
-    id: value.id,
-    name: value.name,
-    age: normalizeNumber(value.age, 24, 15, 45),
-    position: value.position,
-    rating: normalizeNumber(value.rating, 70, 40, 99),
-    value: normalizeNumber(value.value, 250000, 0),
-    isForSale: Boolean(value.isForSale),
-    askingPrice:
-      typeof value.askingPrice === 'number' && Number.isFinite(value.askingPrice)
-        ? normalizeNumber(value.askingPrice, 0, 0)
-        : undefined,
-  };
-};
-
-const normalizePlayedMatch = (value: unknown): PlayedMatch | null => {
-  if (
-    !isObject(value) ||
-    typeof value.id !== 'string' ||
-    typeof value.opponent !== 'string' ||
-    typeof value.isHome !== 'boolean' ||
-    (value.difficulty !== 'Nem' && value.difficulty !== 'Moderat' && value.difficulty !== 'Svær') ||
-    (value.result !== 'WIN' && value.result !== 'DRAW' && value.result !== 'LOSS')
-  ) {
-    return null;
-  }
-
-  return {
-    id: value.id,
-    opponent: value.opponent,
-    isHome: value.isHome,
-    difficulty: value.difficulty,
-    opponentRating: normalizeNumber(value.opponentRating, 74, 60, 95),
-    week: normalizeNumber(value.week, 1, 1),
-    result: value.result,
-    teamGoals: normalizeNumber(value.teamGoals, 0, 0, 9),
-    opponentGoals: normalizeNumber(value.opponentGoals, 0, 0, 9),
-    fanChange: normalizeNumber(value.fanChange, 0, -5000, 5000),
-    moodChange: normalizeNumber(value.moodChange, 0, -100, 100),
-    budgetChange: normalizeNumber(value.budgetChange, 0, -10000000, 10000000),
-    ticketRevenue: normalizeNumber(value.ticketRevenue, 0, 0, 10000000),
-    sponsorBonus: normalizeNumber(value.sponsorBonus, 0, -10000000, 10000000),
-  };
-};
-
-const generateDummyPlayers = (): Record<string, Player> => {
-  const players: Player[] = [
-    { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
-    { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
-    { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', rating: 79, value: 600000, isForSale: false },
-    { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', rating: 76, value: 450000, isForSale: false },
-    { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', rating: 71, value: 400000, isForSale: true, askingPrice: 450000 },
-    { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', rating: 74, value: 380000, isForSale: false },
-    { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', rating: 76, value: 520000, isForSale: false },
-    { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', rating: 73, value: 420000, isForSale: false },
-    { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', rating: 72, value: 450000, isForSale: true, askingPrice: 500000 },
-    { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', rating: 68, value: 280000, isForSale: false },
-    { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', rating: 80, value: 750000, isForSale: false },
-    { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', rating: 77, value: 600000, isForSale: false },
-    { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
-  ];
-
-  return players.reduce((accumulator, player) => {
-    accumulator[player.id] = player;
-    return accumulator;
-  }, {} as Record<string, Player>);
-};
+const STORAGE_KEY = 'dkmanager25_gamestate';
 
 const initialGameState: GameState = {
   selectedTeam: null,
@@ -165,217 +65,445 @@ const initialGameState: GameState = {
   stadiumCapacity: 3000,
   fanMood: 50,
   week: 1,
-  playedMatches: [],
-  stadiumUpgrades: 0,
+  leagueId: null,
+  leagueName: null,
+  fixtures: [],
+  results: [],
+  latestWeekSummary: null,
 };
 
-const normalizeGameState = (value: unknown): GameState | null => {
-  if (!isObject(value)) {
+const clampMood = (value: number) => Math.max(0, Math.min(100, value));
+const getPositiveNumber = (value: unknown, fallback: number) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback;
+
+const generateDummyPlayers = (): Record<string, Player> =>
+  STARTER_PLAYERS.reduce((acc, player) => {
+    acc[player.id] = player;
+    return acc;
+  }, {} as Record<string, Player>);
+
+const getTeamRating = (players: Record<string, Player>) => {
+  const squad = Object.values(players);
+
+  if (squad.length === 0) {
+    return 70;
+  }
+
+  const totalRating = squad.reduce((sum, player) => sum + player.rating, 0);
+  return totalRating / squad.length;
+};
+
+const normalizePlayers = (players: unknown): Record<string, Player> => {
+  if (!players || typeof players !== 'object') {
+    return {};
+  }
+
+  return Object.entries(players as Record<string, Player>).reduce((acc, [playerKey, player]) => {
+    const normalized = normalizePlayer(player);
+    acc[playerKey] = {
+      ...normalized,
+      id: playerKey,
+    };
+    return acc;
+  }, {} as Record<string, Player>);
+};
+
+const normalizeTeam = (team: unknown): Team | null => {
+  if (!team || typeof team !== 'object') {
     return null;
   }
 
-  const normalizedPlayers = isObject(value.players)
-    ? Object.values(value.players)
-        .map(normalizePlayer)
-        .filter((player): player is Player => player !== null)
-        .reduce((players, player) => {
-          players[player.id] = player;
-          return players;
-        }, {} as Record<string, Player>)
-    : {};
+  const rawTeam = team as Partial<Team> & { id?: string };
+  const canonicalTeam = getTeamById(rawTeam.id);
+  const league = getLeagueByTeamId(rawTeam.id);
 
-  const playedMatches = Array.isArray(value.playedMatches)
-    ? value.playedMatches
-        .map(normalizePlayedMatch)
-        .filter((match): match is PlayedMatch => match !== null)
-        .slice(0, 10)
-    : [];
+  if (canonicalTeam) {
+    return canonicalTeam;
+  }
+
+  if (!rawTeam.id || !rawTeam.name || !rawTeam.logo) {
+    return null;
+  }
 
   return {
-    selectedTeam: normalizeTeam(value.selectedTeam),
-    budget: normalizeNumber(value.budget, initialGameState.budget, 0),
-    players: normalizedPlayers,
-    fanCount: normalizeNumber(value.fanCount, initialGameState.fanCount, 0),
-    stadiumCapacity: normalizeNumber(value.stadiumCapacity, initialGameState.stadiumCapacity, 1000),
-    fanMood: normalizeNumber(value.fanMood, initialGameState.fanMood, 0, 100),
-    week: normalizeNumber(value.week, initialGameState.week, 1),
-    playedMatches,
-    stadiumUpgrades: normalizeNumber(value.stadiumUpgrades, initialGameState.stadiumUpgrades, 0, 100),
+    id: rawTeam.id,
+    name: rawTeam.name,
+    logo: rawTeam.logo,
+    leagueId: rawTeam.leagueId ?? league?.id ?? 'custom-league',
+    leagueName: rawTeam.leagueName ?? league?.name ?? 'Ukendt Liga',
+    strength: rawTeam.strength ?? 70,
   };
 };
 
-const getWeeklyTicketRevenue = (fanCount: number, stadiumCapacity: number): number =>
-  Math.min(fanCount, stadiumCapacity) * 150;
+const normalizeResults = (results: unknown, fixtures: LeagueFixture[]): LeagueResult[] => {
+  if (!Array.isArray(results)) {
+    return [];
+  }
+
+  const fixturesById = new Map(fixtures.map((fixture) => [fixture.id, fixture]));
+  const seenFixtureIds = new Set<string>();
+
+  return results.reduce((acc, result) => {
+    if (!result || typeof result !== 'object') {
+      return acc;
+    }
+
+    const rawResult = result as Partial<LeagueResult>;
+    const fixture = rawResult.fixtureId ? fixturesById.get(rawResult.fixtureId) : undefined;
+
+    if (
+      !rawResult.fixtureId ||
+      !fixture ||
+      seenFixtureIds.has(rawResult.fixtureId) ||
+      typeof rawResult.homeGoals !== 'number' ||
+      typeof rawResult.awayGoals !== 'number'
+    ) {
+      return acc;
+    }
+
+    acc.push({
+      fixtureId: rawResult.fixtureId,
+      round: fixture.round,
+      homeTeamId: fixture.homeTeamId,
+      awayTeamId: fixture.awayTeamId,
+      homeGoals: rawResult.homeGoals,
+      awayGoals: rawResult.awayGoals,
+    });
+    seenFixtureIds.add(rawResult.fixtureId);
+
+    return acc;
+  }, [] as LeagueResult[]);
+};
+
+const normalizeWeekSummary = (
+  summary: unknown,
+  fixtures: LeagueFixture[],
+  results: LeagueResult[],
+): WeekSummary | null => {
+  if (!summary || typeof summary !== 'object') {
+    return null;
+  }
+
+  const rawSummary = summary as Partial<WeekSummary>;
+  const validUserResult =
+    rawSummary.userResult === 'WIN' ||
+    rawSummary.userResult === 'DRAW' ||
+    rawSummary.userResult === 'LOSS';
+
+  if (
+    typeof rawSummary.round !== 'number' ||
+    typeof rawSummary.userFixtureId !== 'string' ||
+    !validUserResult ||
+    typeof rawSummary.userGoals !== 'number' ||
+    typeof rawSummary.opponentGoals !== 'number' ||
+    typeof rawSummary.ticketRevenue !== 'number' ||
+    typeof rawSummary.fanDelta !== 'number' ||
+    typeof rawSummary.moodDelta !== 'number'
+  ) {
+    return null;
+  }
+
+  const hasFixture = fixtures.some((fixture) => fixture.id === rawSummary.userFixtureId);
+  const hasResult = results.some((result) => result.fixtureId === rawSummary.userFixtureId);
+
+  if (!hasFixture || !hasResult) {
+    return null;
+  }
+
+  return {
+    round: rawSummary.round,
+    userFixtureId: rawSummary.userFixtureId,
+    userResult: rawSummary.userResult as MatchOutcome,
+    userGoals: rawSummary.userGoals,
+    opponentGoals: rawSummary.opponentGoals,
+    ticketRevenue: rawSummary.ticketRevenue,
+    fanDelta: rawSummary.fanDelta,
+    moodDelta: rawSummary.moodDelta,
+  };
+};
+
+const normalizeGameState = (savedState: unknown): GameState => {
+  if (!savedState || typeof savedState !== 'object') {
+    return initialGameState;
+  }
+
+  const rawState = savedState as Partial<GameState>;
+  const selectedTeam = normalizeTeam(rawState.selectedTeam);
+  const league = getLeagueById(selectedTeam?.leagueId) ?? getLeagueByTeamId(selectedTeam?.id);
+  const fixtures = league ? createLeagueFixtures(league) : [];
+  const results = normalizeResults(rawState.results, fixtures);
+  const maxRound = fixtures.length > 0 ? Math.max(...fixtures.map((fixture) => fixture.round)) : 1;
+  const playedFixtureIds = new Set(results.map((result) => result.fixtureId));
+  const seasonComplete = fixtures.length > 0 && playedFixtureIds.size === fixtures.length;
+  const firstUnplayedFixture = fixtures.find((fixture) => !playedFixtureIds.has(fixture.id));
+  const normalizedWeek = seasonComplete ? maxRound + 1 : Math.max(1, firstUnplayedFixture?.round ?? 1);
+
+  return {
+    selectedTeam,
+    budget: getPositiveNumber(rawState.budget, initialGameState.budget),
+    players: normalizePlayers(rawState.players),
+    fanCount: getPositiveNumber(rawState.fanCount, initialGameState.fanCount),
+    stadiumCapacity: getPositiveNumber(rawState.stadiumCapacity, initialGameState.stadiumCapacity),
+    fanMood: clampMood(getPositiveNumber(rawState.fanMood, initialGameState.fanMood)),
+    week: normalizedWeek,
+    leagueId: league?.id ?? null,
+    leagueName: league?.name ?? null,
+    fixtures,
+    results,
+    latestWeekSummary: normalizeWeekSummary(rawState.latestWeekSummary, fixtures, results),
+  };
+};
+
+const saveGameState = (state: GameState) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.error('Fejl ved gemning af game state:', error);
+  }
+};
+
+const loadGameState = (): GameState | null => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      return normalizeGameState(JSON.parse(saved));
+    }
+  } catch (error) {
+    console.error('Fejl ved indlæsning af game state:', error);
+  }
+
+  return null;
+};
+
+const deleteGameState = () => {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Fejl ved sletning af game state:', error);
+  }
+};
+
+const simulateGoals = (homeRating: number, awayRating: number) => {
+  const ratingDiff = homeRating - awayRating;
+  const expectedHomeGoals = Math.max(0.4, 1.35 + ratingDiff / 24);
+  const expectedAwayGoals = Math.max(0.3, 1.1 - ratingDiff / 26);
+
+  const rollGoals = (expectedGoals: number) => {
+    const variance = Math.random() * 1.3;
+    return Math.max(0, Math.round(expectedGoals + variance - 0.45));
+  };
+
+  return {
+    homeGoals: rollGoals(expectedHomeGoals),
+    awayGoals: rollGoals(expectedAwayGoals),
+  };
+};
+
+const getMatchOutcome = (goalsFor: number, goalsAgainst: number): MatchOutcome => {
+  if (goalsFor > goalsAgainst) return 'WIN';
+  if (goalsFor < goalsAgainst) return 'LOSS';
+  return 'DRAW';
+};
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => normalizeGameState(loadStoredGameState()) ?? initialGameState);
-  const [isStorageHydrated, setIsStorageHydrated] = useState(() => !isUsingNativeStorage());
+  const [gameState, setGameState] = useState<GameState>(() => loadGameState() || initialGameState);
 
   useEffect(() => {
-    if (!isUsingNativeStorage()) {
-      return;
-    }
-
-    let isMounted = true;
-
-    const hydrateNativeStorage = async () => {
-      const normalizedState = normalizeGameState(await loadNativeStoredGameState()) ?? normalizeGameState(loadStoredGameState()) ?? initialGameState;
-
-      if (!isMounted) {
-        return;
-      }
-
-      setGameState(normalizedState);
-      setIsStorageHydrated(true);
-    };
-
-    hydrateNativeStorage();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isStorageHydrated) {
-      return;
-    }
-
-    void saveStoredGameState(gameState);
-  }, [gameState, isStorageHydrated]);
+    saveGameState(gameState);
+  }, [gameState]);
 
   const selectTeam = (team: Team) => {
+    const league = getLeagueById(team.leagueId) ?? getLeagueByTeamId(team.id);
+
     setGameState({
       ...initialGameState,
       selectedTeam: team,
       players: generateDummyPlayers(),
+      leagueId: league?.id ?? team.leagueId,
+      leagueName: league?.name ?? team.leagueName,
+      fixtures: league ? createLeagueFixtures(league) : [],
     });
   };
 
   const addPlayer = (player: Player): boolean => {
-    const cost = player.askingPrice ?? player.value;
-    let didAdd = false;
+    const normalizedPlayer = normalizePlayer(player);
+    const cost = normalizedPlayer.askingPrice ?? normalizedPlayer.value;
 
-    setGameState(prev => {
-      if (prev.players[player.id] || prev.budget < cost) {
-        return prev;
-      }
+    if (gameState.players[normalizedPlayer.id]) {
+      console.warn(`Spiller ${normalizedPlayer.name} er allerede i truppen`);
+      return false;
+    }
 
-      didAdd = true;
+    if (gameState.budget < cost) {
+      console.warn(`Ikke budget nok til at købe ${normalizedPlayer.name}. Mangler: ${cost - gameState.budget} kr`);
+      return false;
+    }
 
-      return {
-        ...prev,
-        budget: prev.budget - cost,
-        players: {
-          ...prev.players,
-          [player.id]: {
-            ...player,
-            isForSale: false,
-            askingPrice: undefined,
-          },
-        },
-      };
-    });
+    setGameState((prev) => ({
+      ...prev,
+      budget: prev.budget - cost,
+      players: { ...prev.players, [normalizedPlayer.id]: normalizedPlayer },
+    }));
 
-    return didAdd;
+    return true;
   };
 
-  const sellPlayer = (playerId: string): boolean => {
-    let didSell = false;
-
-    setGameState(prev => {
-      const player = prev.players[playerId];
-
-      if (!player) {
-        return prev;
-      }
-
+  const sellPlayer = (playerId: string) => {
+    setGameState((prev) => {
       const newPlayers = { ...prev.players };
+      const price = newPlayers[playerId]?.value || 0;
       delete newPlayers[playerId];
-      didSell = true;
 
       return {
         ...prev,
-        budget: prev.budget + player.value,
+        budget: prev.budget + price,
         players: newPlayers,
       };
     });
-
-    return didSell;
   };
 
   const updatePlayer = (playerId: string, updates: Partial<Player>) => {
-    setGameState(prev => {
+    setGameState((prev) => {
       const player = prev.players[playerId];
 
       if (!player) {
         return prev;
       }
 
+      const updatedPlayer = normalizePlayer({ ...player, ...updates });
+
       return {
         ...prev,
         players: {
           ...prev.players,
-          [playerId]: {
-            ...player,
-            ...updates,
-          },
+          [playerId]: updatedPlayer,
         },
       };
     });
   };
 
-  const upgradeStadium = (): boolean => {
+  const upgradeStadium = () => {
     const cost = 500000;
-    let didUpgrade = false;
 
-    setGameState(prev => {
-      if (prev.budget < cost) {
-        return prev;
-      }
-
-      didUpgrade = true;
-
-      return {
+    if (gameState.budget >= cost) {
+      setGameState((prev) => ({
         ...prev,
         budget: prev.budget - cost,
         stadiumCapacity: prev.stadiumCapacity + 2500,
-        stadiumUpgrades: prev.stadiumUpgrades + 1,
-      };
-    });
-
-    return didUpgrade;
+      }));
+    }
   };
 
-  const handleNextWeek = (): number => {
-    let ticketRevenue = 0;
+  const playCurrentWeek = (): WeekSummary | null => {
+    let weekSummary: WeekSummary | null = null;
 
-    setGameState(prev => {
-      ticketRevenue = getWeeklyTicketRevenue(prev.fanCount, prev.stadiumCapacity);
+    setGameState((prev) => {
+      const selectedTeam = prev.selectedTeam;
+
+      if (!selectedTeam) {
+        return prev;
+      }
+
+      const fixturesThisWeek = prev.fixtures.filter((fixture) => fixture.round === prev.week);
+      const userFixture = fixturesThisWeek.find(
+        (fixture) => fixture.homeTeamId === selectedTeam.id || fixture.awayTeamId === selectedTeam.id,
+      );
+
+      if (!userFixture || fixturesThisWeek.length === 0) {
+        return prev;
+      }
+
+      const resultsThisWeek = prev.results.filter((result) => result.round === prev.week);
+      const allWeekResultsExist = fixturesThisWeek.every((fixture) =>
+        resultsThisWeek.some((result) => result.fixtureId === fixture.id),
+      );
+
+      if (allWeekResultsExist) {
+        weekSummary = prev.latestWeekSummary;
+        return prev;
+      }
+
+      const squadRating = getTeamRating(prev.players);
+      const newResults: LeagueResult[] = [];
+
+      fixturesThisWeek.forEach((fixture) => {
+        const existingResult = prev.results.find((result) => result.fixtureId === fixture.id);
+
+        if (existingResult) {
+          return;
+        }
+
+        const homeTeam = getTeamById(fixture.homeTeamId);
+        const awayTeam = getTeamById(fixture.awayTeamId);
+        const homeRating = fixture.homeTeamId === selectedTeam.id ? squadRating : homeTeam?.strength ?? 70;
+        const awayRating = fixture.awayTeamId === selectedTeam.id ? squadRating : awayTeam?.strength ?? 70;
+        const { homeGoals, awayGoals } = simulateGoals(homeRating, awayRating);
+
+        newResults.push({
+          fixtureId: fixture.id,
+          round: fixture.round,
+          homeTeamId: fixture.homeTeamId,
+          awayTeamId: fixture.awayTeamId,
+          homeGoals,
+          awayGoals,
+        });
+      });
+
+      const userResult = [...resultsThisWeek, ...newResults].find((result) => result.fixtureId === userFixture.id);
+
+      if (!userResult) {
+        return prev;
+      }
+
+      const isHome = userResult.homeTeamId === selectedTeam.id;
+      const userGoals = isHome ? userResult.homeGoals : userResult.awayGoals;
+      const opponentGoals = isHome ? userResult.awayGoals : userResult.homeGoals;
+      const userResultType = getMatchOutcome(userGoals, opponentGoals);
+      const fanDelta = userResultType === 'WIN' ? 50 : userResultType === 'DRAW' ? 10 : -20;
+      const moodDelta = userResultType === 'WIN' ? 8 : userResultType === 'DRAW' ? 2 : -6;
+      const ticketRevenue = Math.min(prev.fanCount, prev.stadiumCapacity) * 150;
+
+      weekSummary = {
+        round: prev.week,
+        userFixtureId: userFixture.id,
+        userResult: userResultType,
+        userGoals,
+        opponentGoals,
+        ticketRevenue,
+        fanDelta,
+        moodDelta,
+      };
 
       return {
         ...prev,
-        week: prev.week + 1,
         budget: prev.budget + ticketRevenue,
+        fanCount: Math.max(0, prev.fanCount + fanDelta),
+        fanMood: clampMood(prev.fanMood + moodDelta),
+        results: [...prev.results, ...newResults],
+        latestWeekSummary: weekSummary,
       };
     });
 
-    return ticketRevenue;
+    return weekSummary;
   };
 
-  const recordMatchResult = (match: PlayedMatch) => {
-    setGameState(prev => ({
-      ...prev,
-      week: prev.week + 1,
-      budget: Math.max(0, prev.budget + match.budgetChange),
-      fanCount: Math.max(0, prev.fanCount + match.fanChange),
-      fanMood: clampNumber(prev.fanMood + match.moodChange, 0, 100),
-      playedMatches: [match, ...prev.playedMatches].slice(0, 10),
-    }));
+  const handleNextWeek = () => {
+    setGameState((prev) => {
+      const maxRound =
+        prev.fixtures.length > 0 ? Math.max(...prev.fixtures.map((fixture) => fixture.round)) : prev.week;
+      const nextWeek = Math.min(prev.week + 1, maxRound + 1);
+
+      return {
+        ...prev,
+        week: nextWeek,
+        latestWeekSummary: null,
+      };
+    });
   };
 
   const resetGame = () => {
-    void deleteStoredGameState();
+    deleteGameState();
     setGameState(initialGameState);
   };
 
@@ -388,8 +516,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         sellPlayer,
         updatePlayer,
         upgradeStadium,
+        playCurrentWeek,
         handleNextWeek,
-        recordMatchResult,
         resetGame,
       }}
     >

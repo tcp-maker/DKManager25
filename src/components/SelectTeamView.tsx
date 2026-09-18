@@ -1,69 +1,28 @@
+import React from 'react';
+import { LEAGUES } from '../data/leagues';
 import { Team } from '../types/teams';
 
 interface SelectTeamViewProps {
   onSelectTeam: (team: Team) => void;
 }
 
-const SelectTeamView = ({ onSelectTeam }: SelectTeamViewProps) => {
-  const leagues = [
-    {
-      name: 'Superligaen',
-      color: 'from-blue-500 to-blue-600',
-      teams: [
-        { id: 'fckoebenhavn', name: 'FC København', logo: '🔵' },
-        { id: 'broendby', name: 'Brøndby IF', logo: '🟡' },
-        { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴' },
-        { id: 'aalborg', name: 'AaB Aalborg', logo: '⚫' },
-      ]
-    },
-    {
-      name: '1. Division',
-      color: 'from-orange-500 to-orange-600',
-      teams: [
-        { id: 'silkeborg', name: 'Silkeborg IF', logo: '🔶' },
-        { id: 'randers', name: 'Randers FC', logo: '🟠' },
-        { id: 'ob', name: 'OB Odense', logo: '🔵' },
-        { id: 'lolland', name: 'Lolland-Falster Alliancen', logo: '🟣' },
-      ]
-    },
-    {
-      name: 'Nordsjaelland Serien',
-      color: 'from-green-500 to-green-600',
-      teams: [
-        { id: 'frem', name: 'BK FREM', logo: '🟢' },
-        { id: 'nordsjælland', name: 'Nordsjælland FC', logo: '⚪' },
-        { id: 'fredriksberg', name: 'Fredriksberg IF', logo: '🔴' },
-        { id: 'ballerup', name: 'Ballerup IF', logo: '🟡' },
-      ]
-    },
-    {
-      name: 'Regionsmesterskaberne',
-      color: 'from-purple-500 to-purple-600',
-      teams: [
-        { id: 'kastrup', name: 'Kastrup BK', logo: '🟣' },
-        { id: 'glostrup', name: 'Glostrup FK', logo: '⚪' },
-        { id: 'tårnby', name: 'Tårnby FF', logo: '🟠' },
-        { id: 'virum', name: 'Virum-Skovlunde IF', logo: '🔵' },
-      ]
-    },
-  ];
-
+const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-6 px-4 md:py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-10 md:mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
-          <p className="text-lg md:text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
+          <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
+          <p className="text-gray-500">Vælg din klub og begin dit eventyr som manager</p>
         </div>
 
         {/* Leagues */}
         <div className="space-y-8">
-          {leagues.map((league) => (
+          {LEAGUES.map((league) => (
             <div key={league.name}>
               {/* League Header */}
-              <div className={`bg-gradient-to-r ${league.color} rounded-lg px-4 py-3 md:px-6 md:py-4 mb-4`}>
+              <div className={`bg-gradient-to-r ${league.color} rounded-lg px-6 py-4 mb-4`}>
                 <h2 className="text-2xl font-bold text-white">{league.name}</h2>
               </div>
 
