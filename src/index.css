@@ -14,10 +14,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f9fafb;
   color: #1f2937;
+  min-width: 320px;
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 /* Custom scrollbar */
@@ -65,6 +70,10 @@ button {
   --info: #0891b2;
 }
 
+.pb-safe-bottom {
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Responsive text sizing */
 @media (max-width: 640px) {
   h1 {
@@ -75,5 +84,9 @@ button {
   }
   h3 {
     font-size: 1.25rem;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
   }
 }
