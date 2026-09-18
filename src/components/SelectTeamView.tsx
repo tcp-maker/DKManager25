@@ -14,11 +14,11 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold text-blue-600 mb-2">DKManager25</h1>
           <p className="text-xl text-gray-600 mb-4">Dansk Fodbold Management Spil</p>
-          <p className="text-gray-500">Vælg din klub og begynd dit eventyr som manager</p>
+          <p className="text-gray-500">Vælg din klub i Superliga, 1. division, 2. division eller 3. division</p>
           <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
             <div className="rounded-xl bg-white/80 p-4 shadow-sm">
               <p className="text-sm font-semibold text-blue-700">1. Vælg en klub</p>
-              <p className="mt-1 text-sm text-gray-600">Din valgte klub bliver udgangspunktet for resten af spillet.</p>
+              <p className="mt-1 text-sm text-gray-600">Din valgte klub fra Superliga, 1. division, 2. division eller 3. division bliver udgangspunktet for resten af spillet.</p>
             </div>
             <div className="rounded-xl bg-white/80 p-4 shadow-sm">
               <p className="text-sm font-semibold text-blue-700">2. Få overblik</p>
@@ -69,7 +69,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
         <div className="mt-12 bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
           <h3 className="text-lg font-bold mb-3">💡 Sådan Starter Du</h3>
           <ul className="text-gray-700 space-y-2">
-            <li>✓ Vælg din klub fra en af de fire danske ligaer</li>
+            <li>✓ Vælg din klub fra Superliga, 1. division, 2. division eller 3. division</li>
             <li>✓ Du starter med 1.000.000 kr i budget</li>
             <li>✓ Hver klub starter med en separat, deterministisk trup på 18 spillere</li>
             <li>✓ Brug topbaren efter klubvalg til hurtigt at følge med i uge, fans og økonomi</li>
