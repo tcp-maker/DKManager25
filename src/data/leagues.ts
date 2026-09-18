@@ -1,34 +1,52 @@
 import { Team } from '../types/teams';
 
+export type MatchDifficulty = 'Nem' | 'Moderat' | 'Svær';
+
 export interface LeagueDefinition {
-  id: string;
   name: string;
   color: string;
   teams: Team[];
 }
 
-export interface LeagueFixture {
+export interface ScheduledMatch {
   id: string;
-  round: number;
-  homeTeamId: string;
-  awayTeamId: string;
+  week: number;
+  opponentId: string;
+  opponent: string;
+  isHome: boolean;
+  difficulty: MatchDifficulty;
+  opponentRating: number;
 }
 
-export interface LeagueResult {
-  fixtureId: string;
-  round: number;
+export interface LeagueFixture {
+  id: string;
+  week: number;
   homeTeamId: string;
+  homeTeamName: string;
   awayTeamId: string;
+  awayTeamName: string;
+}
+
+export interface LeagueMatchRecord {
+  fixtureId: string;
+  season: number;
+  week: number;
+  homeTeamId: string;
+  homeTeamName: string;
+  awayTeamId: string;
+  awayTeamName: string;
   homeGoals: number;
   awayGoals: number;
+  isUserMatch: boolean;
 }
 
 export interface LeagueStanding {
   teamId: string;
+  teamName: string;
   played: number;
-  wins: number;
-  draws: number;
-  losses: number;
+  won: number;
+  drawn: number;
+  lost: number;
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
@@ -37,144 +55,235 @@ export interface LeagueStanding {
 
 export const LEAGUES: LeagueDefinition[] = [
   {
-    id: 'superligaen',
     name: 'Superligaen',
     color: 'from-blue-500 to-blue-600',
     teams: [
-      { id: 'fckoebenhavn', name: 'FC København', logo: '🔵', leagueId: 'superligaen', leagueName: 'Superligaen', strength: 82 },
-      { id: 'broendby', name: 'Brøndby IF', logo: '🟡', leagueId: 'superligaen', leagueName: 'Superligaen', strength: 79 },
-      { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴', leagueId: 'superligaen', leagueName: 'Superligaen', strength: 80 },
-      { id: 'aalborg', name: 'AaB Aalborg', logo: '⚫', leagueId: 'superligaen', leagueName: 'Superligaen', strength: 76 },
-    ],
+      { id: 'fckoebenhavn', name: 'FC København', logo: '🔵', league: 'Superligaen', baseRating: 82 },
+      { id: 'broendby', name: 'Brøndby IF', logo: '🟡', league: 'Superligaen', baseRating: 79 },
+      { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴', league: 'Superligaen', baseRating: 78 },
+      { id: 'aalborg', name: 'AaB Aalborg', logo: '⚫', league: 'Superligaen', baseRating: 76 },
+    ]
   },
   {
-    id: 'division1',
     name: '1. Division',
     color: 'from-orange-500 to-orange-600',
     teams: [
-      { id: 'silkeborg', name: 'Silkeborg IF', logo: '🔶', leagueId: 'division1', leagueName: '1. Division', strength: 74 },
-      { id: 'randers', name: 'Randers FC', logo: '🟠', leagueId: 'division1', leagueName: '1. Division', strength: 75 },
-      { id: 'ob', name: 'OB Odense', logo: '🔵', leagueId: 'division1', leagueName: '1. Division', strength: 73 },
-      { id: 'lolland', name: 'Lolland-Falster Alliancen', logo: '🟣', leagueId: 'division1', leagueName: '1. Division', strength: 70 },
-    ],
+      { id: 'silkeborg', name: 'Silkeborg IF', logo: '🔶', league: '1. Division', baseRating: 74 },
+      { id: 'randers', name: 'Randers FC', logo: '🟠', league: '1. Division', baseRating: 75 },
+      { id: 'ob', name: 'OB Odense', logo: '🔵', league: '1. Division', baseRating: 73 },
+      { id: 'lolland', name: 'Lolland-Falster Alliancen', logo: '🟣', league: '1. Division', baseRating: 68 },
+    ]
   },
   {
-    id: 'nordsjaelland-serien',
     name: 'Nordsjaelland Serien',
     color: 'from-green-500 to-green-600',
     teams: [
-      { id: 'frem', name: 'BK FREM', logo: '🟢', leagueId: 'nordsjaelland-serien', leagueName: 'Nordsjaelland Serien', strength: 69 },
-      { id: 'nordsjælland', name: 'Nordsjælland FC', logo: '⚪', leagueId: 'nordsjaelland-serien', leagueName: 'Nordsjaelland Serien', strength: 77 },
-      { id: 'fredriksberg', name: 'Fredriksberg IF', logo: '🔴', leagueId: 'nordsjaelland-serien', leagueName: 'Nordsjaelland Serien', strength: 67 },
-      { id: 'ballerup', name: 'Ballerup IF', logo: '🟡', leagueId: 'nordsjaelland-serien', leagueName: 'Nordsjaelland Serien', strength: 66 },
-    ],
+      { id: 'frem', name: 'BK FREM', logo: '🟢', league: 'Nordsjaelland Serien', baseRating: 71 },
+      { id: 'nordsjælland', name: 'Nordsjælland FC', logo: '⚪', league: 'Nordsjaelland Serien', baseRating: 77 },
+      { id: 'fredriksberg', name: 'Fredriksberg IF', logo: '🔴', league: 'Nordsjaelland Serien', baseRating: 69 },
+      { id: 'ballerup', name: 'Ballerup IF', logo: '🟡', league: 'Nordsjaelland Serien', baseRating: 67 },
+    ]
   },
   {
-    id: 'regionsmesterskaberne',
     name: 'Regionsmesterskaberne',
     color: 'from-purple-500 to-purple-600',
     teams: [
-      { id: 'kastrup', name: 'Kastrup BK', logo: '🟣', leagueId: 'regionsmesterskaberne', leagueName: 'Regionsmesterskaberne', strength: 64 },
-      { id: 'glostrup', name: 'Glostrup FK', logo: '⚪', leagueId: 'regionsmesterskaberne', leagueName: 'Regionsmesterskaberne', strength: 63 },
-      { id: 'tårnby', name: 'Tårnby FF', logo: '🟠', leagueId: 'regionsmesterskaberne', leagueName: 'Regionsmesterskaberne', strength: 62 },
-      { id: 'virum', name: 'Virum-Skovlunde IF', logo: '🔵', leagueId: 'regionsmesterskaberne', leagueName: 'Regionsmesterskaberne', strength: 61 },
-    ],
+      { id: 'kastrup', name: 'Kastrup BK', logo: '🟣', league: 'Regionsmesterskaberne', baseRating: 70 },
+      { id: 'glostrup', name: 'Glostrup FK', logo: '⚪', league: 'Regionsmesterskaberne', baseRating: 69 },
+      { id: 'tårnby', name: 'Tårnby FF', logo: '🟠', league: 'Regionsmesterskaberne', baseRating: 68 },
+      { id: 'virum', name: 'Virum-Skovlunde IF', logo: '🔵', league: 'Regionsmesterskaberne', baseRating: 67 },
+    ]
   },
 ];
 
-export const getLeagueById = (leagueId?: string | null) =>
-  LEAGUES.find((league) => league.id === leagueId) ?? null;
-
-export const getLeagueByTeamId = (teamId?: string | null) =>
-  LEAGUES.find((league) => league.teams.some((team) => team.id === teamId)) ?? null;
-
-export const getTeamById = (teamId?: string | null) =>
-  LEAGUES.flatMap((league) => league.teams).find((team) => team.id === teamId) ?? null;
-
-export const createLeagueFixtures = (league: LeagueDefinition): LeagueFixture[] => {
-  if (league.teams.length !== 4) {
-    throw new Error(`Ligaen "${league.name}" skal have præcis 4 hold for at generere kampprogrammet.`);
-  }
-
-  const [team1, team2, team3, team4] = league.teams;
-
-  return [
-    { id: `${league.id}_1`, round: 1, homeTeamId: team1.id, awayTeamId: team4.id },
-    { id: `${league.id}_2`, round: 1, homeTeamId: team2.id, awayTeamId: team3.id },
-    { id: `${league.id}_3`, round: 2, homeTeamId: team4.id, awayTeamId: team3.id },
-    { id: `${league.id}_4`, round: 2, homeTeamId: team1.id, awayTeamId: team2.id },
-    { id: `${league.id}_5`, round: 3, homeTeamId: team2.id, awayTeamId: team4.id },
-    { id: `${league.id}_6`, round: 3, homeTeamId: team3.id, awayTeamId: team1.id },
-    { id: `${league.id}_7`, round: 4, homeTeamId: team4.id, awayTeamId: team1.id },
-    { id: `${league.id}_8`, round: 4, homeTeamId: team3.id, awayTeamId: team2.id },
-    { id: `${league.id}_9`, round: 5, homeTeamId: team3.id, awayTeamId: team4.id },
-    { id: `${league.id}_10`, round: 5, homeTeamId: team2.id, awayTeamId: team1.id },
-    { id: `${league.id}_11`, round: 6, homeTeamId: team4.id, awayTeamId: team2.id },
-    { id: `${league.id}_12`, round: 6, homeTeamId: team1.id, awayTeamId: team3.id },
-  ];
+const getDifficulty = (rating: number): MatchDifficulty => {
+  if (rating > 80) return 'Svær';
+  if (rating > 75) return 'Moderat';
+  return 'Nem';
 };
 
-export const getLeagueStandings = (
-  league: LeagueDefinition,
-  results: LeagueResult[],
+export const getTeamById = (teamId?: string | null): Team | null => {
+  if (!teamId) return null;
+  for (const league of LEAGUES) {
+    const team = league.teams.find(candidate => candidate.id === teamId);
+    if (team) {
+      return team;
+    }
+  }
+  return null;
+};
+
+export const getLeagueByTeamId = (teamId?: string | null): LeagueDefinition | null => {
+  if (!teamId) return null;
+  return LEAGUES.find(league => league.teams.some(team => team.id === teamId)) ?? null;
+};
+
+const buildRoundRobinFixtures = (teams: Team[]): LeagueFixture[] => {
+  if (teams.length < 2 || teams.length % 2 !== 0) {
+    return [];
+  }
+
+  const rounds = teams.length - 1;
+  const halfSize = teams.length / 2;
+  let rotation = [...teams];
+  const firstHalf: LeagueFixture[] = [];
+
+  for (let round = 0; round < rounds; round += 1) {
+    for (let index = 0; index < halfSize; index += 1) {
+      const homeCandidate = rotation[index];
+      const awayCandidate = rotation[rotation.length - 1 - index];
+      const shouldSwap = (round + index) % 2 === 1;
+      const homeTeam = shouldSwap ? awayCandidate : homeCandidate;
+      const awayTeam = shouldSwap ? homeCandidate : awayCandidate;
+
+      firstHalf.push({
+        id: `fixture-${round + 1}-${homeTeam.id}-${awayTeam.id}`,
+        week: round + 1,
+        homeTeamId: homeTeam.id,
+        homeTeamName: homeTeam.name,
+        awayTeamId: awayTeam.id,
+        awayTeamName: awayTeam.name,
+      });
+    }
+
+    rotation = [rotation[0], rotation[rotation.length - 1], ...rotation.slice(1, -1)];
+  }
+
+  const secondHalf = firstHalf.map(fixture => ({
+    id: `fixture-${fixture.week + rounds}-${fixture.awayTeamId}-${fixture.homeTeamId}`,
+    week: fixture.week + rounds,
+    homeTeamId: fixture.awayTeamId,
+    homeTeamName: fixture.awayTeamName,
+    awayTeamId: fixture.homeTeamId,
+    awayTeamName: fixture.homeTeamName,
+  }));
+
+  return [...firstHalf, ...secondHalf];
+};
+
+export const getLeagueSeasonSchedule = (selectedTeam: Team | null): LeagueFixture[] => {
+  if (!selectedTeam) return [];
+
+  const league = getLeagueByTeamId(selectedTeam.id);
+  if (!league) return [];
+
+  return buildRoundRobinFixtures(league.teams).sort((a, b) => a.week - b.week);
+};
+
+export const getSeasonFixtures = (selectedTeam: Team | null): ScheduledMatch[] => {
+  if (!selectedTeam) return [];
+
+  const currentTeam = getTeamById(selectedTeam.id) ?? selectedTeam;
+
+  return getLeagueSeasonSchedule(currentTeam)
+    .filter(fixture => fixture.homeTeamId === currentTeam.id || fixture.awayTeamId === currentTeam.id)
+    .map(fixture => {
+      const isHome = fixture.homeTeamId === currentTeam.id;
+      const opponentId = isHome ? fixture.awayTeamId : fixture.homeTeamId;
+      const opponent = getTeamById(opponentId);
+
+      return {
+        id: fixture.id,
+        week: fixture.week,
+        opponentId,
+        opponent: opponent?.name ?? (isHome ? fixture.awayTeamName : fixture.homeTeamName),
+        isHome,
+        difficulty: getDifficulty(opponent?.baseRating ?? 70),
+        opponentRating: opponent?.baseRating ?? 70,
+      };
+    });
+};
+
+export const simulateScore = (homeRating: number, awayRating: number) => {
+  const diff = homeRating - awayRating;
+  const winProb = Math.max(0.15, Math.min(0.75, 0.45 + diff / 200));
+  const drawProb = 0.22;
+  const roll = Math.random();
+
+  if (roll < winProb) {
+    const homeGoals = Math.floor(Math.random() * 3) + 1;
+    const awayGoals = Math.floor(Math.random() * homeGoals);
+    return { homeGoals, awayGoals };
+  }
+
+  if (roll < winProb + drawProb) {
+    const homeGoals = Math.floor(Math.random() * 3);
+    return { homeGoals, awayGoals: homeGoals };
+  }
+
+  const awayGoals = Math.floor(Math.random() * 3) + 1;
+  const homeGoals = Math.floor(Math.random() * awayGoals);
+  return { homeGoals, awayGoals };
+};
+
+export const buildLeagueStandings = (
+  selectedTeam: Team | null,
+  season: number,
+  matches: LeagueMatchRecord[],
 ): LeagueStanding[] => {
-  const standings = league.teams.reduce((acc, team) => {
-    acc[team.id] = {
-      teamId: team.id,
-      played: 0,
-      wins: 0,
-      draws: 0,
-      losses: 0,
-      goalsFor: 0,
-      goalsAgainst: 0,
-      goalDifference: 0,
-      points: 0,
-    };
+  if (!selectedTeam) return [];
 
-    return acc;
-  }, {} as Record<string, LeagueStanding>);
+  const league = getLeagueByTeamId(selectedTeam.id);
+  if (!league) return [];
 
-  results.forEach((result) => {
-    const home = standings[result.homeTeamId];
-    const away = standings[result.awayTeamId];
+  const standings = new Map<string, LeagueStanding>(
+    league.teams.map(team => ([
+      team.id,
+      {
+        teamId: team.id,
+        teamName: team.name,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0,
+      }
+    ]))
+  );
 
-    if (!home || !away) {
-      return;
-    }
+  matches
+    .filter(match => match.season === season)
+    .forEach(match => {
+      const home = standings.get(match.homeTeamId);
+      const away = standings.get(match.awayTeamId);
 
-    home.played += 1;
-    away.played += 1;
-    home.goalsFor += result.homeGoals;
-    home.goalsAgainst += result.awayGoals;
-    away.goalsFor += result.awayGoals;
-    away.goalsAgainst += result.homeGoals;
+      if (!home || !away) return;
 
-    if (result.homeGoals > result.awayGoals) {
-      home.wins += 1;
-      away.losses += 1;
-      home.points += 3;
-    } else if (result.homeGoals < result.awayGoals) {
-      away.wins += 1;
-      home.losses += 1;
-      away.points += 3;
-    } else {
-      home.draws += 1;
-      away.draws += 1;
-      home.points += 1;
-      away.points += 1;
-    }
+      home.played += 1;
+      away.played += 1;
+      home.goalsFor += match.homeGoals;
+      home.goalsAgainst += match.awayGoals;
+      away.goalsFor += match.awayGoals;
+      away.goalsAgainst += match.homeGoals;
 
-    home.goalDifference = home.goalsFor - home.goalsAgainst;
-    away.goalDifference = away.goalsFor - away.goalsAgainst;
-  });
+      if (match.homeGoals > match.awayGoals) {
+        home.won += 1;
+        home.points += 3;
+        away.lost += 1;
+      } else if (match.homeGoals < match.awayGoals) {
+        away.won += 1;
+        away.points += 3;
+        home.lost += 1;
+      } else {
+        home.drawn += 1;
+        away.drawn += 1;
+        home.points += 1;
+        away.points += 1;
+      }
+    });
 
-  return Object.values(standings).sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-    if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
-
-    const teamA = getTeamById(a.teamId)?.name ?? a.teamId;
-    const teamB = getTeamById(b.teamId)?.name ?? b.teamId;
-    return teamA.localeCompare(teamB, 'da-DK');
-  });
+  return Array.from(standings.values())
+    .map(team => ({
+      ...team,
+      goalDifference: team.goalsFor - team.goalsAgainst,
+    }))
+    .sort((a, b) =>
+      b.points - a.points ||
+      b.goalDifference - a.goalDifference ||
+      b.goalsFor - a.goalsFor ||
+      a.teamName.localeCompare(b.teamName, 'da-DK')
+    );
 };
