@@ -78,9 +78,9 @@ const LEGACY_TEAM_ID_ALIASES: Record<string, string> = {
 
 export const LEAGUES: LeagueDefinition[] = [
   {
-    name: 'Superligaen',
+    name: 'Superliga',
     color: 'from-blue-500 to-blue-600',
-    teams: createLeagueTeams('Superligaen', [
+    teams: createLeagueTeams('Superliga', [
       { id: 'fckoebenhavn', name: 'FC København', logo: '🔵', baseRating: 82 },
       { id: 'broendby', name: 'Brøndby IF', logo: '🟡', baseRating: 81 },
       { id: 'midtjylland', name: 'FC Midtjylland', logo: '🔴', baseRating: 81 },
@@ -96,9 +96,9 @@ export const LEAGUES: LeagueDefinition[] = [
     ]),
   },
   {
-    name: '1. Division',
+    name: '1. division',
     color: 'from-orange-500 to-orange-600',
-    teams: createLeagueTeams('1. Division', [
+    teams: createLeagueTeams('1. division', [
       { id: 'aalborg', name: 'AaB', logo: '⚫', baseRating: 71 },
       { id: 'vejle', name: 'Vejle BK', logo: '🔴', baseRating: 71 },
       { id: 'fredericia', name: 'FC Fredericia', logo: '⚪', baseRating: 70 },
@@ -114,9 +114,9 @@ export const LEAGUES: LeagueDefinition[] = [
     ]),
   },
   {
-    name: '2. Division',
+    name: '2. division',
     color: 'from-green-500 to-green-600',
-    teams: createLeagueTeams('2. Division', [
+    teams: createLeagueTeams('2. division', [
       { id: 'naestved', name: 'Næstved BK', logo: '🟢', baseRating: 64 },
       { id: 'roskilde', name: 'FC Roskilde', logo: '🟡', baseRating: 64 },
       { id: 'fremad-amager', name: 'Fremad Amager', logo: '🔵', baseRating: 63 },
@@ -132,9 +132,9 @@ export const LEAGUES: LeagueDefinition[] = [
     ]),
   },
   {
-    name: '3. Division',
+    name: '3. division',
     color: 'from-purple-500 to-purple-600',
-    teams: createLeagueTeams('3. Division', [
+    teams: createLeagueTeams('3. division', [
       { id: 'fc-helsingoer', name: 'FC Helsingør', logo: '🔴', baseRating: 58 },
       { id: 'frem', name: 'BK Frem', logo: '🟠', baseRating: 58 },
       { id: 'holbaek', name: 'Holbæk B&I', logo: '🔵', baseRating: 57 },
