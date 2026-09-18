@@ -4,7 +4,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 
 ## Hvad fungerer nu
 
-- Klubbvalg på tværs af 4 danske divisioner med 12 klubber i hver (48 hold i alt)
+- Klubvalg på tværs af Superliga, 1. division, 2. division og 3. division med 12 klubber i hver (48 hold i alt)
 - Fælles game state for klub, spillere, økonomi, fans, stadion og ugeforløb
 - Holdspecificerede, deterministiske starttrupper med positionsfordeling, ASI, roller, skills og værdi
 - Transferflow for køb, sætte til salg, annullere salg og sælge med budgetopdatering
@@ -35,7 +35,7 @@ State indeholder:
 
 Spilflowet er:
 
-1. Vælg en klub i en af de fire 12-holds divisioner
+1. Vælg en klub i Superliga, 1. division, 2. division eller 3. division
 2. Gennemgå klubbens egen trup og transfermarked
 3. Spil den planlagte ligakamp i den aktuelle uge
 4. Få billetindtægter og kampbonus/-tab anvendt direkte på økonomi og fans
