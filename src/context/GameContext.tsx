@@ -1,26 +1,14 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { getLeagueTransferShortlist, getTeamRosterPlayers } from '../data/players';
+import { getLeagueTeams, getTeamById } from '../data/teams';
+import { LeagueMatchResult, PlayedMatch } from '../types/game';
+import { GameState } from '../types/gameState';
+import { Player } from '../types/players';
 import { Team } from '../types/teams';
-
-export interface Player {
-  id: string;
-  name: string;
-  age: number;
-  position: 'GK' | 'DF' | 'MF' | 'FW';
-  rating: number;
-  value: number;
-  isForSale: boolean;
-  askingPrice?: number;
-}
-
-interface GameState {
-  selectedTeam: Team | null;
-  budget: number;
-  players: Record<string, Player>;
-  fanCount: number;
-  stadiumCapacity: number;
-  fanMood: number;
-  week: number;
-}
+import { initialGameState, normalizeGameState } from '../utils/gameState';
+import { applyMatchToStandings, createInitialStandings, generateLeagueFixtures, getFixtureForTeamAndWeek } from '../utils/leagueUtils';
+import { calculateSquadRating, createLeagueMatchResult, createPlayedMatch, simulateFixtureScore } from '../utils/matchUtils';
+import { normalizePlayer } from '../utils/playerUtils';
 
 interface GameContextType {
   gameState: GameState;
@@ -28,55 +16,22 @@ interface GameContextType {
   addPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
+  playMatch: (fixtureId: string) => void;
   upgradeStadium: () => void;
   handleNextWeek: () => number;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
-
-// Dummy spillere til start
-const generateDummyPlayers = (): Record<string, Player> => {
-  const players: Player[] = [
-    { id: '1', name: 'Peter Vindahl', age: 28, position: 'GK', rating: 78, value: 500000, isForSale: false },
-    { id: '2', name: 'Karl-Johan Johnsson', age: 34, position: 'GK', rating: 75, value: 300000, isForSale: true, askingPrice: 350000 },
-    
-    { id: '3', name: 'Henrik Dalsgaard', age: 31, position: 'DF', rating: 79, value: 600000, isForSale: false },
-    { id: '4', name: 'Andreas Bjelland', age: 32, position: 'DF', rating: 76, value: 450000, isForSale: false },
-    { id: '5', name: 'Jens Martin Hauge', age: 23, position: 'DF', rating: 71, value: 400000, isForSale: true, askingPrice: 450000 },
-    { id: '6', name: 'Markus Halsti', age: 26, position: 'DF', rating: 74, value: 380000, isForSale: false },
-    
-    { id: '7', name: 'Kristoffer Olsson', age: 25, position: 'MF', rating: 76, value: 520000, isForSale: false },
-    { id: '8', name: 'Rasmus Nissen', age: 27, position: 'MF', rating: 73, value: 420000, isForSale: false },
-    { id: '9', name: 'Marcus Ingvartsen', age: 24, position: 'MF', rating: 72, value: 450000, isForSale: true, askingPrice: 500000 },
-    { id: '10', name: 'Filip Tronild', age: 22, position: 'MF', rating: 68, value: 280000, isForSale: false },
-    
-    { id: '11', name: 'Karlo Bartolec', age: 26, position: 'FW', rating: 80, value: 750000, isForSale: false },
-    { id: '12', name: 'Tyrik Wonder', age: 24, position: 'FW', rating: 77, value: 600000, isForSale: false },
-    { id: '13', name: 'Samuel Mráz', age: 28, position: 'FW', rating: 74, value: 500000, isForSale: true, askingPrice: 550000 },
-  ];
-
-  return players.reduce((acc, player) => {
-    acc[player.id] = player;
-    return acc;
-  }, {} as Record<string, Player>);
-};
-
-// Initial game state
-const initialGameState: GameState = {
-  selectedTeam: null,
-  budget: 1000000,
-  players: {},
-  fanCount: 1200,
-  stadiumCapacity: 3000,
-  fanMood: 50,
-  week: 1,
-};
-
-// localStorage nøgler
 const STORAGE_KEY = 'dkmanager25_gamestate';
 
-// Gem game state til localStorage
+const createPlayerRecord = (players: Player[]): Record<string, Player> => (
+  players.reduce<Record<string, Player>>((accumulator, player) => {
+    accumulator[player.id] = player;
+    return accumulator;
+  }, {})
+);
+
 const saveGameState = (state: GameState) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -85,20 +40,19 @@ const saveGameState = (state: GameState) => {
   }
 };
 
-// Hent game state fra localStorage
-const loadGameState = (): GameState | null => {
+const loadGameState = (): GameState => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      return normalizeGameState(JSON.parse(saved));
     }
   } catch (error) {
     console.error('Fejl ved indlæsning af game state:', error);
   }
-  return null;
+
+  return initialGameState;
 };
 
-// Slet game state fra localStorage
 const deleteGameState = () => {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -107,91 +61,224 @@ const deleteGameState = () => {
   }
 };
 
-export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => {
-    // Prøv at indlæse saved state, ellers brug initial state
-    return loadGameState() || initialGameState;
-  });
+const getResultEffects = (matchResult: PlayedMatch) => {
+  if (matchResult.result === 'WIN') {
+    return { budgetDelta: 100000, fanDelta: 50, moodDelta: 10 };
+  }
+  if (matchResult.result === 'DRAW') {
+    return { budgetDelta: 25000, fanDelta: 10, moodDelta: 3 };
+  }
+  return { budgetDelta: 0, fanDelta: -20, moodDelta: -8 };
+};
 
-  // Auto-save game state når det ændrer sig
+export const GameProvider = ({ children }: { children: ReactNode }) => {
+  const [gameState, setGameState] = useState<GameState>(() => loadGameState());
+
   useEffect(() => {
     saveGameState(gameState);
   }, [gameState]);
 
   const selectTeam = (team: Team) => {
-    setGameState(prev => ({
-      ...prev,
-      selectedTeam: team,
-      players: generateDummyPlayers(),
-    }));
+    const selectedTeam = getTeamById(team.id) ?? team;
+    const leagueTeams = getLeagueTeams(selectedTeam.leagueId);
+
+    setGameState({
+      ...initialGameState,
+      selectedTeam,
+      players: createPlayerRecord(getTeamRosterPlayers(selectedTeam.id)),
+      marketPlayers: createPlayerRecord(getLeagueTransferShortlist(selectedTeam.leagueId, selectedTeam.id)),
+      leagueStandings: createInitialStandings(leagueTeams),
+    });
   };
 
   const addPlayer = (player: Player): boolean => {
-    // Beregn kostprisen (brug askingPrice hvis tilgængelig, ellers value)
-    const cost = player.askingPrice ?? player.value;
-    
-    // Tjek om spilleren allerede er i truppen
-    if (gameState.players[player.id]) {
-      console.warn(`Spiller ${player.name} er allerede i truppen`);
-      return false;
-    }
-    
-    // Tjek om der er budget nok
-    if (gameState.budget < cost) {
-      console.warn(`Ikke budget nok til at købe ${player.name}. Mangler: ${cost - gameState.budget} kr`);
-      return false;
-    }
+    let wasAdded = false;
 
-    // Træk penge fra budget og tilføj spiller
-    setGameState(prev => ({
-      ...prev,
-      budget: prev.budget - cost,
-      players: { ...prev.players, [player.id]: player }
-    }));
-    
-    return true;
+    setGameState((previous) => {
+      const ownerTeamId = previous.selectedTeam?.id ?? player.teamId;
+      const normalizedPlayer = normalizePlayer({ ...player, teamId: ownerTeamId }, ownerTeamId);
+      const cost = normalizedPlayer.askingPrice ?? normalizedPlayer.value;
+
+      if (previous.players[normalizedPlayer.id] || previous.budget < cost) {
+        return previous;
+      }
+
+      wasAdded = true;
+      const updatedMarketPlayers = { ...previous.marketPlayers };
+      delete updatedMarketPlayers[normalizedPlayer.id];
+
+      return {
+        ...previous,
+        budget: previous.budget - cost,
+        players: {
+          ...previous.players,
+          [normalizedPlayer.id]: { ...normalizedPlayer, teamId: ownerTeamId, isForSale: false, askingPrice: undefined },
+        },
+        marketPlayers: updatedMarketPlayers,
+      };
+    });
+
+    return wasAdded;
   };
 
   const sellPlayer = (playerId: string) => {
-    setGameState(prev => {
-      const newPlayers = { ...prev.players };
-      const price = newPlayers[playerId]?.value || 0;
-      delete newPlayers[playerId];
+    setGameState((previous) => {
+      const player = previous.players[playerId];
+      if (!player) {
+        return previous;
+      }
+
+      const updatedPlayers = { ...previous.players };
+      delete updatedPlayers[playerId];
+
       return {
-        ...prev,
-        budget: prev.budget + price,
-        players: newPlayers
+        ...previous,
+        budget: previous.budget + player.value,
+        players: updatedPlayers,
+        marketPlayers: {
+          ...previous.marketPlayers,
+          [playerId]: { ...player, teamId: 'transfer-market', isForSale: false, askingPrice: undefined },
+        },
       };
     });
   };
 
   const updatePlayer = (playerId: string, updates: Partial<Player>) => {
-    setGameState(prev => ({
-      ...prev,
-      players: {
-        ...prev.players,
-        [playerId]: { ...prev.players[playerId], ...updates }
+    setGameState((previous) => {
+      const existingPlayer = previous.players[playerId];
+      if (!existingPlayer) {
+        return previous;
       }
-    }));
+
+      const normalizedPlayer = normalizePlayer({ ...existingPlayer, ...updates }, existingPlayer.teamId);
+      return {
+        ...previous,
+        players: {
+          ...previous.players,
+          [playerId]: normalizedPlayer,
+        },
+      };
+    });
+  };
+
+  const playMatch = (fixtureId: string) => {
+    setGameState((previous) => {
+      if (!previous.selectedTeam) {
+        return previous;
+      }
+
+      const selectedTeam = previous.selectedTeam;
+      const leagueTeams = getLeagueTeams(selectedTeam.leagueId);
+      const fixtures = generateLeagueFixtures(leagueTeams);
+      const fixture = fixtures.find((item) => item.id === fixtureId);
+
+      if (!fixture || fixture.week !== previous.week || previous.completedFixtureIds.includes(fixtureId)) {
+        return previous;
+      }
+
+      const teamLookup = leagueTeams.reduce<Record<string, Team>>((accumulator, team) => {
+        accumulator[team.id] = team;
+        return accumulator;
+      }, {});
+
+      const weekFixtures = fixtures.filter((item) => item.week === previous.week);
+      const squadRating = calculateSquadRating(Object.values(previous.players));
+      let leagueStandings = previous.leagueStandings.length > 0
+        ? previous.leagueStandings
+        : createInitialStandings(leagueTeams);
+      const weeklyResults: LeagueMatchResult[] = [];
+      let selectedMatch: PlayedMatch | null = null;
+
+      weekFixtures.forEach((weekFixture) => {
+        if (previous.completedFixtureIds.includes(weekFixture.id)) {
+          return;
+        }
+
+        const homeTeam = teamLookup[weekFixture.homeTeamId];
+        const awayTeam = teamLookup[weekFixture.awayTeamId];
+        if (!homeTeam || !awayTeam) {
+          return;
+        }
+
+        const homeRating = weekFixture.homeTeamId === selectedTeam.id ? squadRating : homeTeam.strength;
+        const awayRating = weekFixture.awayTeamId === selectedTeam.id ? squadRating : awayTeam.strength;
+        const score = simulateFixtureScore(homeRating, awayRating, `${weekFixture.id}-${previous.week}-${squadRating}`);
+
+        leagueStandings = applyMatchToStandings(
+          leagueStandings,
+          weekFixture.homeTeamId,
+          weekFixture.awayTeamId,
+          score.homeGoals,
+          score.awayGoals,
+        );
+
+        weeklyResults.push(
+          createLeagueMatchResult(weekFixture.id, previous.week, homeTeam, awayTeam, score.homeGoals, score.awayGoals),
+        );
+
+        if (weekFixture.id === fixture.id) {
+          selectedMatch = createPlayedMatch(
+            weekFixture.id,
+            previous.week,
+            homeTeam,
+            awayTeam,
+            selectedTeam.id,
+            score.homeGoals,
+            score.awayGoals,
+          );
+        }
+      });
+
+      if (!selectedMatch) {
+        return previous;
+      }
+
+      const finalizedMatch = selectedMatch as PlayedMatch;
+      const { budgetDelta, fanDelta, moodDelta } = getResultEffects(finalizedMatch);
+      return {
+        ...previous,
+        budget: previous.budget + budgetDelta,
+        fanCount: Math.max(0, previous.fanCount + fanDelta),
+        fanMood: Math.max(0, Math.min(100, previous.fanMood + moodDelta)),
+        leagueStandings,
+        matchHistory: [finalizedMatch, ...previous.matchHistory.filter((match) => match.id !== finalizedMatch.id)].slice(0, 12),
+        latestMatchResult: finalizedMatch,
+        leagueResults: [...weeklyResults, ...previous.leagueResults.filter((result) => !weekFixtures.some((weekFixture) => weekFixture.id === result.fixtureId))],
+        completedFixtureIds: Array.from(new Set([...previous.completedFixtureIds, ...weekFixtures.map((weekFixture) => weekFixture.id)])),
+      };
+    });
   };
 
   const upgradeStadium = () => {
     const cost = 500000;
     if (gameState.budget >= cost) {
-      setGameState(prev => ({
-        ...prev,
-        budget: prev.budget - cost,
-        stadiumCapacity: prev.stadiumCapacity + 2500
+      setGameState((previous) => ({
+        ...previous,
+        budget: previous.budget - cost,
+        stadiumCapacity: previous.stadiumCapacity + 2500,
       }));
     }
   };
 
   const handleNextWeek = (): number => {
+    if (gameState.selectedTeam) {
+      const currentFixture = getFixtureForTeamAndWeek(
+        generateLeagueFixtures(getLeagueTeams(gameState.selectedTeam.leagueId)),
+        gameState.selectedTeam.id,
+        gameState.week,
+      );
+
+      if (currentFixture && !gameState.completedFixtureIds.includes(currentFixture.id)) {
+        return 0;
+      }
+    }
+
     const ticketRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
-    setGameState(prev => ({
-      ...prev,
-      week: prev.week + 1,
-      budget: prev.budget + ticketRevenue
+    setGameState((previous) => ({
+      ...previous,
+      week: previous.week + 1,
+      budget: previous.budget + ticketRevenue,
+      latestMatchResult: null,
     }));
     return ticketRevenue;
   };
@@ -202,16 +289,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GameContext.Provider 
-      value={{ 
-        gameState, 
-        selectTeam, 
-        addPlayer, 
-        sellPlayer, 
-        updatePlayer, 
-        upgradeStadium, 
+    <GameContext.Provider
+      value={{
+        gameState,
+        selectTeam,
+        addPlayer,
+        sellPlayer,
+        updatePlayer,
+        playMatch,
+        upgradeStadium,
         handleNextWeek,
-        resetGame
+        resetGame,
       }}
     >
       {children}
@@ -221,6 +309,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
 export const useGame = () => {
   const context = useContext(GameContext);
-  if (!context) throw new Error('useGame skal bruges inden i en GameProvider');
+  if (!context) {
+    throw new Error('useGame skal bruges inden i en GameProvider');
+  }
   return context;
 };
+
+export type { Player, GameState };
