@@ -29,17 +29,17 @@ State indeholder:
 - antal fans (`fanCount`)
 - fan mood (`fanMood`)
 - stadionkapacitet (`stadiumCapacity`)
-- uge (`week`)
-- seneste spillede kampe (`playedMatches`)
+- sæson (`season`) og uge (`week`)
+- historik over ligakampe (`leagueMatches`)
 - antal stadionudvidelser (`stadiumUpgrades`)
 
 Spilflowet er:
 
 1. Vælg en klub
 2. Gennemgå trup og transfermarked
-3. Spil én kamp i den aktuelle uge
+3. Spil den planlagte ligakamp i den aktuelle uge
 4. Få billetindtægter og kampbonus/-tab anvendt direkte på økonomi og fans
-5. Gå videre til næste uge via den anvendte kampopdatering
+5. Gå videre til næste uge, eller start næste sæson når kampprogrammet er færdigspillet
 6. Udvid stadion, når budgettet tillader det
 
 Kampresultater påvirker nu faktisk state:
@@ -53,7 +53,7 @@ Kampresultater påvirker nu faktisk state:
 
 - Der er stadig ingen automatiserede tests eller lint-scripts i repoet
 - Trupper, modstandere og købsspillere er stadig statiske prototype-data
-- Der spilles kun én valgt kamp pr. uge, selv om UI viser tre mulige modstandere
+- Ligaforløbet er stadig en prototype med statiske holddata og begrænset sæsonhistorik
 - Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
 
 ## Teknologi
@@ -183,7 +183,7 @@ npm run preview
 
 - `src/App.tsx` – hovednavigation mellem visninger
 - `src/context/GameContext.tsx` – delt game state, persistence og økonomiopdateringer
-- `src/game/matches.ts` – kampplan og simulationslogik
+- `src/data/leagues.ts` – ligadata, kampprogram, simulering og stillingsberegning
 - `src/components/` – UI for holdvalg, trup, transfermarked, kampe og stadion
 - `public/manifest.webmanifest` og `public/sw.js` – minimal PWA-understøttelse
 - `android/` og `capacitor.config.ts` – Android-wrapper for mobil-app
