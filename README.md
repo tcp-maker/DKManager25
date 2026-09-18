@@ -11,6 +11,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
 - Kampsimulering med begrænsede sandsynligheder, konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
+- Økonomisektion med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter, egenkapital og bestyrelsesstatus
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 - Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app
@@ -26,6 +27,7 @@ State indeholder:
 - valgt klub (`selectedTeam`)
 - spillertrup (`players`)
 - budget
+- økonomi (`economy`) med gæld, transaktioner, stadionværdi, rente og bestyrelsesstatus
 - antal fans (`fanCount`)
 - fan mood (`fanMood`)
 - stadionkapacitet (`stadiumCapacity`)
@@ -38,16 +40,29 @@ Spilflowet er:
 1. Vælg en klub i Superliga, 1. division, 2. division eller 3. division
 2. Gennemgå klubbens egen trup og transfermarked
 3. Spil den planlagte ligakamp i den aktuelle uge
-4. Få billetindtægter og kampbonus/-tab anvendt direkte på økonomi og fans
-5. Gå videre til næste uge, eller start næste sæson når kampprogrammet er færdigspillet
+4. Få kampens fanpåvirkning registreret og bogfør derefter billetindtægter, sponsorindtægter, løn, drift og renter ved ugefremskridt
+5. Brug økonomi-fanen til at følge cashflow, transaktioner, gæld, egenkapital og bestyrelsens vurdering
 6. Udvid stadion, når budgettet tillader det
 
-Kampresultater påvirker nu faktisk state:
+Økonomimodellen bruger fortsat `budget` som kassebeholdning og beregner egenkapital som:
 
-- **Sejr:** +50 fans, +8 mood, +100.000 kr sponsorbonus
-- **Uafgjort:** +10 fans, +2 mood, +25.000 kr sponsorbonus
-- **Nederlag:** -20 fans, -7 mood, -30.000 kr sponsorpåvirkning
-- **Alle kampe:** ugens billetindtægt lægges til budgettet ud fra `min(fans, stadionkapacitet) * 150`
+```text
+budget + samlet trupværdi + stadionets bogførte værdi - gæld
+```
+
+Ved hver uge bogføres:
+
+- billetsalg ud fra `min(fans, stadionkapacitet) * 150`
+- deterministisk sponsorindtægt baseret på klubniveau, fans, fan mood og kampresultat
+- ugentlige lønninger ud fra truppens spillerlønninger
+- klub-/stadiondrift og eventuelle renter på gæld
+
+Kampresultater påvirker nu state sådan:
+
+- **Sejr:** +50 fans, +5 mood og bedre sponsorindtægt i ugeafslutningen
+- **Uafgjort:** +10 fans, +1 mood og stabil sponsorindtægt
+- **Nederlag:** -20 fans, -5 mood og svagere sponsorindtægt
+- **Transfers/stadion/lån:** bogføres som egne transaktioner, så saves fortsat bruger samme `budget`, men med mere gennemsigtig økonomi
 
 ## Kendte begrænsninger
 

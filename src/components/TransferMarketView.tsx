@@ -35,9 +35,10 @@ const TransferMarketView: React.FC = () => {
       return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`;
     }
 
+    const existingCopies = Object.keys(gameState.players).filter(playerId => playerId.startsWith(`own_${player.id}_`)).length;
     const newPlayer = {
       ...player,
-      id: `own_${player.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: `own_${player.id}_${gameState.season}_${gameState.week}_${existingCopies + 1}`,
       isForSale: false,
       askingPrice: undefined
     };
