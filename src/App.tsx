@@ -10,9 +10,45 @@ import EconomyView from './components/EconomyView';
 import LeagueTableCard from './components/LeagueTableCard';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
 
+type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table';
+
+const viewAliases: Record<string, AppView> = {
+  team: 'team',
+  trup: 'team',
+  transfers: 'transfers',
+  transfer: 'transfers',
+  matches: 'matches',
+  kampe: 'matches',
+  stadium: 'stadium',
+  stadion: 'stadium',
+  economy: 'economy',
+  okonomi: 'economy',
+  økonomi: 'economy',
+  table: 'table',
+  tabel: 'table',
+};
+
+const resolveViewFromLocation = (): AppView => {
+  if (typeof window === 'undefined') {
+    return 'team';
+  }
+
+  const hashView = decodeURIComponent(window.location.hash.replace(/^#/, '')).toLowerCase();
+  if (hashView && viewAliases[hashView]) {
+    return viewAliases[hashView];
+  }
+
+  const pathSegment = decodeURIComponent(window.location.pathname.replace(/^\/+/, '').split('/')[0] ?? '').toLowerCase();
+  if (pathSegment && viewAliases[pathSegment]) {
+    return viewAliases[pathSegment];
+  }
+
+  return 'team';
+};
+
 const App: React.FC = () => {
   const { gameState, selectTeam, resetGame } = useGame();
-  const [activeView, setActiveView] = useState<'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table'>('team');
+  const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
 
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const leagueTable = useMemo(
@@ -66,6 +102,26 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const expectedHash = `#${activeView}`;
+    if (window.location.hash !== expectedHash) {
+      window.history.replaceState(null, '', expectedHash);
+    }
+  }, [activeView]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setActiveView(resolveViewFromLocation());
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   const renderMainView = () => {
