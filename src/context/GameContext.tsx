@@ -37,6 +37,7 @@ interface GameState {
 interface GameContextType {
   gameState: GameState;
   selectTeam: (team: Team) => void;
+  restartCurrentTeam: () => void;
   addPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
@@ -325,6 +326,23 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     };
 
     setGameState(reconcileGameState(nextState));
+  };
+
+  const restartCurrentTeam = () => {
+    setGameState(prev => {
+      const initialState = createInitialGameState();
+      if (!prev.selectedTeam) {
+        return reconcileGameState(initialState);
+      }
+
+      const resolvedTeam = getTeamById(prev.selectedTeam.id) ?? prev.selectedTeam;
+      return reconcileGameState({
+        ...initialState,
+        selectedTeam: resolvedTeam,
+        players: getTeamSquadRecord(resolvedTeam),
+        economy: createDefaultEconomyState(resolvedTeam, initialState.stadiumCapacity),
+      });
+    });
   };
 
   const addPlayer = (player: Player): boolean => {
@@ -788,6 +806,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       value={{
         gameState,
         selectTeam,
+        restartCurrentTeam,
         addPlayer,
         sellPlayer,
         updatePlayer,

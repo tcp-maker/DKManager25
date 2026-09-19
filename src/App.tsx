@@ -48,9 +48,10 @@ const resolveViewFromLocation = (): AppView => {
 };
 
 const App: React.FC = () => {
-  const { gameState, selectTeam, resetGame } = useGame();
+  const { gameState, selectTeam, restartCurrentTeam, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
   const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
+  const [isRestartConfirmationOpen, setIsRestartConfirmationOpen] = useState(false);
   const startNewGameButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
@@ -110,7 +111,7 @@ const App: React.FC = () => {
 
       if (selectedTeam && event.key.toLowerCase() === 'r') {
         event.preventDefault();
-        setIsResetConfirmationOpen(true);
+        setIsRestartConfirmationOpen(true);
       }
     };
 
@@ -124,6 +125,7 @@ const App: React.FC = () => {
     }
 
     setIsResetConfirmationOpen(false);
+    setIsRestartConfirmationOpen(false);
     startNewGameButtonRef.current?.focus();
   }, [isBankrupt]);
 
@@ -180,8 +182,9 @@ const App: React.FC = () => {
   };
 
   const handleStartNewGame = () => {
-    resetGame();
+    restartCurrentTeam();
     setActiveView('team');
+    return null;
   };
 
   return (
@@ -243,6 +246,16 @@ const App: React.FC = () => {
               </div>
 
               <div className="w-full border-t border-blue-500 pt-3 sm:ml-auto sm:w-56 sm:border-l sm:border-t-0 sm:border-blue-500 sm:pl-4 sm:pt-0">
+                <ConfirmAction
+                  label="Genstart klub"
+                  confirmLabel="Bekræft genstart"
+                  confirmMessage="Genstart bevarer din valgte klub, men nulstiller sæsonen og opretter en opdateret trup med nye positioner, roller og evneniveauer. Fortsæt?"
+                  onConfirm={handleStartNewGame}
+                  isOpen={isRestartConfirmationOpen}
+                  onOpenChange={setIsRestartConfirmationOpen}
+                  buttonClassName="bg-amber-600 hover:bg-amber-700 text-white"
+                  confirmButtonClassName="bg-amber-700 hover:bg-amber-800 text-white"
+                />
                 <ConfirmAction
                   label="Nulstil spil"
                   confirmLabel="Bekræft nulstilling"
