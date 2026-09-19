@@ -525,7 +525,17 @@ const createDeterministicGenerator = (seed: string) => {
 const randomInt = (rng: () => number, min: number, max: number) =>
   min + Math.floor(rng() * (max - min + 1));
 
-const normalizeNameForCompare = (name: string) => name.trim().toLocaleLowerCase('da-DK');
+const normalizePlayerNameValue = (name: unknown): string | null => {
+  if (typeof name !== 'string') {
+    return null;
+  }
+
+  const normalizedName = name.replace(/\s+/g, ' ').trim();
+  return normalizedName.length > 0 ? normalizedName : null;
+};
+
+const normalizeNameForCompare = (name: string) =>
+  (normalizePlayerNameValue(name) ?? '').toLocaleLowerCase('da-DK');
 
 const buildFallbackClubName = (team: Team, slotIndex: number) =>
   `${team.name} Talent ${String(slotIndex + 1).padStart(2, '0')} [fallback]`;
@@ -631,15 +641,16 @@ export const getTeamSquadRecord = (team: Team | null): Record<string, Player> =>
 export const TRANSFER_MARKET_PLAYERS = transferSeeds.map(createPlayer);
 
 export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: string): Player | null => {
-  if (!rawPlayer.name || !rawPlayer.position) {
+  const normalizedName = normalizePlayerNameValue(rawPlayer.name);
+  if (!normalizedName || !rawPlayer.position) {
     return null;
   }
 
   if (rawPlayer.skills && rawPlayer.primaryRole) {
     const skills = normalizeAbsoluteSkills(rawPlayer.skills);
     const normalizedPlayer = {
-      id: rawPlayer.id ?? fallbackId ?? rawPlayer.name,
-      name: rawPlayer.name,
+      id: rawPlayer.id ?? fallbackId ?? normalizedName,
+      name: normalizedName,
       age: rawPlayer.age ?? 24,
       position: rawPlayer.position,
       primaryRole: rawPlayer.primaryRole,
@@ -676,8 +687,8 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     ? Math.max(40, Math.min(80, Math.round(sourceRating)))
     : 65;
   return createPlayer({
-    id: rawPlayer.id ?? fallbackId ?? rawPlayer.name,
-    name: rawPlayer.name,
+    id: rawPlayer.id ?? fallbackId ?? normalizedName,
+    name: normalizedName,
     age: rawPlayer.age ?? 24,
     position: rawPlayer.position,
     primaryRole: rawPlayer.primaryRole ?? roleFallbackByPosition[rawPlayer.position],

@@ -7,6 +7,8 @@ import {
   TRANSFER_MARKET_PLAYERS,
   calculateASI,
   getTeamSquad,
+  normalizePlayer,
+  normalizePlayerRecord,
 } from './players';
 
 const allTeams = LEAGUES.flatMap(league => league.teams);
@@ -27,6 +29,26 @@ describe('team-specific squad generation', () => {
         }
       }
     }
+  });
+
+  describe('player name normalization', () => {
+    it('keeps multiple talent placeholder names through record normalization', () => {
+      const normalized = normalizePlayerRecord({
+        talentA: { name: 'Talent 1', position: 'MF' },
+        talentB: { name: 'Talent 2', position: 'FW' },
+        talentC: { name: 'Talent 10', position: 'DF' },
+      });
+
+      assert.equal(normalized.talentA.name, 'Talent 1');
+      assert.equal(normalized.talentB.name, 'Talent 2');
+      assert.equal(normalized.talentC.name, 'Talent 10');
+    });
+
+    it('normalizes whitespace around talent names without filtering them out', () => {
+      const normalized = normalizePlayer({ name: '  Talent   2  ', position: 'MF' });
+      assert.ok(normalized);
+      assert.equal(normalized.name, 'Talent 2');
+    });
   });
 
   it('returns deterministic squads for repeated calls', () => {
