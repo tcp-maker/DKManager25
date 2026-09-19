@@ -12,6 +12,8 @@ import {
 } from './players';
 
 const allTeams = LEAGUES.flatMap(league => league.teams);
+const normalizeSeedName = (name: string) =>
+  name.normalize('NFC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('da-DK');
 
 describe('team-specific squad generation', () => {
   it('uses each club-specific pool when a seed list exists', () => {
@@ -101,6 +103,41 @@ describe('team-specific squad generation', () => {
     const squadNames = new Set(getTeamSquad(team).map(player => player.name));
     for (const transferPlayer of TRANSFER_MARKET_PLAYERS) {
       assert.equal(squadNames.has(transferPlayer.name), false);
+    }
+  });
+
+  it('keeps the verified Midtjylland attackers and removes stale Brøndby seeds', () => {
+    const broendbySeeds = new Set((TEAM_PLAYER_SEEDS.broendby ?? []).map(seed => normalizeSeedName(seed.name)));
+    const midtjyllandSeeds = new Set((TEAM_PLAYER_SEEDS.midtjylland ?? []).map(seed => normalizeSeedName(seed.name)));
+
+    assert.equal(midtjyllandSeeds.has(normalizeSeedName('Mikael Uhre')), true);
+    assert.equal(midtjyllandSeeds.has(normalizeSeedName('Mileta Rajović')), true);
+
+    for (const staleName of ['Mads Hermansen', 'Mathias Kvistgaarden', 'Yuito Suzuki', 'Andreas Maxsø']) {
+      assert.equal(broendbySeeds.has(normalizeSeedName(staleName)), false, `${staleName} should not stay in Brøndby's 2026 seed list`);
+    }
+
+    for (const currentName of ['Gavin Beavers', 'Bartosz Slisz', 'Patrick Mortensen']) {
+      assert.equal(broendbySeeds.has(normalizeSeedName(currentName)), true, `${currentName} should be seeded for Brøndby`);
+    }
+  });
+
+  it('does not duplicate seeded names across clubs after normalization', () => {
+    const ownerBySeed = new Map<string, string>();
+
+    for (const [teamId, seeds] of Object.entries(TEAM_PLAYER_SEEDS)) {
+      for (const seed of seeds) {
+        const normalizedName = normalizeSeedName(seed.name);
+        const existingOwner = ownerBySeed.get(normalizedName);
+
+        assert.equal(
+          existingOwner,
+          undefined,
+          `Seeded player ${seed.name} is duplicated across ${existingOwner} and ${teamId}`
+        );
+
+        ownerBySeed.set(normalizedName, teamId);
+      }
     }
   });
 });
