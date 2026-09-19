@@ -32,6 +32,11 @@ interface LoanOfferInput {
   stadiumCapacity: number;
 }
 
+export interface EconomyTimelinePoint extends EconomyPeriodSummary {
+  key: string;
+  label: string;
+}
+
 const DEFAULT_PROFILE: LeagueEconomyProfile = {
   sponsorBase: 20000,
   operationsBase: 24000,
@@ -246,6 +251,55 @@ export const calculateSeasonSummary = (transactions: EconomyTransaction[], seaso
     expenses,
     net: income - expenses,
   };
+};
+
+export const resolveDisplayedWeekSummary = (
+  transactions: EconomyTransaction[],
+  season: number,
+  week: number,
+  lastWeekSummary: EconomyPeriodSummary | null,
+): EconomyPeriodSummary => {
+  const currentWeekSummary = calculatePeriodSummary(transactions, season, week);
+  return currentWeekSummary.income > 0 || currentWeekSummary.expenses > 0
+    ? currentWeekSummary
+    : lastWeekSummary ?? currentWeekSummary;
+};
+
+export const calculateEconomyTimeline = (transactions: EconomyTransaction[]): EconomyTimelinePoint[] => {
+  const summaryMap = transactions.reduce((map, transaction) => {
+    const key = `${transaction.season}-${transaction.week}`;
+    const summary = map.get(key) ?? {
+      season: transaction.season,
+      week: transaction.week,
+      income: 0,
+      expenses: 0,
+      net: 0,
+    };
+
+    if (transaction.type === 'income') {
+      summary.income += transaction.amount;
+    } else {
+      summary.expenses += transaction.amount;
+    }
+
+    summary.net = summary.income - summary.expenses;
+    map.set(key, summary);
+    return map;
+  }, new Map<string, EconomyPeriodSummary>());
+
+  return [...summaryMap.entries()]
+    .sort(([, left], [, right]) => {
+      if (left.season !== right.season) {
+        return left.season - right.season;
+      }
+
+      return left.week - right.week;
+    })
+    .map(([key, summary]) => ({
+      ...summary,
+      key,
+      label: `S${summary.season} • U${summary.week}`,
+    }));
 };
 
 export const calculateBoardStatus = ({
