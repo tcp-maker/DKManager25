@@ -5,6 +5,8 @@ interface ConfirmActionProps {
   confirmLabel: string;
   confirmMessage: string;
   onConfirm: () => string | null | Promise<string | null>;
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
   disabled?: boolean;
   disabledMessage?: string;
   buttonClassName?: string;
@@ -16,17 +18,28 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
   confirmLabel,
   confirmMessage,
   onConfirm,
+  isOpen,
+  onOpenChange,
   disabled = false,
   disabledMessage,
   buttonClassName = 'bg-blue-600 hover:bg-blue-700 text-white',
   confirmButtonClassName = 'bg-blue-600 hover:bg-blue-700 text-white',
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const confirmationId = useId();
   const titleId = useId();
   const descriptionId = useId();
+  const resolvedIsOpen = isOpen ?? internalIsOpen;
+
+  const handleOpenChange = (nextIsOpen: boolean) => {
+    if (isOpen === undefined) {
+      setInternalIsOpen(nextIsOpen);
+    }
+
+    onOpenChange?.(nextIsOpen);
+  };
 
   const handleConfirm = async () => {
     if (disabled || isSubmitting) return;
@@ -41,7 +54,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
         return;
       }
 
-      setIsOpen(false);
+      handleOpenChange(false);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Handlingen kunne ikke gennemføres.');
     } finally {
@@ -56,9 +69,9 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
         onClick={() => {
           if (disabled) return;
           setError(null);
-          setIsOpen(current => !current);
+          handleOpenChange(!resolvedIsOpen);
         }}
-        aria-expanded={isOpen}
+        aria-expanded={resolvedIsOpen}
         aria-controls={confirmationId}
         disabled={disabled || isSubmitting}
         className={`w-full rounded px-4 py-3 font-bold transition disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 ${buttonClassName}`}
@@ -70,7 +83,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
         <p className="text-sm text-red-600">{disabledMessage}</p>
       )}
 
-      {isOpen && !disabled && (
+      {resolvedIsOpen && !disabled && (
         <div
           id={confirmationId}
           role="dialog"
@@ -100,7 +113,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
               onClick={() => {
                 if (isSubmitting) return;
                 setError(null);
-                setIsOpen(false);
+                handleOpenChange(false);
               }}
               disabled={isSubmitting}
               className="flex-1 rounded bg-white px-4 py-2 font-semibold text-gray-700 ring-1 ring-gray-300 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"

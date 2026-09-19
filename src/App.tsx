@@ -49,6 +49,7 @@ const resolveViewFromLocation = (): AppView => {
 const App: React.FC = () => {
   const { gameState, selectTeam, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
+  const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
 
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const leagueTable = useMemo(
@@ -97,12 +98,18 @@ const App: React.FC = () => {
       if (event.key === '6') {
         event.preventDefault();
         setActiveView('table');
+        return;
+      }
+
+      if (selectedTeam && event.key.toLowerCase() === 'r') {
+        event.preventDefault();
+        setIsResetConfirmationOpen(true);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedTeam]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -150,6 +157,12 @@ const App: React.FC = () => {
     }
   };
 
+  const handleResetGame = () => {
+    resetGame();
+    setActiveView('team');
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {!selectedTeam ? (
@@ -157,39 +170,30 @@ const App: React.FC = () => {
       ) : (
         <>
           <nav className="bg-blue-600 text-white p-4">
-            <div className="max-w-7xl mx-auto flex flex-wrap gap-4">
-              <button onClick={() => setActiveView('team')} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
-              <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
-              <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
-              <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
-              <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
-              <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
-            </div>
-          </nav>
-
-          <div className="max-w-7xl mx-auto px-4 pt-4">
-            <div className="rounded-lg border border-red-200 bg-white p-4 shadow-sm md:flex md:items-start md:justify-between md:gap-6">
-              <div className="mb-4 md:mb-0">
-                <p className="text-lg font-semibold text-gray-900">{selectedTeam.name}</p>
-                <p className="text-sm text-gray-600">{selectedTeam.league} • Sæson {gameState.season} • Uge {gameState.week}</p>
-                <p className="mt-1 text-sm text-gray-500">Nulstil kun spillet, hvis du vil starte helt forfra.</p>
+            <div className="max-w-7xl mx-auto flex flex-wrap items-start gap-4">
+              <div className="flex flex-wrap gap-4">
+                <button onClick={() => setActiveView('team')} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
+                <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
+                <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
+                <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
+                <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
+                <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
               </div>
-              <div className="w-full md:w-80">
+
+              <div className="w-full border-t border-blue-500 pt-3 sm:ml-auto sm:w-56 sm:border-l sm:border-t-0 sm:border-blue-500 sm:pl-4 sm:pt-0">
                 <ConfirmAction
                   label="Nulstil spil"
                   confirmLabel="Bekræft nulstilling"
                   confirmMessage="Dette sletter din nuværende klub, sæson, ligastilling og gemte spiltilstand. Er du sikker på, at du vil starte forfra?"
-                  onConfirm={() => {
-                    resetGame();
-                    setActiveView('team');
-                    return null;
-                  }}
-                  buttonClassName="bg-red-600 hover:bg-red-700 text-white"
-                  confirmButtonClassName="bg-red-700 hover:bg-red-800 text-white"
+                  onConfirm={handleResetGame}
+                  isOpen={isResetConfirmationOpen}
+                  onOpenChange={setIsResetConfirmationOpen}
+                  buttonClassName="bg-red-700 hover:bg-red-800 text-white"
+                  confirmButtonClassName="bg-red-800 hover:bg-red-900 text-white"
                 />
               </div>
             </div>
-          </div>
+          </nav>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
             <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]">
