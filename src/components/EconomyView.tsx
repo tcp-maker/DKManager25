@@ -12,6 +12,7 @@ import {
   calculateWeeklySponsorIncome,
 } from '../lib/economy';
 import { ECONOMY_CATEGORY_LABELS, type BoardStatusLevel, type EconomyTransaction, type EconomyTransactionCategory } from '../types/economy';
+import TeamBadge from './TeamBadge';
 
 const boardToneClasses: Record<BoardStatusLevel, string> = {
   Stabil: 'border-emerald-200 bg-emerald-50 text-emerald-900',
@@ -112,11 +113,14 @@ const EconomyView: React.FC = () => {
   return (
     <div className="p-4 max-w-6xl mx-auto">
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Økonomi</h1>
-          <p className="text-sm text-gray-600">
-            {selectedTeam?.name} • Sæson {gameState.season} • Uge {gameState.week}
-          </p>
+        <div className="flex items-center gap-3">
+          {selectedTeam && <TeamBadge team={selectedTeam} size="lg" />}
+          <div>
+            <h1 className="text-3xl font-bold">Økonomi</h1>
+            <p className="text-sm text-gray-600">
+              {selectedTeam?.name} • Sæson {gameState.season} • Uge {gameState.week}
+            </p>
+          </div>
         </div>
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
           <p className="font-semibold">Lønmasse: {formatCurrency(wageBill)}</p>

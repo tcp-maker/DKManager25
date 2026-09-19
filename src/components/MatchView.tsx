@@ -2,9 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { calculateSquadStrength, getBalancedOpponentStrength, getMatchPerformanceRating } from '../data/players';
 import { getSeasonFixtures, getTeamById, ScheduledMatch, simulateScore } from '../data/leagues';
+import TeamBadge from './TeamBadge';
 
 interface PlayedMatchSummary {
   id: string;
+  opponentId: string;
   opponent: string;
   result: 'WIN' | 'DRAW' | 'LOSS';
   userGoals: number;
@@ -48,6 +50,7 @@ const MatchView: React.FC = () => {
         const result: PlayedMatchSummary['result'] = homeGoals > awayGoals ? 'WIN' : homeGoals < awayGoals ? 'LOSS' : 'DRAW';
         return {
           id: match.fixtureId,
+          opponentId: isHome ? match.awayTeamId : match.homeTeamId,
           opponent: isHome ? match.awayTeamName : match.homeTeamName,
           result,
           userGoals: homeGoals,
@@ -70,6 +73,7 @@ const MatchView: React.FC = () => {
     () => calculateSquadStrength(Object.values(gameState.players)),
     [gameState.players],
   );
+  const currentOpponent = currentMatch ? getTeamById(currentMatch.opponentId) : null;
   const leftSideIsUser = Boolean(currentMatch?.isHome);
   const rightSideIsUser = currentMatch ? !currentMatch.isHome : false;
 
@@ -92,6 +96,7 @@ const MatchView: React.FC = () => {
 
       const played: PlayedMatchSummary = {
         id: match.id,
+        opponentId: match.opponentId,
         opponent: match.opponent,
         result: userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW',
         userGoals,
@@ -155,6 +160,9 @@ const MatchView: React.FC = () => {
                 <h3 className="text-2xl font-bold mb-4">Kamp Resultat</h3>
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-center flex-1">
+                    <div className="mb-2 flex justify-center">
+                      <TeamBadge team={leftSideIsUser && selectedTeam ? selectedTeam : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
+                    </div>
                     <p className="text-sm text-gray-600">{leftSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
                     <p className={`text-4xl font-bold ${leftSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
                       {leftSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
@@ -164,6 +172,9 @@ const MatchView: React.FC = () => {
                     <p className="text-2xl font-bold">-</p>
                   </div>
                   <div className="text-center flex-1">
+                    <div className="mb-2 flex justify-center">
+                      <TeamBadge team={rightSideIsUser && selectedTeam ? selectedTeam : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
+                    </div>
                     <p className="text-sm text-gray-600">{rightSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
                     <p className={`text-4xl font-bold ${rightSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
                       {rightSideIsUser ? matchResult.userGoals : matchResult.opponentGoals}
@@ -206,9 +217,15 @@ const MatchView: React.FC = () => {
               <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6 text-center">
                 <h3 className="text-2xl font-bold mb-4">⚽ Kamp i gang...</h3>
                 <div className="flex justify-between items-center mb-4 animate-pulse">
-                  <p className="text-lg font-semibold">{currentMatch.opponent}</p>
+                  <div className="flex items-center gap-3">
+                    {currentOpponent && <TeamBadge team={currentOpponent} size="md" />}
+                    <p className="text-lg font-semibold">{currentMatch.opponent}</p>
+                  </div>
                   <p className="text-2xl font-bold">vs</p>
-                  <p className="text-lg font-semibold">{gameState.selectedTeam?.name}</p>
+                  <div className="flex items-center gap-3">
+                    {selectedTeam && <TeamBadge team={selectedTeam} size="md" />}
+                    <p className="text-lg font-semibold">{gameState.selectedTeam?.name}</p>
+                  </div>
                 </div>
                 <p className="text-gray-600">Resultat beregnes...</p>
               </div>
@@ -255,7 +272,13 @@ const MatchView: React.FC = () => {
                                 {match.isHome ? '🏠 Hjemme' : '✈️ Ude'}
                               </span>
                             </div>
-                            <h3 className="text-xl font-bold">{match.opponent}</h3>
+                            <div className="flex items-center gap-3">
+                              <TeamBadge
+                                team={getTeamById(match.opponentId) ?? { name: match.opponent, logo: '⚽' }}
+                                size="md"
+                              />
+                              <h3 className="text-xl font-bold">{match.opponent}</h3>
+                            </div>
                             <p className="text-sm text-gray-600">
                               Modstanders Rating: {match.opponentRating.toFixed(1)} • Sværhedsgrad: {match.difficulty}
                             </p>
@@ -311,7 +334,13 @@ const MatchView: React.FC = () => {
                     <div className="flex justify-between items-center gap-4">
                       <div className="flex-1">
                         <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {match.date}</p>
-                        <h3 className="text-lg font-bold">{match.opponent}</h3>
+                        <div className="mt-1 flex items-center gap-3">
+                          <TeamBadge
+                            team={getTeamById(match.opponentId) ?? { name: match.opponent, logo: '⚽' }}
+                            size="md"
+                          />
+                          <h3 className="text-lg font-bold">{match.opponent}</h3>
+                        </div>
                       </div>
 
                       <div className="text-center">

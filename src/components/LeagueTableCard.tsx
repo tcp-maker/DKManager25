@@ -1,5 +1,6 @@
 import React from 'react';
-import { LeagueStanding } from '../data/leagues';
+import { getTeamById, LeagueStanding } from '../data/leagues';
+import TeamBadge from './TeamBadge';
 
 interface LeagueTableCardProps {
   leagueName: string;
@@ -34,7 +35,15 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({ leagueName, season, s
                 className={`border-t ${team.teamId === selectedTeamId ? 'bg-blue-50 font-semibold' : 'bg-white'}`}
               >
                 <td className="px-3 py-2">{index + 1}</td>
-                <td className="px-3 py-2">{team.teamName}</td>
+                <td className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <TeamBadge
+                      team={getTeamById(team.teamId) ?? { name: team.teamName, logo: '⚽' }}
+                      size="sm"
+                    />
+                    <span>{team.teamName}</span>
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-center">{team.played}</td>
                 <td className="px-3 py-2 text-center">{team.goalDifference}</td>
                 <td className="px-3 py-2 text-center">{team.points}</td>

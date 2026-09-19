@@ -1,6 +1,7 @@
 import React from 'react';
 import { LEAGUES } from '../data/leagues';
 import { Team } from '../types/teams';
+import TeamBadge from './TeamBadge';
 
 interface SelectTeamViewProps {
   onSelectTeam: (team: Team) => void;
@@ -50,8 +51,9 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
                     key={team.id}
                     onClick={() => onSelectTeam(team as Team)}
                     className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all p-5 text-center card-hover border-2 border-transparent hover:border-blue-500"
+                    aria-label={`Vælg ${team.name}`}
                   >
-                    <div className="text-4xl mb-3">{team.logo}</div>
+                    <TeamBadge team={team} size="xl" className="mb-3" />
                     <h3 className="font-bold text-lg text-gray-900 mb-1">{team.name}</h3>
                     <p className="text-sm text-gray-600 mb-1">{team.league}</p>
                     <p className="text-xs text-gray-500 mb-4">Prototype-rating {team.baseRating}</p>
