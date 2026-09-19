@@ -48,6 +48,22 @@ export const ROLE_LABELS: Record<PlayerRole, string> = {
   striker: 'Angriber',
 };
 
+const PLAYER_FIRST_NAMES = [
+  'Noah', 'William', 'Oscar', 'Carl', 'Alfred', 'Emil', 'Lucas', 'Valdemar',
+  'Aksel', 'Arthur', 'Viggo', 'Malthe', 'Elias', 'Oliver', 'Theo', 'Storm',
+  'Felix', 'August', 'Magnus', 'Anton', 'Johan', 'Mikkel', 'Kasper', 'Frederik',
+  'Liam', 'Victor', 'Adam', 'Benjamin', 'Villads', 'Mads', 'Silas', 'Mathias',
+];
+
+const PLAYER_LAST_NAMES = [
+  'Jensen', 'Nielsen', 'Hansen', 'Pedersen', 'Andersen', 'Christensen', 'Larsen', 'Sørensen',
+  'Rasmussen', 'Jørgensen', 'Petersen', 'Madsen', 'Kristensen', 'Olsen', 'Thomsen', 'Poulsen',
+  'Møller', 'Lund', 'Holm', 'Knudsen', 'Mortensen', 'Eriksen', 'Berg', 'Friis',
+  'Dahl', 'Winther', 'Kjær', 'Birk', 'Vestergaard', 'Bundgaard', 'Falk', 'Blicher',
+];
+
+const PLAYER_MIDDLE_INITIALS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'R', 'S', 'T', 'V', 'W', 'Y', 'Æ', 'Ø', 'Å'];
+
 type SkillOverrides = Partial<PlayerSkills>;
 
 interface PlayerSeed {
@@ -404,6 +420,7 @@ export const createPlayer = ({
 
   return {
     ...seed,
+    name: resolvePlayerName(seed.name, seed.id),
     secondaryRoles,
     skills,
     asi,
@@ -512,6 +529,15 @@ const createDeterministicGenerator = (seed: string) => {
 const randomInt = (rng: () => number, min: number, max: number) =>
   min + Math.floor(rng() * (max - min + 1));
 
+const normalizePlayerIdValue = (playerId: unknown): string | null => {
+  if (typeof playerId !== 'string') {
+    return null;
+  }
+
+  const normalizedId = playerId.trim();
+  return normalizedId.length > 0 ? normalizedId : null;
+};
+
 const normalizePlayerNameValue = (name: unknown): string | null => {
   if (typeof name !== 'string') {
     return null;
@@ -524,8 +550,42 @@ const normalizePlayerNameValue = (name: unknown): string | null => {
 const normalizeNameForCompare = (name: string) =>
   (normalizePlayerNameValue(name) ?? '').toLocaleLowerCase('da-DK');
 
+const PLACEHOLDER_PLAYER_NAME_PATTERN = /(^talent\b|^transferm[aå]l\b|\[fallback\]|^buy[\s_-]*[a-z0-9]*\b|^player\b)/i;
+
+const isPlaceholderPlayerName = (name: string) => PLACEHOLDER_PLAYER_NAME_PATTERN.test(name);
+
+const canonicalizePlayerNameSeed = (seed: string) => {
+  const ownTransferCopyMatch = seed.match(/^own_(buy\d+)(?:_|$)/i);
+  return ownTransferCopyMatch?.[1] ?? seed;
+};
+
+export const getDeterministicPlayerName = (playerId?: string | null, fallbackSeed?: string | null) => {
+  const nameSeed = normalizePlayerIdValue(playerId) ?? normalizePlayerNameValue(fallbackSeed);
+
+  if (!nameSeed) {
+    return 'Ukendt Spiller';
+  }
+
+  const canonicalSeed = canonicalizePlayerNameSeed(nameSeed);
+  const firstName = PLAYER_FIRST_NAMES[hashString(`${canonicalSeed}:first`) % PLAYER_FIRST_NAMES.length];
+  const middleInitial = PLAYER_MIDDLE_INITIALS[hashString(`${canonicalSeed}:middle`) % PLAYER_MIDDLE_INITIALS.length];
+  const secondaryInitial = PLAYER_MIDDLE_INITIALS[hashString(`${canonicalSeed}:secondary`) % PLAYER_MIDDLE_INITIALS.length];
+  const lastName = PLAYER_LAST_NAMES[hashString(`${canonicalSeed}:last`) % PLAYER_LAST_NAMES.length];
+  return `${firstName} ${middleInitial}. ${secondaryInitial}. ${lastName}`;
+};
+
+const resolvePlayerName = (name: unknown, playerId?: string | null) => {
+  const normalizedName = normalizePlayerNameValue(name);
+
+  if (normalizedName && !isPlaceholderPlayerName(normalizedName)) {
+    return normalizedName;
+  }
+
+  return getDeterministicPlayerName(playerId, normalizedName);
+};
+
 const buildFallbackClubName = (team: Team, slotIndex: number) =>
-  `${team.name} Talent ${String(slotIndex + 1).padStart(2, '0')} [fallback]`;
+  getDeterministicPlayerName(`${team.id}-player-${slotIndex + 1}`, `${team.name} Talent ${String(slotIndex + 1).padStart(2, '0')} [fallback]`);
 
 const getTeamSeedPool = (teamId: string): TeamPlayerSeed[] =>
   (TEAM_PLAYER_SEEDS[teamId] ?? []).map(seed => ({ ...seed }));
@@ -554,13 +614,6 @@ const pickSeedForSlot = (
   }
 
   const fallbackSeed = { name: buildFallbackClubName(team, slotIndex) } as TeamPlayerSeed;
-  let dedupeOffset = 0;
-
-  while (usedNames.has(normalizeNameForCompare(fallbackSeed.name))) {
-    dedupeOffset += 1;
-    fallbackSeed.name = `${buildFallbackClubName(team, slotIndex)}-${dedupeOffset}`;
-  }
-
   usedNames.add(normalizeNameForCompare(fallbackSeed.name));
   return fallbackSeed;
 };
@@ -628,15 +681,16 @@ export const getTeamSquadRecord = (team: Team | null): Record<string, Player> =>
 export const TRANSFER_MARKET_PLAYERS = transferSeeds.map(createPlayer);
 
 export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: string): Player | null => {
-  const normalizedName = normalizePlayerNameValue(rawPlayer.name);
-  if (!normalizedName || !rawPlayer.position) {
+  const normalizedId = normalizePlayerIdValue(rawPlayer.id) ?? fallbackId;
+  const normalizedName = resolvePlayerName(rawPlayer.name, normalizedId);
+  if (!rawPlayer.position) {
     return null;
   }
 
   if (rawPlayer.skills && rawPlayer.primaryRole) {
     const skills = normalizeAbsoluteSkills(rawPlayer.skills);
     const normalizedPlayer = {
-      id: rawPlayer.id ?? fallbackId ?? normalizedName,
+      id: normalizedId ?? normalizedName,
       name: normalizedName,
       age: rawPlayer.age ?? 24,
       position: rawPlayer.position,
@@ -674,7 +728,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     ? Math.max(40, Math.min(80, Math.round(sourceRating)))
     : 65;
   return createPlayer({
-    id: rawPlayer.id ?? fallbackId ?? normalizedName,
+    id: normalizedId ?? normalizedName,
     name: normalizedName,
     age: rawPlayer.age ?? 24,
     position: rawPlayer.position,

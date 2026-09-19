@@ -6,6 +6,7 @@ import {
   TEAM_PLAYER_SEEDS,
   TRANSFER_MARKET_PLAYERS,
   calculateASI,
+  getDeterministicPlayerName,
   getTeamSquad,
   normalizePlayer,
   normalizePlayerRecord,
@@ -31,30 +32,42 @@ describe('team-specific squad generation', () => {
       const allowed = new Set((TEAM_PLAYER_SEEDS[teamId] ?? []).map(seed => seed.name));
 
       for (const player of squad) {
-        if (!player.name.includes('[fallback]')) {
-          assert.equal(allowed.has(player.name), true, `${teamId} includes player outside own seed pool: ${player.name}`);
+        if (allowed.has(player.name)) {
+          continue;
         }
+
+        assert.equal(
+          player.name,
+          getDeterministicPlayerName(player.id),
+          `${teamId} generated fallback name does not match deterministic ID mapping: ${player.name}`,
+        );
       }
     }
   });
 
   describe('player name normalization', () => {
-    it('keeps multiple talent placeholder names through record normalization', () => {
+    it('replaces multiple talent placeholder names through record normalization', () => {
       const normalized = normalizePlayerRecord({
         talentA: { name: 'Talent 1', position: 'MF' },
         talentB: { name: 'Talent 2', position: 'FW' },
         talentC: { name: 'Talent 10', position: 'DF' },
       });
 
-      assert.equal(normalized.talentA.name, 'Talent 1');
-      assert.equal(normalized.talentB.name, 'Talent 2');
-      assert.equal(normalized.talentC.name, 'Talent 10');
+      assert.equal(normalized.talentA.name, getDeterministicPlayerName('talentA'));
+      assert.equal(normalized.talentB.name, getDeterministicPlayerName('talentB'));
+      assert.equal(normalized.talentC.name, getDeterministicPlayerName('talentC'));
     });
 
-    it('normalizes whitespace around talent names without filtering them out', () => {
-      const normalized = normalizePlayer({ name: '  Talent   2  ', position: 'MF' });
+    it('normalizes whitespace around real player names without changing them', () => {
+      const normalized = normalizePlayer({ id: 'custom-player-1', name: '  Kasper   Dolberg  ', position: 'MF' });
       assert.ok(normalized);
-      assert.equal(normalized.name, 'Talent 2');
+      assert.equal(normalized.name, 'Kasper Dolberg');
+    });
+
+    it('uses a deterministic fallback name when a save entry is missing a usable name', () => {
+      const normalized = normalizePlayer({ id: 'custom-player-2', name: '   ', position: 'FW' });
+      assert.ok(normalized);
+      assert.equal(normalized.name, getDeterministicPlayerName('custom-player-2'));
     });
   });
 
@@ -153,6 +166,13 @@ describe('team-specific squad generation', () => {
     const squadNames = new Set(getTeamSquad(team).map(player => player.name));
     for (const transferPlayer of TRANSFER_MARKET_PLAYERS) {
       assert.equal(squadNames.has(transferPlayer.name), false);
+    }
+  });
+
+  it('gives transfer market players deterministic human-readable names by player id', () => {
+    for (const transferPlayer of TRANSFER_MARKET_PLAYERS) {
+      assert.equal(transferPlayer.name, getDeterministicPlayerName(transferPlayer.id));
+      assert.equal(/(^transferm[aå]l\b|^buy\b|\[fallback\])/i.test(transferPlayer.name), false);
     }
   });
 });
