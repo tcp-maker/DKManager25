@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from './context/GameContext';
 import SelectTeamView from './components/SelectTeamView';
 import ConfirmAction from './components/ConfirmAction';
@@ -50,8 +50,10 @@ const App: React.FC = () => {
   const { gameState, selectTeam, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
   const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
+  const startNewGameButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
+  const isBankrupt = gameState.economy.isBankrupt;
   const leagueTable = useMemo(
     () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
     [selectedTeam, gameState.season, gameState.leagueMatches],
@@ -62,6 +64,10 @@ const App: React.FC = () => {
       const target = event.target as HTMLElement | null;
       const isTypingField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
       if (isTypingField) {
+        return;
+      }
+
+      if (isBankrupt) {
         return;
       }
 
@@ -109,7 +115,16 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTeam]);
+  }, [isBankrupt, selectedTeam]);
+
+  useEffect(() => {
+    if (!isBankrupt) {
+      return;
+    }
+
+    setIsResetConfirmationOpen(false);
+    startNewGameButtonRef.current?.focus();
+  }, [isBankrupt]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -163,10 +178,53 @@ const App: React.FC = () => {
     return null;
   };
 
+  const handleStartNewGame = () => {
+    resetGame();
+    setActiveView('team');
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {!selectedTeam ? (
         <SelectTeamView onSelectTeam={selectTeam} />
+      ) : isBankrupt ? (
+        <main className="flex min-h-screen items-center justify-center px-4 py-8">
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="bankruptcy-title"
+            aria-describedby="bankruptcy-description"
+            className="w-full max-w-2xl rounded-2xl border border-red-200 bg-white p-6 shadow-lg sm:p-8"
+          >
+            <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-950">
+              <p className="text-sm font-semibold uppercase tracking-wide text-red-700">Spillet er slut</p>
+              <h1 id="bankruptcy-title" className="mt-2 text-3xl font-bold">Klubben er gået konkurs</h1>
+              <p className="mt-4 text-base leading-7" id="bankruptcy-description">
+                Klubben er solgt til Stanglakrids FC. Bestyrelsen har erklæret klubben konkurs, og din ledelse er afsluttet.
+              </p>
+              <p className="mt-3 text-sm leading-6 text-red-900/80">
+                {selectedTeam.name} nåede tre sammenhængende afsluttede uger i status <span className="font-semibold">Krise</span>.
+                Du kan ikke fortsætte sæsonen fra denne gemte tilstand.
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-semibold text-gray-900">{selectedTeam.name}</p>
+                <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
+              </div>
+
+              <button
+                ref={startNewGameButtonRef}
+                type="button"
+                onClick={handleStartNewGame}
+                className="w-full rounded bg-blue-600 px-4 py-3 font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
+              >
+                Start nyt spil
+              </button>
+            </div>
+          </section>
+        </main>
       ) : (
         <>
           <nav className="bg-blue-600 text-white p-4">
