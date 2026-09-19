@@ -12,6 +12,13 @@ import {
 } from './players';
 
 const allTeams = LEAGUES.flatMap(league => league.teams);
+const normalizeSeedName = (name: string) =>
+  name
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('da-DK');
 
 describe('team-specific squad generation', () => {
   it('uses each club-specific pool when a seed list exists', () => {
@@ -67,6 +74,51 @@ describe('team-specific squad generation', () => {
       const uniqueNames = new Set(names.map(name => name.toLocaleLowerCase('da-DK')));
       assert.equal(uniqueNames.size, names.length, `Duplicate names found in ${team.id}`);
     }
+  });
+
+  it('does not reuse normalized seeded player names across clubs', () => {
+    const seenByClub = new Map<string, string>();
+
+    for (const [teamId, seeds] of Object.entries(TEAM_PLAYER_SEEDS)) {
+      for (const seed of seeds) {
+        const normalizedName = normalizeSeedName(seed.name);
+        const existingTeamId = seenByClub.get(normalizedName);
+        assert.equal(
+          existingTeamId,
+          undefined,
+          `Seeded player ${seed.name} is duplicated across ${existingTeamId} and ${teamId}`,
+        );
+        seenByClub.set(normalizedName, teamId);
+      }
+    }
+  });
+
+  it('keeps only the currently verified Brøndby seeds and preserves the corrected Midtjylland strikers', () => {
+    const broendbySeeds = TEAM_PLAYER_SEEDS.broendby.map(seed => seed.name);
+    const midtjyllandSeeds = TEAM_PLAYER_SEEDS.midtjylland.map(seed => seed.name);
+
+    assert.deepEqual(broendbySeeds, ['Patrick Pentz', 'Frederik Alves', 'Daniel Wass', 'Marko Divković']);
+
+    for (const removedName of [
+      'Mads Hermansen',
+      'Sebastian Sebulonsen',
+      'Kevin Mensah',
+      'Sigurd Rosted',
+      'Jacob Rasmussen',
+      'Anis Ben Slimane',
+      'Håkon Evjen',
+      'Mathias Greve',
+      'Nicolai Vallys',
+      'Yuito Suzuki',
+      'Oskar Fallenius',
+      'Mathias Kvistgaarden',
+      'Andreas Maxsø',
+    ]) {
+      assert.equal(broendbySeeds.includes(removedName), false, `${removedName} should no longer be seeded for Brøndby`);
+    }
+
+    assert.equal(midtjyllandSeeds.includes('Mikael Uhre'), true);
+    assert.equal(midtjyllandSeeds.includes('Mileta Rajović'), true);
   });
 
   it('supports legacy team-id aliases through canonical lookup', () => {
