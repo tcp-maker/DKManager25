@@ -1,5 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, type LeagueMatchRecord, type ScheduledMatch, simulateScore } from '../data/leagues';
+import {
+  getLeagueSeasonSchedule,
+  getSeasonFixtures,
+  getTeamById,
+  normalizeLeagueMatchRecords,
+  type LeagueMatchRecord,
+  type MatchDetails,
+  type ScheduledMatch,
+  simulateScore,
+} from '../data/leagues';
 import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
 import {
   calculateBoardStatus,
@@ -44,7 +53,7 @@ interface GameContextType {
   upgradeStadium: () => void;
   takeLoan: () => string | null;
   handleNextWeek: () => number;
-  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => void;
+  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => void;
   resetGame: () => void;
 }
 
@@ -288,7 +297,7 @@ const loadGameState = (): GameState | null => {
       fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialState.fanMood,
       season: typeof parsed.season === 'number' ? parsed.season : initialState.season,
       week: typeof parsed.week === 'number' ? parsed.week : initialState.week,
-      leagueMatches: Array.isArray(parsed.leagueMatches) ? parsed.leagueMatches : [],
+      leagueMatches: normalizeLeagueMatchRecords(parsed.leagueMatches),
       economy: initialState.economy,
     };
 
@@ -721,7 +730,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     return ticketRevenue;
   };
 
-  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => {
+  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => {
     setGameState(prev => {
       if (prev.economy.isBankrupt) {
         return prev;
@@ -775,6 +784,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         homeGoals,
         awayGoals,
         isUserMatch: true,
+        details,
       };
 
       const resultDelta = userGoals > opponentGoals
