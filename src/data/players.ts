@@ -569,8 +569,9 @@ export const getDeterministicPlayerName = (playerId?: string | null, fallbackSee
   const canonicalSeed = canonicalizePlayerNameSeed(nameSeed);
   const firstName = PLAYER_FIRST_NAMES[hashString(`${canonicalSeed}:first`) % PLAYER_FIRST_NAMES.length];
   const middleInitial = PLAYER_MIDDLE_INITIALS[hashString(`${canonicalSeed}:middle`) % PLAYER_MIDDLE_INITIALS.length];
+  const secondaryInitial = PLAYER_MIDDLE_INITIALS[hashString(`${canonicalSeed}:secondary`) % PLAYER_MIDDLE_INITIALS.length];
   const lastName = PLAYER_LAST_NAMES[hashString(`${canonicalSeed}:last`) % PLAYER_LAST_NAMES.length];
-  return `${firstName} ${middleInitial}. ${lastName}`;
+  return `${firstName} ${middleInitial}. ${secondaryInitial}. ${lastName}`;
 };
 
 const resolvePlayerName = (name: unknown, playerId?: string | null) => {
