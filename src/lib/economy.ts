@@ -116,6 +116,8 @@ export const createDefaultEconomyState = (
   stadiumBookValue: calculateStadiumBookValue(selectedTeam, stadiumCapacity),
   weeklyInterestRate: calculateDebtInterestRate(selectedTeam, 0, 0),
   boardStatus: createEmptyBoardStatus(),
+  consecutiveCrisisWeeks: 0,
+  isBankrupt: false,
   lastProcessedWeekKey: null,
   lastLoanWeekKey: null,
   lastWeekSummary: null,

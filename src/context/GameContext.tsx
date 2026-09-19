@@ -51,6 +51,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'dkmanager25_gamestate';
 const ECONOMY_TRANSACTION_LIMIT = 180;
+const BANKRUPTCY_CRISIS_WEEKS = 3;
 const VALID_TRANSACTION_CATEGORIES = new Set<EconomyTransaction['category']>([
   'ticket_sales',
   'sponsor',
@@ -245,6 +246,10 @@ const normalizeEconomyState = (
     debt,
     stadiumBookValue,
     weeklyInterestRate: calculateDebtInterestRate(state.selectedTeam, debt, equity),
+    consecutiveCrisisWeeks: typeof parsedEconomy?.consecutiveCrisisWeeks === 'number' && parsedEconomy.consecutiveCrisisWeeks > 0
+      ? Math.floor(parsedEconomy.consecutiveCrisisWeeks)
+      : 0,
+    isBankrupt: parsedEconomy?.isBankrupt === true,
     lastProcessedWeekKey: typeof parsedEconomy?.lastProcessedWeekKey === 'string' ? parsedEconomy.lastProcessedWeekKey : null,
     lastLoanWeekKey: typeof parsedEconomy?.lastLoanWeekKey === 'string' ? parsedEconomy.lastLoanWeekKey : null,
     lastWeekSummary: normalizePeriodSummary(parsedEconomy?.lastWeekSummary),
@@ -323,6 +328,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addPlayer = (player: Player): boolean => {
+    if (gameState.economy.isBankrupt) {
+      return false;
+    }
+
     const cost = player.askingPrice ?? player.value;
 
     if (gameState.players[player.id]) {
@@ -336,7 +345,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setGameState(prev => {
-      if (prev.players[player.id] || prev.budget < cost) {
+      if (prev.economy.isBankrupt || prev.players[player.id] || prev.budget < cost) {
         return prev;
       }
 
@@ -364,7 +373,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const sellPlayer = (playerId: string) => {
+    if (gameState.economy.isBankrupt) {
+      return;
+    }
+
     setGameState(prev => {
+      if (prev.economy.isBankrupt) {
+        return prev;
+      }
+
       const player = prev.players[playerId];
       if (!player) {
         return prev;
@@ -395,7 +412,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updatePlayer = (playerId: string, updates: Partial<Player>) => {
+    if (gameState.economy.isBankrupt) {
+      return;
+    }
+
     setGameState(prev => {
+      if (prev.economy.isBankrupt) {
+        return prev;
+      }
+
       const currentPlayer = prev.players[playerId];
       if (!currentPlayer) {
         return prev;
@@ -416,12 +441,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   const upgradeStadium = () => {
     const cost = 500000;
-    if (gameState.budget < cost) {
+    if (gameState.economy.isBankrupt || gameState.budget < cost) {
       return;
     }
 
     setGameState(prev => {
-      if (prev.budget < cost) {
+      if (prev.economy.isBankrupt || prev.budget < cost) {
         return prev;
       }
 
@@ -454,6 +479,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return 'Vælg en klub først.';
     }
 
+    if (gameState.economy.isBankrupt) {
+      return 'Klubben er konkurs. Start et nyt spil for at fortsætte.';
+    }
+
     const currentOffer = calculateLoanOffer({
       selectedTeam: gameState.selectedTeam,
       cash: gameState.budget,
@@ -474,6 +503,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setGameState(prev => {
+      if (prev.economy.isBankrupt) {
+        return prev;
+      }
+
       const offer = calculateLoanOffer({
         selectedTeam: prev.selectedTeam,
         cash: prev.budget,
@@ -515,10 +548,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const handleNextWeek = (): number => {
+    if (gameState.economy.isBankrupt) {
+      return 0;
+    }
+
     const ticketRevenue = calculateTicketRevenue(gameState.fanCount, gameState.stadiumCapacity);
 
     setGameState(prev => {
-      if (!prev.selectedTeam) {
+      if (!prev.selectedTeam || prev.economy.isBankrupt) {
         return prev;
       }
 
@@ -619,22 +656,43 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const totalExpenses = newTransactions
         .filter(transaction => transaction.type === 'expense')
         .reduce((sum, transaction) => sum + transaction.amount, 0);
+      const updatedBudget = prev.budget + totalIncome - totalExpenses;
       const combinedTransactions = trimTransactions(
         [...prev.economy.transactions, ...newTransactions],
         ECONOMY_TRANSACTION_LIMIT,
       );
       const lastWeekSummary = calculatePeriodSummary(combinedTransactions, prev.season, prev.week);
+      const completedWeekEquity = calculateEquity(
+        updatedBudget,
+        squadValue,
+        prev.economy.stadiumBookValue,
+        prev.economy.debt,
+      );
+      const completedWeekBoardStatus = calculateBoardStatus({
+        cash: updatedBudget,
+        debt: prev.economy.debt,
+        equity: completedWeekEquity,
+        wageBill,
+        projectedIncome: ticketRevenue + sponsorIncome,
+        weeklyCashflow: lastWeekSummary.net,
+      });
+      const consecutiveCrisisWeeks = completedWeekBoardStatus.level === 'Krise'
+        ? prev.economy.consecutiveCrisisWeeks + 1
+        : 0;
+      const isBankrupt = consecutiveCrisisWeeks >= BANKRUPTCY_CRISIS_WEEKS;
 
       return reconcileGameState({
         ...prev,
         week: isSeasonFinished ? 1 : nextUnplayedFixture?.week ?? prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
-        budget: prev.budget + totalIncome - totalExpenses,
+        budget: updatedBudget,
         leagueMatches: isSeasonFinished
           ? prev.leagueMatches.filter(match => match.season >= Math.max(1, prev.season - 2))
           : prev.leagueMatches,
         economy: {
           ...prev.economy,
+          consecutiveCrisisWeeks,
+          isBankrupt,
           lastProcessedWeekKey: currentWeekKey,
           transactions: combinedTransactions,
           lastWeekSummary,
@@ -647,6 +705,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => {
     setGameState(prev => {
+      if (prev.economy.isBankrupt) {
+        return prev;
+      }
+
       const selectedTeam = prev.selectedTeam ? (getTeamById(prev.selectedTeam.id) ?? prev.selectedTeam) : null;
       if (!selectedTeam) {
         return prev;

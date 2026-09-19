@@ -45,6 +45,8 @@ export interface EconomyState {
   stadiumBookValue: number;
   weeklyInterestRate: number;
   boardStatus: BoardStatus;
+  consecutiveCrisisWeeks: number;
+  isBankrupt: boolean;
   lastProcessedWeekKey: string | null;
   lastLoanWeekKey: string | null;
   lastWeekSummary: EconomyPeriodSummary | null;
