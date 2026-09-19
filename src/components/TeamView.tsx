@@ -129,7 +129,7 @@ const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
           <p className="text-2xl font-bold">{fwCount}</p>
         </div>
         <div className="bg-white p-4 rounded shadow col-span-2 lg:col-span-1">
-          <p className="text-gray-600">Gennemsnitlig ASI</p>
+          <p className="text-gray-600">ASI (Average Skill Index)</p>
           <p className="text-2xl font-bold text-blue-600">{averageAsi}</p>
         </div>
       </div>
