@@ -426,18 +426,20 @@ const SQUAD_TEMPLATE: SquadTemplateSlot[] = [
   { position: 'FW', primaryRole: 'striker', secondaryRoles: ['winger'], ageRange: [18, 22], baseOffset: 0, overrides: { attackingPlay: 11, finishing: 10, pace: 10 } },
 ];
 
-const FIRST_NAMES = [
-  'Andreas', 'Mads', 'Lukas', 'Mathias', 'Oliver', 'Emil', 'Frederik', 'Victor', 'Magnus', 'Sebastian',
-  'Nicolai', 'Mikkel', 'Rasmus', 'Jonas', 'Casper', 'Morten', 'Sander', 'Tobias', 'Kristian', 'Jeppe',
-  'Noah', 'Malthe', 'Villads', 'August', 'Felix', 'Alexander', 'Oscar', 'Patrick', 'Anton', 'Nikolaj',
-  'Valdemar', 'Birk', 'Kasper', 'Joachim', 'Lasse', 'Laurits', 'Silas', 'William', 'Elias', 'Carl',
-];
-
-const LAST_NAMES = [
-  'Jensen', 'Nielsen', 'Hansen', 'Pedersen', 'Andersen', 'Christensen', 'Larsen', 'Sørensen', 'Rasmussen', 'Jørgensen',
-  'Madsen', 'Kristensen', 'Olsen', 'Thomsen', 'Poulsen', 'Knudsen', 'Mortensen', 'Henriksen', 'Jeppesen', 'Jacobsen',
-  'Johansen', 'Bach', 'Friis', 'Lund', 'Vestergaard', 'Mogensen', 'Kjær', 'Bruun', 'Iversen', 'Skov',
-  'Bundgaard', 'Høgh', 'Bertelsen', 'Winther', 'Dahl', 'Nørgaard', 'Overgaard', 'Agergaard', 'Buch', 'Torp',
+const REAL_PLAYER_NAMES = [
+  'Rasmus Højlund', 'Mikkel Damsgaard', 'Victor Kristiansen', 'Jonas Wind', 'Mads Hermansen',
+  'Andreas Skov Olsen', 'Pione Sisto', 'Magnus Warming', 'Nicolai Vallys', 'Jesper Hansen',
+  'Lukas Lerager', 'Mathias Kvistgaarden', 'Oliver Drost', 'Emil Riis', 'Felix Madsen',
+  'Rasmus Nissen', 'Casper Tengstedt', 'Morten Hjulmand', 'Kristian Nørgaard', 'Sander Svendsen',
+  'Tobias Salquist', 'Noah Sahsah', 'Malthe Højholt', 'Villads Nielsen', 'August Priske',
+  'Oscar Schwartau', 'Patrick Mortensen', 'Nikolaj Alstrup', 'Birk Risa', 'Kasper Høgh',
+  'Joachim Andersen', 'Lasse Schöne', 'Laurits Høgh', 'Silas Andersen', 'William Osula',
+  'Elias Andersson', 'Carl Ankerd', 'Mads Bech', 'Jeppe Okkels', 'Rasmus Carstensen',
+  'Frederik Winther', 'Christian Nørgaard', 'Thomas Delaney', 'Alexander Bah', 'Sebastian Toune',
+  'Anton Gaaei', 'Nicolai Brock-Madsen', 'Valdemar Byskov', 'Andreas Cornelius', 'Elias Jelert',
+  'Malthe Møller', 'Kasper Dolberg', 'Martin Frese', 'Mikkel Kaufmann', 'Kian Hansen',
+  'William Bøving', 'Asbjørn A. Jensen', 'Emil Holm', 'Luca Kjær', 'Lukas Høgh',
+  'Nicolai Nyholm', 'Henrik Dalsgaard', 'Mathias Jørgensen', 'Mads Jæger', 'Peter Ankersen'
 ];
 
 const clampBase = (value: number) => Math.max(42, Math.min(74, Math.round(value)));
@@ -468,10 +470,8 @@ const buildPlayerName = (teamId: string, slotIndex: number, usedNames: Set<strin
   const rng = createDeterministicGenerator(`${teamId}-name-${slotIndex}`);
   let attempts = 0;
 
-  while (attempts < FIRST_NAMES.length * LAST_NAMES.length) {
-    const firstName = FIRST_NAMES[randomInt(rng, 0, FIRST_NAMES.length - 1)];
-    const lastName = LAST_NAMES[randomInt(rng, 0, LAST_NAMES.length - 1)];
-    const candidate = `${firstName} ${lastName}`;
+  while (attempts < REAL_PLAYER_NAMES.length) {
+    const candidate = REAL_PLAYER_NAMES[randomInt(rng, 0, REAL_PLAYER_NAMES.length - 1)];
 
     if (!usedNames.has(candidate)) {
       usedNames.add(candidate);
@@ -481,7 +481,10 @@ const buildPlayerName = (teamId: string, slotIndex: number, usedNames: Set<strin
     attempts += 1;
   }
 
-  return `${FIRST_NAMES[slotIndex % FIRST_NAMES.length]} ${LAST_NAMES[(slotIndex + hashString(teamId)) % LAST_NAMES.length]}`;
+  const fallbackIndex = (hashString(`${teamId}-${slotIndex}`) + slotIndex) % REAL_PLAYER_NAMES.length;
+  const fallbackName = REAL_PLAYER_NAMES[fallbackIndex];
+  usedNames.add(fallbackName);
+  return fallbackName;
 };
 
 const buildTeamSquad = (team: Team): Player[] => {
@@ -510,7 +513,7 @@ const buildTeamSquad = (team: Team): Player[] => {
 };
 
 const transferSeeds: PlayerSeed[] = [
-  { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 64, overrides: { wingPlay: 16, dribbling: 15, pace: 14, finishing: 8 } },
+  { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 64, overrides: { wingPlay: 16, dribbling: 15, pace: 14, finishing: 12, attackingPlay: 11 } },
   { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', primaryRole: 'striker', base: 66, overrides: { attackingPlay: 16, finishing: 15, heading: 16, pace: 5 } },
   { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['defensive-midfielder'], base: 62, overrides: { midfieldPlay: 14, passing: 12, vision: 11, stamina: 9 } },
   { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', primaryRole: 'full-back', secondaryRoles: ['winger'], base: 59, overrides: { pace: 12, wingPlay: 11, defending: 10, dribbling: 8 } },
