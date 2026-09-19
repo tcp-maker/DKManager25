@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
+import { getTeamById } from '../data/leagues';
 import { ROLE_LABELS } from '../data/players';
 import {
   calculateEconomyTimeline,
@@ -9,6 +10,7 @@ import {
 } from '../lib/economy';
 import type { BoardStatusLevel } from '../types/economy';
 import PlayerDetailsPanel from './PlayerDetailsPanel';
+import TeamBadge from './TeamBadge';
 
 interface TeamViewProps {
   onOpenEconomy: () => void;
@@ -31,7 +33,7 @@ const formatCurrency = (value: number, signed = false) => {
 
 const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
   const { gameState } = useGame();
-  const team = gameState.selectedTeam;
+  const team = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
 
   if (!team) return <div>Ingen trup valgt</div>;
@@ -76,7 +78,13 @@ const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
 
   return (
     <div>
-      <h2 className="text-3xl font-bold mb-4">{team.name}</h2>
+      <div className="mb-4 flex items-center gap-3">
+        <TeamBadge team={team} size="lg" />
+        <div>
+          <h2 className="text-3xl font-bold">{team.name}</h2>
+          <p className="text-sm text-gray-600">{team.league}</p>
+        </div>
+      </div>
       
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="bg-white p-4 rounded shadow">

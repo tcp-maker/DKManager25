@@ -8,6 +8,7 @@ import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
 import EconomyView from './components/EconomyView';
 import LeagueTableCard from './components/LeagueTableCard';
+import TeamBadge from './components/TeamBadge';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
 
 type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table';
@@ -209,9 +210,12 @@ const App: React.FC = () => {
             </div>
 
             <div className="mt-6 flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold text-gray-900">{selectedTeam.name}</p>
-                <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
+              <div className="flex items-center gap-3">
+                <TeamBadge team={selectedTeam} size="lg" />
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedTeam.name}</p>
+                  <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
+                </div>
               </div>
 
               <button
