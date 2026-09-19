@@ -38,6 +38,50 @@ export interface LeagueMatchRecord {
   homeGoals: number;
   awayGoals: number;
   isUserMatch: boolean;
+  details?: MatchDetails;
+}
+
+export type MatchEventPhase = 'FIRST_HALF' | 'HALFTIME' | 'SECOND_HALF' | 'FULL_TIME';
+export type MatchEventType = 'chance' | 'goal' | 'yellow_card' | 'red_card' | 'halftime' | 'second_half' | 'full_time';
+export type MatchEventTeam = 'home' | 'away' | 'neutral';
+
+export interface MatchTimelineConfig {
+  firstHalfMinutes: number;
+  halftimeMinutes: number;
+  secondHalfMinutes: number;
+}
+
+export interface MatchStats {
+  chancesHome: number;
+  chancesAway: number;
+  yellowCardsHome: number;
+  yellowCardsAway: number;
+  redCardsHome: number;
+  redCardsAway: number;
+  possessionHome: number;
+  possessionAway: number;
+}
+
+export interface MatchEvent {
+  minute: number;
+  phase: MatchEventPhase;
+  type: MatchEventType;
+  team: MatchEventTeam;
+  description: string;
+  homeGoals: number;
+  awayGoals: number;
+}
+
+export interface MatchReport {
+  summary: string;
+  highlights: string[];
+}
+
+export interface MatchDetails {
+  timeline: MatchTimelineConfig;
+  stats: MatchStats;
+  events: MatchEvent[];
+  report: MatchReport;
 }
 
 export interface LeagueStanding {
@@ -61,6 +105,22 @@ interface TeamSeed {
   secondaryColor: string;
   baseRating: number;
 }
+
+export const MATCH_TIMELINE: MatchTimelineConfig = {
+  firstHalfMinutes: 15,
+  halftimeMinutes: 5,
+  secondHalfMinutes: 15,
+};
+
+const MATCH_EVENT_TYPE_PRIORITY: Record<MatchEventType, number> = {
+  goal: 0,
+  red_card: 1,
+  yellow_card: 2,
+  chance: 3,
+  halftime: 4,
+  second_half: 5,
+  full_time: 6,
+};
 
 const createLeagueTeams = (league: string, teams: TeamSeed[]): Team[] =>
   teams.map(team => ({
@@ -259,27 +319,500 @@ export const getSeasonFixtures = (selectedTeam: Team | null): ScheduledMatch[] =
     });
 };
 
-export const simulateScore = (homeRating: number, awayRating: number) => {
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+const randomInt = (min: number, max: number, rng: () => number) =>
+  Math.floor(rng() * (max - min + 1)) + min;
+
+const simulateScoreWithRng = (homeRating: number, awayRating: number, rng: () => number) => {
   const diff = homeRating - awayRating;
   const winProb = Math.max(0.15, Math.min(0.75, 0.45 + diff / 200));
   const drawProb = 0.22;
-  const roll = Math.random();
+  const roll = rng();
 
   if (roll < winProb) {
-    const homeGoals = Math.floor(Math.random() * 3) + 1;
-    const awayGoals = Math.floor(Math.random() * homeGoals);
+    const homeGoals = randomInt(1, 3, rng);
+    const awayGoals = randomInt(0, Math.max(0, homeGoals - 1), rng);
     return { homeGoals, awayGoals };
   }
 
   if (roll < winProb + drawProb) {
-    const homeGoals = Math.floor(Math.random() * 3);
+    const homeGoals = randomInt(0, 2, rng);
     return { homeGoals, awayGoals: homeGoals };
   }
 
-  const awayGoals = Math.floor(Math.random() * 3) + 1;
-  const homeGoals = Math.floor(Math.random() * awayGoals);
+  const awayGoals = randomInt(1, 3, rng);
+  const homeGoals = randomInt(0, Math.max(0, awayGoals - 1), rng);
   return { homeGoals, awayGoals };
 };
+
+const buildMinuteSlots = (
+  count: number,
+  totalMinutes: number,
+  rng: () => number,
+): number[] => {
+  const slots = new Set<number>();
+
+  while (slots.size < count) {
+    slots.add(randomInt(1, totalMinutes, rng));
+  }
+
+  return Array.from(slots).sort((a, b) => a - b);
+};
+
+const getPhaseForMinute = (minute: number, timeline: MatchTimelineConfig): MatchEventPhase =>
+  minute <= timeline.firstHalfMinutes ? 'FIRST_HALF' : 'SECOND_HALF';
+
+const summarizeResult = (homeGoals: number, awayGoals: number) => {
+  if (homeGoals > awayGoals) {
+    return 'hjemmesejr';
+  }
+
+  if (homeGoals < awayGoals) {
+    return 'udesejr';
+  }
+
+  return 'uafgjort';
+};
+
+const buildMatchHighlights = (
+  events: MatchEvent[],
+  homeTeamName: string,
+  awayTeamName: string,
+  stats: MatchStats,
+): string[] => {
+  const priorityEvents = events.filter(event =>
+    event.type === 'goal'
+    || event.type === 'red_card'
+    || event.type === 'yellow_card'
+    || event.type === 'halftime'
+    || event.type === 'full_time',
+  );
+
+  const highlights = priorityEvents.map(event => `${event.minute}'. ${event.description}`);
+  highlights.push(
+    `Boldbesiddelse: ${homeTeamName} ${stats.possessionHome}% • ${awayTeamName} ${stats.possessionAway}%`,
+    `Chancer: ${homeTeamName} ${stats.chancesHome} • ${awayTeamName} ${stats.chancesAway}`,
+  );
+
+  if (stats.yellowCardsHome > 0 || stats.yellowCardsAway > 0 || stats.redCardsHome > 0 || stats.redCardsAway > 0) {
+    highlights.push(
+      `Kort: ${homeTeamName} ${stats.yellowCardsHome} gule/${stats.redCardsHome} røde • ${awayTeamName} ${stats.yellowCardsAway} gule/${stats.redCardsAway} røde`,
+    );
+  }
+
+  return highlights;
+};
+
+const normalizeTimeline = (timeline: unknown): MatchTimelineConfig => {
+  if (!timeline || typeof timeline !== 'object') {
+    return MATCH_TIMELINE;
+  }
+
+  const candidate = timeline as Partial<MatchTimelineConfig>;
+  return {
+    firstHalfMinutes: typeof candidate.firstHalfMinutes === 'number' && candidate.firstHalfMinutes > 0
+      ? Math.floor(candidate.firstHalfMinutes)
+      : MATCH_TIMELINE.firstHalfMinutes,
+    halftimeMinutes: typeof candidate.halftimeMinutes === 'number' && candidate.halftimeMinutes >= 0
+      ? Math.floor(candidate.halftimeMinutes)
+      : MATCH_TIMELINE.halftimeMinutes,
+    secondHalfMinutes: typeof candidate.secondHalfMinutes === 'number' && candidate.secondHalfMinutes > 0
+      ? Math.floor(candidate.secondHalfMinutes)
+      : MATCH_TIMELINE.secondHalfMinutes,
+  };
+};
+
+const normalizeMatchStats = (stats: unknown): MatchStats | null => {
+  if (!stats || typeof stats !== 'object') {
+    return null;
+  }
+
+  const candidate = stats as Partial<MatchStats>;
+  const numericKeys: Array<keyof MatchStats> = [
+    'chancesHome',
+    'chancesAway',
+    'yellowCardsHome',
+    'yellowCardsAway',
+    'redCardsHome',
+    'redCardsAway',
+    'possessionHome',
+    'possessionAway',
+  ];
+
+  for (const key of numericKeys) {
+    if (typeof candidate[key] !== 'number') {
+      return null;
+    }
+  }
+
+  return {
+    chancesHome: Math.max(0, Math.floor(candidate.chancesHome ?? 0)),
+    chancesAway: Math.max(0, Math.floor(candidate.chancesAway ?? 0)),
+    yellowCardsHome: Math.max(0, Math.floor(candidate.yellowCardsHome ?? 0)),
+    yellowCardsAway: Math.max(0, Math.floor(candidate.yellowCardsAway ?? 0)),
+    redCardsHome: Math.max(0, Math.floor(candidate.redCardsHome ?? 0)),
+    redCardsAway: Math.max(0, Math.floor(candidate.redCardsAway ?? 0)),
+    possessionHome: clamp(Math.round(candidate.possessionHome ?? 50), 0, 100),
+    possessionAway: clamp(Math.round(candidate.possessionAway ?? 50), 0, 100),
+  };
+};
+
+const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
+  if (!Array.isArray(events)) {
+    return [];
+  }
+
+  return events.reduce((acc, rawEvent) => {
+    if (!rawEvent || typeof rawEvent !== 'object') {
+      return acc;
+    }
+
+    const candidate = rawEvent as Partial<MatchEvent>;
+    if (
+      typeof candidate.minute !== 'number'
+      || typeof candidate.description !== 'string'
+      || typeof candidate.homeGoals !== 'number'
+      || typeof candidate.awayGoals !== 'number'
+      || !candidate.phase
+      || !candidate.type
+      || !candidate.team
+    ) {
+      return acc;
+    }
+
+    if (!['FIRST_HALF', 'HALFTIME', 'SECOND_HALF', 'FULL_TIME'].includes(candidate.phase)) {
+      return acc;
+    }
+
+    if (!['chance', 'goal', 'yellow_card', 'red_card', 'halftime', 'second_half', 'full_time'].includes(candidate.type)) {
+      return acc;
+    }
+
+    if (!['home', 'away', 'neutral'].includes(candidate.team)) {
+      return acc;
+    }
+
+    acc.push({
+      minute: Math.max(0, Math.floor(candidate.minute)),
+      phase: candidate.phase,
+      type: candidate.type,
+      team: candidate.team,
+      description: candidate.description,
+      homeGoals: Math.max(0, Math.floor(candidate.homeGoals)),
+      awayGoals: Math.max(0, Math.floor(candidate.awayGoals)),
+    });
+    return acc;
+  }, [] as MatchEvent[])
+    .sort((a, b) =>
+      a.minute - b.minute
+      || MATCH_EVENT_TYPE_PRIORITY[a.type] - MATCH_EVENT_TYPE_PRIORITY[b.type]
+      || a.description.localeCompare(b.description, 'da-DK')
+    );
+};
+
+const normalizeMatchReport = (report: unknown): MatchReport | null => {
+  if (!report || typeof report !== 'object') {
+    return null;
+  }
+
+  const candidate = report as Partial<MatchReport>;
+  if (typeof candidate.summary !== 'string' || !Array.isArray(candidate.highlights)) {
+    return null;
+  }
+
+  return {
+    summary: candidate.summary,
+    highlights: candidate.highlights.filter((entry): entry is string => typeof entry === 'string'),
+  };
+};
+
+const normalizeMatchDetails = (details: unknown): MatchDetails | undefined => {
+  if (!details || typeof details !== 'object') {
+    return undefined;
+  }
+
+  const candidate = details as Partial<MatchDetails>;
+  const stats = normalizeMatchStats(candidate.stats);
+  const report = normalizeMatchReport(candidate.report);
+  const events = normalizeMatchEvents(candidate.events);
+
+  if (!stats || !report || events.length === 0) {
+    return undefined;
+  }
+
+  return {
+    timeline: normalizeTimeline(candidate.timeline),
+    stats: {
+      ...stats,
+      possessionAway: clamp(100 - stats.possessionHome, 0, 100),
+    },
+    events,
+    report,
+  };
+};
+
+export const normalizeLeagueMatchRecord = (rawMatch: unknown): LeagueMatchRecord | null => {
+  if (!rawMatch || typeof rawMatch !== 'object') {
+    return null;
+  }
+
+  const candidate = rawMatch as Partial<LeagueMatchRecord>;
+  if (
+    typeof candidate.fixtureId !== 'string'
+    || typeof candidate.season !== 'number'
+    || typeof candidate.week !== 'number'
+    || typeof candidate.homeTeamId !== 'string'
+    || typeof candidate.homeTeamName !== 'string'
+    || typeof candidate.awayTeamId !== 'string'
+    || typeof candidate.awayTeamName !== 'string'
+    || typeof candidate.homeGoals !== 'number'
+    || typeof candidate.awayGoals !== 'number'
+    || typeof candidate.isUserMatch !== 'boolean'
+  ) {
+    return null;
+  }
+
+  return {
+    fixtureId: candidate.fixtureId,
+    season: Math.max(1, Math.floor(candidate.season)),
+    week: Math.max(1, Math.floor(candidate.week)),
+    homeTeamId: candidate.homeTeamId,
+    homeTeamName: candidate.homeTeamName,
+    awayTeamId: candidate.awayTeamId,
+    awayTeamName: candidate.awayTeamName,
+    homeGoals: Math.max(0, Math.floor(candidate.homeGoals)),
+    awayGoals: Math.max(0, Math.floor(candidate.awayGoals)),
+    isUserMatch: candidate.isUserMatch,
+    details: normalizeMatchDetails(candidate.details),
+  };
+};
+
+export const normalizeLeagueMatchRecords = (matches: unknown): LeagueMatchRecord[] => {
+  if (!Array.isArray(matches)) {
+    return [];
+  }
+
+  return matches.reduce((acc, rawMatch) => {
+    const normalized = normalizeLeagueMatchRecord(rawMatch);
+    if (normalized) {
+      acc.push(normalized);
+    }
+    return acc;
+  }, [] as LeagueMatchRecord[]);
+};
+
+export const simulateDetailedMatch = (
+  homeRating: number,
+  awayRating: number,
+  homeTeamName: string,
+  awayTeamName: string,
+  rng: () => number = Math.random,
+): { homeGoals: number; awayGoals: number; details: MatchDetails } => {
+  const score = simulateScoreWithRng(homeRating, awayRating, rng);
+  const totalMinutes = MATCH_TIMELINE.firstHalfMinutes + MATCH_TIMELINE.secondHalfMinutes;
+  const homeEdge = clamp((homeRating - awayRating) / 3, -8, 8);
+  const possessionHome = clamp(Math.round(50 + homeEdge + (rng() * 6 - 3)), 38, 62);
+  const chancesHome = Math.max(score.homeGoals + 2, Math.round(4 + possessionHome / 18 + rng() * 3));
+  const chancesAway = Math.max(score.awayGoals + 2, Math.round(4 + (100 - possessionHome) / 18 + rng() * 3));
+  const yellowCardsHome = randomInt(0, 2 + (score.awayGoals > score.homeGoals ? 1 : 0), rng);
+  const yellowCardsAway = randomInt(0, 2 + (score.homeGoals > score.awayGoals ? 1 : 0), rng);
+  const redCardsHome = yellowCardsHome > 1 && rng() > 0.9 ? 1 : 0;
+  const redCardsAway = yellowCardsAway > 1 && rng() > 0.9 ? 1 : 0;
+
+  const homeGoalMinutes = buildMinuteSlots(score.homeGoals, totalMinutes, rng);
+  const awayGoalMinutes = buildMinuteSlots(score.awayGoals, totalMinutes, rng);
+  const homeChanceMinutes = buildMinuteSlots(Math.max(0, chancesHome - score.homeGoals), totalMinutes, rng);
+  const awayChanceMinutes = buildMinuteSlots(Math.max(0, chancesAway - score.awayGoals), totalMinutes, rng);
+  const homeYellowCardMinutes = buildMinuteSlots(yellowCardsHome, totalMinutes, rng);
+  const awayYellowCardMinutes = buildMinuteSlots(yellowCardsAway, totalMinutes, rng);
+  const homeRedCardMinutes = buildMinuteSlots(redCardsHome, totalMinutes, rng);
+  const awayRedCardMinutes = buildMinuteSlots(redCardsAway, totalMinutes, rng);
+
+  const events: MatchEvent[] = [];
+
+  for (const minute of homeChanceMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'chance',
+      team: 'home',
+      description: `Stor chance til ${homeTeamName}, men afslutningen bliver reddet.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of awayChanceMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'chance',
+      team: 'away',
+      description: `${awayTeamName} spiller sig frem til en chance, men brænder.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of homeYellowCardMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'yellow_card',
+      team: 'home',
+      description: `Gult kort til ${homeTeamName} efter en sen tackling.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of awayYellowCardMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'yellow_card',
+      team: 'away',
+      description: `${awayTeamName} får kampens gule kort.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of homeRedCardMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'red_card',
+      team: 'home',
+      description: `Rødt kort! ${homeTeamName} må spille færdig med ti mand.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of awayRedCardMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'red_card',
+      team: 'away',
+      description: `Rødt kort til ${awayTeamName} efter en grov forseelse.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of homeGoalMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'goal',
+      team: 'home',
+      description: `MÅL! ${homeTeamName} bringer sig foran.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  for (const minute of awayGoalMinutes) {
+    events.push({
+      minute,
+      phase: getPhaseForMinute(minute, MATCH_TIMELINE),
+      type: 'goal',
+      team: 'away',
+      description: `MÅL! ${awayTeamName} scorer og ændrer kampbilledet.`,
+      homeGoals: 0,
+      awayGoals: 0,
+    });
+  }
+
+  let runningHomeGoals = 0;
+  let runningAwayGoals = 0;
+  const sortedEvents = events
+    .sort((a, b) =>
+      a.minute - b.minute
+      || MATCH_EVENT_TYPE_PRIORITY[a.type] - MATCH_EVENT_TYPE_PRIORITY[b.type]
+      || a.description.localeCompare(b.description, 'da-DK')
+    )
+    .map(event => {
+      if (event.type === 'goal' && event.team === 'home') {
+        runningHomeGoals += 1;
+      } else if (event.type === 'goal' && event.team === 'away') {
+        runningAwayGoals += 1;
+      }
+
+      return {
+        ...event,
+        homeGoals: runningHomeGoals,
+        awayGoals: runningAwayGoals,
+      };
+    });
+
+  const halftimeGoals = sortedEvents
+    .filter(event => event.type === 'goal' && event.minute <= MATCH_TIMELINE.firstHalfMinutes)
+    .slice(-1)[0];
+  const latestGoal = sortedEvents.filter(event => event.type === 'goal').slice(-1)[0];
+
+  sortedEvents.push(
+    {
+      minute: MATCH_TIMELINE.firstHalfMinutes,
+      phase: 'HALFTIME',
+      type: 'halftime',
+      team: 'neutral',
+      description: `Pause efter 15 minutter: ${homeTeamName} ${halftimeGoals?.homeGoals ?? 0}-${halftimeGoals?.awayGoals ?? 0} ${awayTeamName}.`,
+      homeGoals: halftimeGoals?.homeGoals ?? 0,
+      awayGoals: halftimeGoals?.awayGoals ?? 0,
+    },
+    {
+      minute: MATCH_TIMELINE.firstHalfMinutes + 1,
+      phase: 'SECOND_HALF',
+      type: 'second_half',
+      team: 'neutral',
+      description: '2. halvleg er sat i gang.',
+      homeGoals: halftimeGoals?.homeGoals ?? 0,
+      awayGoals: halftimeGoals?.awayGoals ?? 0,
+    },
+    {
+      minute: totalMinutes,
+      phase: 'FULL_TIME',
+      type: 'full_time',
+      team: 'neutral',
+      description: `Slutfløjt: ${homeTeamName} ${score.homeGoals}-${score.awayGoals} ${awayTeamName}.`,
+      homeGoals: latestGoal?.homeGoals ?? score.homeGoals,
+      awayGoals: latestGoal?.awayGoals ?? score.awayGoals,
+    },
+  );
+
+  const normalizedEvents = normalizeMatchEvents(sortedEvents);
+  const stats: MatchStats = {
+    chancesHome,
+    chancesAway,
+    yellowCardsHome,
+    yellowCardsAway,
+    redCardsHome,
+    redCardsAway,
+    possessionHome,
+    possessionAway: 100 - possessionHome,
+  };
+
+  return {
+    homeGoals: score.homeGoals,
+    awayGoals: score.awayGoals,
+    details: {
+      timeline: MATCH_TIMELINE,
+      stats,
+      events: normalizedEvents,
+      report: {
+        summary: `${homeTeamName} og ${awayTeamName} spillede ${summarizeResult(score.homeGoals, score.awayGoals)} efter 2x15 minutter og en pause på 5 minutter. Slutresultatet blev ${score.homeGoals}-${score.awayGoals}.`,
+        highlights: buildMatchHighlights(normalizedEvents, homeTeamName, awayTeamName, stats),
+      },
+    },
+  };
+};
+
+export const simulateScore = (homeRating: number, awayRating: number) =>
+  simulateScoreWithRng(homeRating, awayRating, Math.random);
 
 export const buildLeagueStandings = (
   selectedTeam: Team | null,
