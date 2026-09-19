@@ -140,7 +140,7 @@ export const LEAGUES: LeagueDefinition[] = [
     color: 'from-purple-500 to-purple-600',
     teams: createLeagueTeams('3. division', [
       { id: 'fc-helsingoer', name: 'FC Helsingør', logo: '🔴', primaryColor: '#D62828', secondaryColor: '#FFFFFF', baseRating: 58 },
-      { id: 'frem', name: 'BK Frem', logo: '🟠', primaryColor: '#C8102E', secondaryColor: '#991B1B', baseRating: 58 },
+      { id: 'frem', name: 'BK Frem', logo: '🟠', primaryColor: '#C8102E', secondaryColor: '#0057A6', baseRating: 58 },
       { id: 'holbaek', name: 'Holbæk B&I', logo: '🔵', primaryColor: '#1D4ED8', secondaryColor: '#FFFFFF', baseRating: 57 },
       { id: 'broenshoej', name: 'Brønshøj', logo: '🟡', primaryColor: '#F2C300', secondaryColor: '#111827', baseRating: 57 },
       { id: 'ishoej', name: 'Ishøj IF', logo: '🔴', primaryColor: '#D62828', secondaryColor: '#FFFFFF', baseRating: 56 },
