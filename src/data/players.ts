@@ -466,15 +466,24 @@ const createDeterministicGenerator = (seed: string) => {
 const randomInt = (rng: () => number, min: number, max: number) =>
   min + Math.floor(rng() * (max - min + 1));
 
-const buildPlayerName = (teamId: string, slotIndex: number, usedNames: Set<string>) => {
+const getFirstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+
+const buildPlayerName = (
+  teamId: string,
+  slotIndex: number,
+  usedNames: Set<string>,
+  usedFirstNames: Set<string>
+) => {
   const rng = createDeterministicGenerator(`${teamId}-name-${slotIndex}`);
   let attempts = 0;
 
   while (attempts < REAL_PLAYER_NAMES.length) {
     const candidate = REAL_PLAYER_NAMES[randomInt(rng, 0, REAL_PLAYER_NAMES.length - 1)];
+    const firstName = getFirstName(candidate);
 
-    if (!usedNames.has(candidate)) {
+    if (!usedNames.has(candidate) && !usedFirstNames.has(firstName)) {
       usedNames.add(candidate);
+      usedFirstNames.add(firstName);
       return candidate;
     }
 
@@ -482,14 +491,38 @@ const buildPlayerName = (teamId: string, slotIndex: number, usedNames: Set<strin
   }
 
   const fallbackIndex = (hashString(`${teamId}-${slotIndex}`) + slotIndex) % REAL_PLAYER_NAMES.length;
+
+  for (let offset = 0; offset < REAL_PLAYER_NAMES.length; offset += 1) {
+    const candidate = REAL_PLAYER_NAMES[(fallbackIndex + offset) % REAL_PLAYER_NAMES.length];
+    const firstName = getFirstName(candidate);
+
+    if (!usedNames.has(candidate) && !usedFirstNames.has(firstName)) {
+      usedNames.add(candidate);
+      usedFirstNames.add(firstName);
+      return candidate;
+    }
+  }
+
+  for (let offset = 0; offset < REAL_PLAYER_NAMES.length; offset += 1) {
+    const candidate = REAL_PLAYER_NAMES[(fallbackIndex + offset) % REAL_PLAYER_NAMES.length];
+
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate);
+      usedFirstNames.add(getFirstName(candidate));
+      return candidate;
+    }
+  }
+
   const fallbackName = REAL_PLAYER_NAMES[fallbackIndex];
   usedNames.add(fallbackName);
+  usedFirstNames.add(getFirstName(fallbackName));
   return fallbackName;
 };
 
 const buildTeamSquad = (team: Team): Player[] => {
   const rng = createDeterministicGenerator(team.id);
   const usedNames = new Set<string>();
+  const usedFirstNames = new Set<string>();
   const baseLevel = clampBase(team.baseRating - 13);
 
   return SQUAD_TEMPLATE.map((slot, index) => {
@@ -500,7 +533,7 @@ const buildTeamSquad = (team: Team): Player[] => {
 
     return createPlayer({
       id: `${team.id}-player-${index + 1}`,
-      name: buildPlayerName(team.id, index, usedNames),
+      name: buildPlayerName(team.id, index, usedNames, usedFirstNames),
       age,
       position: slot.position,
       primaryRole: slot.primaryRole,
