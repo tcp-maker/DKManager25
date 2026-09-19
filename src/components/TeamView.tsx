@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import { getTeamById } from '../data/leagues';
 import { ROLE_LABELS } from '../data/players';
@@ -35,6 +35,7 @@ const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
   const { gameState } = useGame();
   const team = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const playerDetailsRef = useRef<HTMLDivElement | null>(null);
 
   if (!team) return <div>Ingen trup valgt</div>;
 
@@ -75,6 +76,30 @@ const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
     () => (selectedPlayerId ? gameState.players[selectedPlayerId] ?? null : null),
     [selectedPlayerId, gameState.players],
   );
+
+  useEffect(() => {
+    if (!selectedPlayer || !playerDetailsRef.current || typeof window === 'undefined') {
+      return;
+    }
+
+    const playerDetailsElement = playerDetailsRef.current;
+    const viewportOffset = 24;
+    const rect = playerDetailsElement.getBoundingClientRect();
+    const isAboveViewport = rect.top < viewportOffset;
+    const isBelowViewport = rect.bottom > window.innerHeight - viewportOffset;
+
+    if (!isAboveViewport && !isBelowViewport) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    const targetTop = Math.max(window.scrollY + rect.top - viewportOffset, 0);
+
+    window.scrollTo({
+      top: targetTop,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  }, [selectedPlayer?.id]);
 
   return (
     <div>
@@ -272,11 +297,13 @@ const TeamView: React.FC<TeamViewProps> = ({ onOpenEconomy }) => {
         </div>
 
         {selectedPlayer && (
-          <PlayerDetailsPanel
-            player={selectedPlayer}
-            title="Spillerside"
-            onClose={() => setSelectedPlayerId(null)}
-          />
+          <div ref={playerDetailsRef}>
+            <PlayerDetailsPanel
+              player={selectedPlayer}
+              title="Spillerside"
+              onClose={() => setSelectedPlayerId(null)}
+            />
+          </div>
         )}
       </div>
     </div>
