@@ -71,7 +71,7 @@ const App: React.FC = () => {
   const renderMainView = () => {
     switch (activeView) {
       case 'team':
-        return <TeamView />;
+        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
       case 'transfers':
         return <TransferMarketView />;
       case 'matches':
@@ -90,7 +90,7 @@ const App: React.FC = () => {
           />
         );
       default:
-        return <TeamView />;
+        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
     }
   };
 

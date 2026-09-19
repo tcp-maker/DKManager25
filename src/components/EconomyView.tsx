@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
 import {
+  calculateEconomyTimeline,
   calculateEquity,
   calculateLoanOffer,
-  calculatePeriodSummary,
+  resolveDisplayedWeekSummary,
   calculateSeasonSummary,
   calculateSquadValue,
   calculateSquadWageBill,
@@ -63,13 +64,15 @@ const EconomyView: React.FC = () => {
   const players = useMemo(() => Object.values(gameState.players), [gameState.players]);
   const squadValue = useMemo(() => calculateSquadValue(players), [players]);
   const wageBill = useMemo(() => calculateSquadWageBill(players), [players]);
-  const currentWeekSummary = useMemo(
-    () => calculatePeriodSummary(gameState.economy.transactions, gameState.season, gameState.week),
-    [gameState.economy.transactions, gameState.season, gameState.week],
+  const displayedWeekSummary = useMemo(
+    () => resolveDisplayedWeekSummary(
+      gameState.economy.transactions,
+      gameState.season,
+      gameState.week,
+      gameState.economy.lastWeekSummary,
+    ),
+    [gameState.economy.transactions, gameState.season, gameState.week, gameState.economy.lastWeekSummary],
   );
-  const displayedWeekSummary = currentWeekSummary.income > 0 || currentWeekSummary.expenses > 0
-    ? currentWeekSummary
-    : gameState.economy.lastWeekSummary ?? currentWeekSummary;
   const seasonSummary = useMemo(
     () => calculateSeasonSummary(gameState.economy.transactions, gameState.season),
     [gameState.economy.transactions, gameState.season],
@@ -84,6 +87,10 @@ const EconomyView: React.FC = () => {
   const seasonTransactions = useMemo(
     () => gameState.economy.transactions.filter(transaction => transaction.season === gameState.season),
     [gameState.economy.transactions, gameState.season],
+  );
+  const timeline = useMemo(
+    () => calculateEconomyTimeline(gameState.economy.transactions),
+    [gameState.economy.transactions],
   );
   const incomeByCategory = Object.entries(sumByCategory(seasonTransactions, 'income'))
     .sort(([, leftAmount], [, rightAmount]) => (rightAmount ?? 0) - (leftAmount ?? 0)) as Array<[EconomyTransactionCategory, number]>;
@@ -226,6 +233,7 @@ const EconomyView: React.FC = () => {
             <p>Muligt nyt lån: <span className="font-semibold">{formatCurrency(loanOffer.amount)}</span></p>
             <p>Maksimal samlet gæld: <span className="font-semibold">{formatCurrency(loanOffer.maxDebt)}</span></p>
             <p>Forventet basisindtægt næste uge: <span className="font-semibold">{formatCurrency(projectedIncome)}</span></p>
+            <p>Uger med bogført historik: <span className="font-semibold">{timeline.length}</span></p>
           </div>
           <button
             type="button"
