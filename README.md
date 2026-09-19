@@ -68,7 +68,7 @@ Kampresultater påvirker nu state sådan:
 
 - Der er stadig ingen automatiserede tests eller lint-scripts i repoet
 - Klubrækkerne er baseret på aktuelle/relevante DBU-/Divisionsforeningen-referencer, men `baseRating` og spillerdata er stadig spilbalancerede prototypeværdier
-- Holdsquad-navne genereres deterministisk pr. klub og er ikke tænkt som 1:1 gengivelser af virkelige spillertrupper
+- Klubspecifikke spillerfrø er implementeret, men kun et udsnit er verificeret mod eksterne trupkilder; resterende hold bruger tydelige `[fallback]`-navne pr. klub
 - Ligaforløbet er stadig en prototype med begrænset sæsonhistorik og uden op-/nedrykning
 - Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
 
@@ -207,6 +207,12 @@ npm run preview
 - DBU / Divisionsforeningen blev brugt som primære referencepunkter for divisionsstrukturen
 - Officielle/nær-officielle oversigter over 2026/27-felterne blev krydstjekket via søgninger mod Superliga, worldfootball.net, 2-division.dk og 3-division.dk, da direkte fetch mod DBU-domænet var blokeret i denne sandbox
 - Klubberne er placeret i divisioner efter disse aktuelle/relevante kilder, mens ratings fortsat er gameplay-balancerede prototyper
+
+### Kilder til spillertrupper (snapshot: 2026-09-19)
+
+- Primære referencesider: Transfermarkt 2026/27-holdtrupper (bruges for seedede klubber i `src/data/players.ts`)
+- Verificerede klubspecifikke navne i kode: `fckoebenhavn`, `broendby`, `midtjylland`
+- Øvrige klubber i `LEAGUES` bruger deterministiske, klubbundne fallback-navne markeret med `[fallback]`, så ingen trup får spillere fra andre klubber
 
 ## Repository-struktur
 

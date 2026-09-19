@@ -1,6 +1,7 @@
 import { Player, PlayerRole, PlayerSkills, SkillKey } from '../types/player';
 import { Team } from '../types/teams';
 import { estimateWeeklySalary } from '../lib/economy';
+import { LEAGUES, getTeamById } from './leagues';
 
 export const SKILL_KEYS: SkillKey[] = [
   'intelligence',
@@ -88,6 +89,14 @@ interface SquadTemplateSlot {
   ageRange: [number, number];
   baseOffset: number;
   overrides?: SkillOverrides;
+}
+
+interface TeamPlayerSeed {
+  name: string;
+  age?: number;
+  position?: Player['position'];
+  primaryRole?: PlayerRole;
+  secondaryRoles?: PlayerRole[];
 }
 
 const clampSkill = (value: number) => Math.max(1, Math.min(99, Math.round(value)));
@@ -426,21 +435,71 @@ const SQUAD_TEMPLATE: SquadTemplateSlot[] = [
   { position: 'FW', primaryRole: 'striker', secondaryRoles: ['winger'], ageRange: [18, 22], baseOffset: 0, overrides: { attackingPlay: 11, finishing: 10, pace: 10 } },
 ];
 
-const REAL_PLAYER_NAMES = [
-  'Rasmus Højlund', 'Mikkel Damsgaard', 'Victor Kristiansen', 'Jonas Wind', 'Mads Hermansen',
-  'Andreas Skov Olsen', 'Pione Sisto', 'Magnus Warming', 'Nicolai Vallys', 'Jesper Hansen',
-  'Lukas Lerager', 'Mathias Kvistgaarden', 'Oliver Drost', 'Emil Riis', 'Felix Madsen',
-  'Rasmus Nissen', 'Casper Tengstedt', 'Morten Hjulmand', 'Kristian Nørgaard', 'Sander Svendsen',
-  'Tobias Salquist', 'Noah Sahsah', 'Malthe Højholt', 'Villads Nielsen', 'August Priske',
-  'Oscar Schwartau', 'Patrick Mortensen', 'Nikolaj Alstrup', 'Birk Risa', 'Kasper Høgh',
-  'Joachim Andersen', 'Lasse Schöne', 'Laurits Høgh', 'Silas Andersen', 'William Osula',
-  'Elias Andersson', 'Carl Ankerd', 'Mads Bech', 'Jeppe Okkels', 'Rasmus Carstensen',
-  'Frederik Winther', 'Christian Nørgaard', 'Thomas Delaney', 'Alexander Bah', 'Sebastian Toune',
-  'Anton Gaaei', 'Nicolai Brock-Madsen', 'Valdemar Byskov', 'Andreas Cornelius', 'Elias Jelert',
-  'Malthe Møller', 'Kasper Dolberg', 'Martin Frese', 'Mikkel Kaufmann', 'Kian Hansen',
-  'William Bøving', 'Asbjørn A. Jensen', 'Emil Holm', 'Luca Kjær', 'Lukas Høgh',
-  'Nicolai Nyholm', 'Henrik Dalsgaard', 'Mathias Jørgensen', 'Mads Jæger', 'Peter Ankersen'
-];
+export const PLAYER_DATA_SNAPSHOT_DATE = '2026-09-19';
+export const TEAM_PLAYER_SEEDS: Record<string, readonly TeamPlayerSeed[]> = {
+  fckoebenhavn: [
+    { name: 'Diant Ramaj', age: 25, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Rúnar Alex Rúnarsson', age: 31, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Felix Beijmo', age: 28, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Asger Sørensen', age: 30, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Marcos López', age: 26, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Birger Meling', age: 31, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Rodrigo Huescas', age: 23, position: 'DF', primaryRole: 'full-back' },
+    { name: 'William Clem', age: 22, position: 'MF', primaryRole: 'defensive-midfielder' },
+    { name: 'Magnus Mattsson', age: 27, position: 'MF', primaryRole: 'attacking-midfielder' },
+    { name: 'Mads Emil Madsen', age: 27, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Alex Král', age: 28, position: 'MF', primaryRole: 'defensive-midfielder' },
+    { name: 'Thomas Delaney', age: 35, position: 'MF', primaryRole: 'defensive-midfielder' },
+    { name: 'Mohamed Elyounoussi', age: 32, position: 'MF', primaryRole: 'winger' },
+    { name: 'Andreas Cornelius', age: 33, position: 'FW', primaryRole: 'striker' },
+    { name: 'Maher Carrizo', age: 20, position: 'FW', primaryRole: 'winger' },
+    { name: 'Thapelo Maseko', age: 23, position: 'MF', primaryRole: 'winger' },
+    { name: 'Geovanni Vianney Ndjee', age: 20, position: 'FW', primaryRole: 'striker' },
+    { name: 'Viktor Dadason', age: 22, position: 'FW', primaryRole: 'striker' },
+  ],
+  broendby: [
+    { name: 'Patrick Pentz', age: 29, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Mads Hermansen', age: 26, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Sebastian Sebulonsen', age: 27, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Kevin Mensah', age: 35, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Sigurd Rosted', age: 32, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Jacob Rasmussen', age: 29, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Frederik Alves', age: 27, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Daniel Wass', age: 37, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Anis Ben Slimane', age: 25, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Håkon Evjen', age: 26, position: 'MF', primaryRole: 'winger' },
+    { name: 'Mathias Greve', age: 31, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Nicolai Vallys', age: 30, position: 'MF', primaryRole: 'attacking-midfielder' },
+    { name: 'Yuito Suzuki', age: 24, position: 'MF', primaryRole: 'winger' },
+    { name: 'Marko Divković', age: 27, position: 'MF', primaryRole: 'winger' },
+    { name: 'Oskar Fallenius', age: 24, position: 'MF', primaryRole: 'winger' },
+    { name: 'Mathias Kvistgaarden', age: 24, position: 'FW', primaryRole: 'striker' },
+    { name: 'Andreas Maxsø', age: 32, position: 'DF', primaryRole: 'center-back' },
+  ],
+  midtjylland: [
+    { name: 'Elías Ólafsson', age: 26, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Nordin Bakker', age: 28, position: 'GK', primaryRole: 'goalkeeper' },
+    { name: 'Ousmane Diao', age: 22, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Mads Bech Sørensen', age: 27, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Martin Erlić', age: 28, position: 'DF', primaryRole: 'center-back' },
+    { name: 'Victor Bak', age: 24, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Rasmus Nissen Kristensen', age: 29, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Béni Junior', age: 25, position: 'DF', primaryRole: 'full-back' },
+    { name: 'Denil Castillo', age: 22, position: 'MF', primaryRole: 'defensive-midfielder' },
+    { name: 'Philip Billing', age: 30, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Pedro Bravo', age: 23, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Kjell Wätjen', age: 20, position: 'MF', primaryRole: 'central-midfielder' },
+    { name: 'Hyun-seok Hong', age: 27, position: 'MF', primaryRole: 'attacking-midfielder' },
+    { name: 'Mikel Gogorza', age: 23, position: 'MF', primaryRole: 'winger' },
+    { name: 'David Martínez', age: 20, position: 'MF', primaryRole: 'winger' },
+    { name: 'Gue-sung Cho', age: 28, position: 'FW', primaryRole: 'striker' },
+    { name: 'Mikael Uhre', age: 31, position: 'FW', primaryRole: 'striker' },
+    { name: 'Mileta Rajović', age: 27, position: 'FW', primaryRole: 'striker' },
+  ],
+};
+
+const TEAM_IDS = LEAGUES.flatMap(league => league.teams.map(team => team.id));
+export const TEAM_IDS_WITH_FALLBACK_NAMES = TEAM_IDS.filter(teamId => !(teamId in TEAM_PLAYER_SEEDS));
 
 const clampBase = (value: number) => Math.max(42, Math.min(74, Math.round(value)));
 
@@ -466,78 +525,70 @@ const createDeterministicGenerator = (seed: string) => {
 const randomInt = (rng: () => number, min: number, max: number) =>
   min + Math.floor(rng() * (max - min + 1));
 
-const getFirstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+const normalizeNameForCompare = (name: string) => name.trim().toLocaleLowerCase('da-DK');
 
-const buildPlayerName = (
-  teamId: string,
+const buildFallbackClubName = (team: Team, slotIndex: number) =>
+  `${team.name} Talent ${String(slotIndex + 1).padStart(2, '0')} [fallback]`;
+
+const getTeamSeedPool = (teamId: string): TeamPlayerSeed[] =>
+  (TEAM_PLAYER_SEEDS[teamId] ?? []).map(seed => ({ ...seed }));
+
+const pickSeedForSlot = (
+  team: Team,
+  slot: SquadTemplateSlot,
   slotIndex: number,
-  usedNames: Set<string>,
-  usedFirstNames: Set<string>
+  seedPool: TeamPlayerSeed[],
+  usedNames: Set<string>
 ) => {
-  const rng = createDeterministicGenerator(`${teamId}-name-${slotIndex}`);
-  let attempts = 0;
+  const preferredIndex = seedPool.findIndex(candidate =>
+    !usedNames.has(normalizeNameForCompare(candidate.name)) &&
+    (!candidate.position || candidate.position === slot.position) &&
+    (!candidate.primaryRole || candidate.primaryRole === slot.primaryRole)
+  );
 
-  while (attempts < REAL_PLAYER_NAMES.length) {
-    const candidate = REAL_PLAYER_NAMES[randomInt(rng, 0, REAL_PLAYER_NAMES.length - 1)];
-    const firstName = getFirstName(candidate);
+  const fallbackIndex = preferredIndex >= 0
+    ? preferredIndex
+    : seedPool.findIndex(candidate => !usedNames.has(normalizeNameForCompare(candidate.name)));
 
-    if (!usedNames.has(candidate) && !usedFirstNames.has(firstName)) {
-      usedNames.add(candidate);
-      usedFirstNames.add(firstName);
-      return candidate;
-    }
-
-    attempts += 1;
+  if (fallbackIndex >= 0) {
+    const [seed] = seedPool.splice(fallbackIndex, 1);
+    usedNames.add(normalizeNameForCompare(seed.name));
+    return seed;
   }
 
-  const fallbackIndex = (hashString(`${teamId}-${slotIndex}`) + slotIndex) % REAL_PLAYER_NAMES.length;
+  const fallbackSeed = { name: buildFallbackClubName(team, slotIndex) } as TeamPlayerSeed;
+  let dedupeOffset = 0;
 
-  for (let offset = 0; offset < REAL_PLAYER_NAMES.length; offset += 1) {
-    const candidate = REAL_PLAYER_NAMES[(fallbackIndex + offset) % REAL_PLAYER_NAMES.length];
-    const firstName = getFirstName(candidate);
-
-    if (!usedNames.has(candidate) && !usedFirstNames.has(firstName)) {
-      usedNames.add(candidate);
-      usedFirstNames.add(firstName);
-      return candidate;
-    }
+  while (usedNames.has(normalizeNameForCompare(fallbackSeed.name))) {
+    dedupeOffset += 1;
+    fallbackSeed.name = `${buildFallbackClubName(team, slotIndex)}-${dedupeOffset}`;
   }
 
-  for (let offset = 0; offset < REAL_PLAYER_NAMES.length; offset += 1) {
-    const candidate = REAL_PLAYER_NAMES[(fallbackIndex + offset) % REAL_PLAYER_NAMES.length];
-
-    if (!usedNames.has(candidate)) {
-      usedNames.add(candidate);
-      usedFirstNames.add(getFirstName(candidate));
-      return candidate;
-    }
-  }
-
-  const fallbackName = REAL_PLAYER_NAMES[fallbackIndex];
-  usedNames.add(fallbackName);
-  usedFirstNames.add(getFirstName(fallbackName));
-  return fallbackName;
+  usedNames.add(normalizeNameForCompare(fallbackSeed.name));
+  return fallbackSeed;
 };
 
 const buildTeamSquad = (team: Team): Player[] => {
-  const rng = createDeterministicGenerator(team.id);
+  const canonicalTeam = getTeamById(team.id) ?? team;
+  const rng = createDeterministicGenerator(canonicalTeam.id);
   const usedNames = new Set<string>();
-  const usedFirstNames = new Set<string>();
-  const baseLevel = clampBase(team.baseRating - 13);
+  const baseLevel = clampBase(canonicalTeam.baseRating - 13);
+  const seedPool = getTeamSeedPool(canonicalTeam.id);
 
   return SQUAD_TEMPLATE.map((slot, index) => {
-    const age = randomInt(rng, slot.ageRange[0], slot.ageRange[1]);
+    const selectedSeed = pickSeedForSlot(canonicalTeam, slot, index, seedPool, usedNames);
+    const age = selectedSeed.age ?? randomInt(rng, slot.ageRange[0], slot.ageRange[1]);
     const variation = randomInt(rng, -1, 1);
     const base = clampBase(baseLevel + slot.baseOffset + variation);
     const isForSale = index >= SQUAD_TEMPLATE.length - 2 && rng() > 0.55;
 
     return createPlayer({
-      id: `${team.id}-player-${index + 1}`,
-      name: buildPlayerName(team.id, index, usedNames, usedFirstNames),
+      id: `${canonicalTeam.id}-player-${index + 1}`,
+      name: selectedSeed.name,
       age,
-      position: slot.position,
-      primaryRole: slot.primaryRole,
-      secondaryRoles: slot.secondaryRoles ?? [],
+      position: selectedSeed.position ?? slot.position,
+      primaryRole: selectedSeed.primaryRole ?? slot.primaryRole,
+      secondaryRoles: selectedSeed.secondaryRoles ?? slot.secondaryRoles ?? [],
       base,
       overrides: slot.overrides,
       isForSale,
@@ -546,11 +597,11 @@ const buildTeamSquad = (team: Team): Player[] => {
 };
 
 const transferSeeds: PlayerSeed[] = [
-  { id: 'buy1', name: 'Pione Sisto', age: 27, position: 'FW', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 64, overrides: { wingPlay: 16, dribbling: 15, pace: 14, finishing: 12, attackingPlay: 11 } },
-  { id: 'buy2', name: 'Paul Onuachu', age: 29, position: 'FW', primaryRole: 'striker', base: 66, overrides: { attackingPlay: 16, finishing: 15, heading: 16, pace: 5 } },
-  { id: 'buy3', name: 'Magnus Andersen', age: 26, position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['defensive-midfielder'], base: 62, overrides: { midfieldPlay: 14, passing: 12, vision: 11, stamina: 9 } },
-  { id: 'buy4', name: 'Nicolai Vallys', age: 24, position: 'DF', primaryRole: 'full-back', secondaryRoles: ['winger'], base: 59, overrides: { pace: 12, wingPlay: 11, defending: 10, dribbling: 8 } },
-  { id: 'buy5', name: 'Jesper Hansen', age: 30, position: 'GK', primaryRole: 'goalkeeper', base: 61, overrides: { goalkeeping: 18, intelligence: 9, passing: 8 } },
+  { id: 'buy1', name: 'Transfermål A', age: 27, position: 'FW', primaryRole: 'winger', secondaryRoles: ['attacking-midfielder'], base: 64, overrides: { wingPlay: 16, dribbling: 15, pace: 14, finishing: 12, attackingPlay: 11 } },
+  { id: 'buy2', name: 'Transfermål B', age: 29, position: 'FW', primaryRole: 'striker', base: 66, overrides: { attackingPlay: 16, finishing: 15, heading: 16, pace: 5 } },
+  { id: 'buy3', name: 'Transfermål C', age: 26, position: 'MF', primaryRole: 'central-midfielder', secondaryRoles: ['defensive-midfielder'], base: 62, overrides: { midfieldPlay: 14, passing: 12, vision: 11, stamina: 9 } },
+  { id: 'buy4', name: 'Transfermål D', age: 24, position: 'DF', primaryRole: 'full-back', secondaryRoles: ['winger'], base: 59, overrides: { pace: 12, wingPlay: 11, defending: 10, dribbling: 8 } },
+  { id: 'buy5', name: 'Transfermål E', age: 30, position: 'GK', primaryRole: 'goalkeeper', base: 61, overrides: { goalkeeping: 18, intelligence: 9, passing: 8 } },
 ];
 
 const FALLBACK_TEAM: Team = {
