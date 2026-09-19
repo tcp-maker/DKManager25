@@ -184,6 +184,7 @@ const App: React.FC = () => {
   const handleStartNewGame = () => {
     restartCurrentTeam();
     setActiveView('team');
+    return null;
   };
 
   return (
