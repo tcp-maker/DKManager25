@@ -463,7 +463,7 @@ const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
     return [];
   }
 
-  return events.reduce((acc, rawEvent) => {
+  return events.reduce<MatchEvent[]>((acc, rawEvent) => {
     if (!rawEvent || typeof rawEvent !== 'object') {
       return acc;
     }
@@ -503,8 +503,8 @@ const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
       awayGoals: Math.max(0, Math.floor(candidate.awayGoals)),
     });
     return acc;
-  }, [] as MatchEvent[])
-    .sort((a, b) =>
+  }, [])
+    .sort((a: MatchEvent, b: MatchEvent) =>
       a.minute - b.minute
       || MATCH_EVENT_TYPE_PRIORITY[a.type] - MATCH_EVENT_TYPE_PRIORITY[b.type]
       || a.description.localeCompare(b.description, 'da-DK')
