@@ -300,7 +300,7 @@ describe('league standings matches played', () => {
       75,
       userFixture.homeTeamName,
       userFixture.awayTeamName,
-      createSequenceRng([0.2, 0.4, 0.6, 0.8]),
+      createSequenceRng(Array.from({ length: 100 }, (_, index) => (index + 0.5) / 100)),
     );
 
     const matches = buildRoundMatchRecords(
