@@ -56,7 +56,7 @@ const playWeekByWeek = (
     assert.ok(userFixture, `expected user fixture in week ${week}`);
     matches = [
       ...matches,
-      ...buildRoundMatchRecords(schedule, season, userFixture.id, { homeGoals: 2, awayGoals: 2 }, matches, fixedScore),
+      ...buildRoundMatchRecords(schedule, season, userTeam.id, userFixture.id, { homeGoals: 2, awayGoals: 2 }, matches, fixedScore),
     ];
     onWeekPlayed(week, matches);
   }
@@ -155,6 +155,7 @@ describe('league standings matches played', () => {
     const [legacyUserMatch] = buildRoundMatchRecords(
       schedule.filter(fixture => fixture.id === roundOneUserFixture.id),
       1,
+      userTeam.id,
       roundOneUserFixture.id,
       { homeGoals: 0, awayGoals: 0 },
       [],
@@ -163,6 +164,7 @@ describe('league standings matches played', () => {
     const newMatches = buildRoundMatchRecords(
       schedule,
       1,
+      userTeam.id,
       roundTwoUserFixture.id,
       { homeGoals: 3, awayGoals: 1 },
       [legacyUserMatch],
@@ -179,6 +181,19 @@ describe('league standings matches played', () => {
     }
   });
 
+  it('never auto-simulates an earlier unplayed fixture of the user team', () => {
+    const userTeam = LEAGUES[0].teams[0];
+    const schedule = getLeagueSeasonSchedule(userTeam);
+    const roundTwoUserFixture = getUserFixture(schedule, userTeam.id, 2);
+    assert.ok(roundTwoUserFixture);
+
+    const newMatches = buildRoundMatchRecords(schedule, 1, userTeam.id, roundTwoUserFixture.id, { homeGoals: 1, awayGoals: 1 }, [], fixedScore);
+    const userTeamMatches = newMatches.filter(match => match.homeTeamId === userTeam.id || match.awayTeamId === userTeam.id);
+
+    assert.deepEqual(userTeamMatches.map(match => [match.fixtureId, match.isUserMatch]), [[roundTwoUserFixture.id, true]]);
+    assert.equal(newMatches.filter(match => match.week === 1).length, 5);
+  });
+
   it('scopes matches played to the season and ignores duplicate records', () => {
     const teams = LEAGUES[0].teams;
     const userTeam = teams[0];
@@ -186,11 +201,11 @@ describe('league standings matches played', () => {
     const userFixture = getUserFixture(schedule, userTeam.id, 1);
     assert.ok(userFixture);
 
-    const seasonOne = buildRoundMatchRecords(schedule, 1, userFixture.id, { homeGoals: 1, awayGoals: 0 }, [], fixedScore);
-    const seasonTwo = buildRoundMatchRecords(schedule, 2, userFixture.id, { homeGoals: 1, awayGoals: 0 }, seasonOne, fixedScore);
+    const seasonOne = buildRoundMatchRecords(schedule, 1, userTeam.id, userFixture.id, { homeGoals: 1, awayGoals: 0 }, [], fixedScore);
+    const seasonTwo = buildRoundMatchRecords(schedule, 2, userTeam.id, userFixture.id, { homeGoals: 1, awayGoals: 0 }, seasonOne, fixedScore);
     assert.equal(seasonTwo.length, 6);
     assert.deepEqual(
-      buildRoundMatchRecords(schedule, 2, userFixture.id, { homeGoals: 1, awayGoals: 0 }, [...seasonOne, ...seasonTwo], fixedScore),
+      buildRoundMatchRecords(schedule, 2, userTeam.id, userFixture.id, { homeGoals: 1, awayGoals: 0 }, [...seasonOne, ...seasonTwo], fixedScore),
       [],
     );
 

@@ -291,12 +291,13 @@ const buildMatchKey = (season: number, fixtureId: string) => `${season}:${fixtur
 /**
  * Builds the match records created when the user's fixture is played.
  * Every other fixture is taken from the user's fixture's own round (and any earlier
- * round of the same season that has not been completed yet), so the number of matches
+ * round of the same season that has not been completed yet, except the user's own fixtures), so the number of matches
  * per round always follows the actual schedule instead of a fixed or current-week round.
  */
 export const buildRoundMatchRecords = (
   schedule: LeagueFixture[],
   season: number,
+  userTeamId: string,
   userFixtureId: string,
   userScore: { homeGoals: number; awayGoals: number },
   existingMatches: LeagueMatchRecord[],
@@ -309,7 +310,10 @@ export const buildRoundMatchRecords = (
   if (recordedKeys.has(buildMatchKey(season, userFixture.id))) return [];
 
   return schedule
-    .filter(fixture => fixture.week <= userFixture.week && !recordedKeys.has(buildMatchKey(season, fixture.id)))
+    .filter(fixture =>
+      fixture.week <= userFixture.week
+      && !recordedKeys.has(buildMatchKey(season, fixture.id))
+      && (fixture.id === userFixture.id || (fixture.homeTeamId !== userTeamId && fixture.awayTeamId !== userTeamId)))
     .sort((a, b) => a.week - b.week)
     .map(fixture => {
       const isUserMatch = fixture.id === userFixture.id;

@@ -737,6 +737,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const newMatches = buildRoundMatchRecords(
         getLeagueSeasonSchedule(selectedTeam),
         prev.season,
+        selectedTeam.id,
         fixture.id,
         { homeGoals, awayGoals },
         prev.leagueMatches,
