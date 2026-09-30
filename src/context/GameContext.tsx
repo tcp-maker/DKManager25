@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, type LeagueMatchRecord, type ScheduledMatch, simulateScore } from '../data/leagues';
+import { buildRoundMatchRecords, getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, type LeagueMatchRecord, type ScheduledMatch } from '../data/leagues';
 import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
 import {
   calculateBoardStatus,
@@ -732,50 +732,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const alreadyPlayed = prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === fixture.id);
-      if (alreadyPlayed) {
-        return prev;
-      }
-
-      const otherMatches = getLeagueSeasonSchedule(selectedTeam)
-        .filter(match =>
-          match.week === prev.week
-          && match.id !== fixture.id
-          && !prev.leagueMatches.some(existing => existing.season === prev.season && existing.fixtureId === match.id),
-        )
-        .map(match => {
-          const homeTeam = getTeamById(match.homeTeamId);
-          const awayTeam = getTeamById(match.awayTeamId);
-          const otherResult = simulateScore(homeTeam?.baseRating ?? 70, awayTeam?.baseRating ?? 70);
-
-          return {
-            fixtureId: match.id,
-            season: prev.season,
-            week: prev.week,
-            homeTeamId: match.homeTeamId,
-            homeTeamName: match.homeTeamName,
-            awayTeamId: match.awayTeamId,
-            awayTeamName: match.awayTeamName,
-            homeGoals: otherResult.homeGoals,
-            awayGoals: otherResult.awayGoals,
-            isUserMatch: false,
-          };
-        });
-
       const homeGoals = fixture.isHome ? userGoals : opponentGoals;
       const awayGoals = fixture.isHome ? opponentGoals : userGoals;
-      const userMatch: LeagueMatchRecord = {
-        fixtureId: fixture.id,
-        season: prev.season,
-        week: prev.week,
-        homeTeamId: fixture.isHome ? selectedTeam.id : fixture.opponentId,
-        homeTeamName: fixture.isHome ? selectedTeam.name : fixture.opponent,
-        awayTeamId: fixture.isHome ? fixture.opponentId : selectedTeam.id,
-        awayTeamName: fixture.isHome ? fixture.opponent : selectedTeam.name,
-        homeGoals,
-        awayGoals,
-        isUserMatch: true,
-      };
+      const newMatches = buildRoundMatchRecords(
+        getLeagueSeasonSchedule(selectedTeam),
+        prev.season,
+        fixture.id,
+        { homeGoals, awayGoals },
+        prev.leagueMatches,
+      );
+      if (newMatches.length === 0) {
+        return prev;
+      }
 
       const resultDelta = userGoals > opponentGoals
         ? { fanCount: 50, fanMood: 5 }
@@ -789,8 +757,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         fanMood: Math.max(0, Math.min(100, prev.fanMood + resultDelta.fanMood)),
         leagueMatches: [
           ...prev.leagueMatches,
-          userMatch,
-          ...otherMatches,
+          ...newMatches,
         ],
       });
     });
