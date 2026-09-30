@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { getAvailableSeasons, type LeagueStanding } from '../data/leagues';
+import { getAvailableSeasons, getSeasonFixtures, type LeagueStanding } from '../data/leagues';
 import LeagueTableCard from './LeagueTableCard';
 
 interface LeagueTablesViewProps {
@@ -15,6 +15,7 @@ const LeagueTablesView: React.FC<LeagueTablesViewProps> = ({ currentStandings })
     () => getAvailableSeasons(gameState.season, gameState.seasonHistory),
     [gameState.season, gameState.seasonHistory],
   );
+  const seasonMatchCount = useMemo(() => getSeasonFixtures(selectedTeam).length, [selectedTeam]);
   const completedSeasons = useMemo(
     () => [...gameState.seasonHistory].sort((a, b) => b.season - a.season),
     [gameState.seasonHistory],
@@ -48,7 +49,7 @@ const LeagueTablesView: React.FC<LeagueTablesViewProps> = ({ currentStandings })
 
         {completedSeasons.length === 0 ? (
           <p className="px-4 py-6 text-center text-gray-500">
-            Ingen afsluttede sæsoner endnu. Sæsonen afsluttes efter 22 ligakampe.
+            Ingen afsluttede sæsoner endnu. Sæsonen afsluttes efter {seasonMatchCount} ligakampe.
           </p>
         ) : (
           <ul className="divide-y">

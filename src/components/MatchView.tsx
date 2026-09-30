@@ -395,7 +395,7 @@ const MatchView: React.FC = () => {
               </div>
             </div>
 
-            {playedMatches.length > 0 && (
+            {(playedMatches.length > 0 || historyArchive) && (
               <div className="mb-4 rounded bg-white border border-gray-200 px-4 py-3 text-sm text-gray-700 flex flex-wrap gap-x-6 gap-y-1">
                 <span className="font-semibold">
                   Sæson {historySeason}{historyArchive ? ' • Afsluttet' : ' • I gang'}

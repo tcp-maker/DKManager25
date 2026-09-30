@@ -67,7 +67,7 @@ Kampresultater påvirker nu state sådan:
 
 ## Kendte begrænsninger
 
-- Der er stadig ingen automatiserede tests eller lint-scripts i repoet
+- Der er endnu ingen lint-scripts; datatests (`src/data/*.test.ts`) køres med `npx tsx --test src/data/*.test.ts`
 - Klubrækkerne er baseret på aktuelle/relevante DBU-/Divisionsforeningen-referencer, men `baseRating` og spillerdata er stadig spilbalancerede prototypeværdier
 - Klubspecifikke spillerfrø er implementeret, men kun et udsnit er verificeret mod eksterne trupkilder; resterende hold bruger tydelige `[fallback]`-navne pr. klub
 - Ligaforløbet er stadig en prototype uden op-/nedrykning
