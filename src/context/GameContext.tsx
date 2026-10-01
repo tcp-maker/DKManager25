@@ -4,9 +4,10 @@ import {
   getLeagueSeasonSchedule,
   getSeasonFixtures,
   getTeamById,
-  normalizeLeagueMatches,
+  normalizeLeagueMatchRecords,
   normalizeSeasonHistory,
   type LeagueMatchRecord,
+  type MatchDetails,
   type ScheduledMatch,
   type SeasonArchiveEntry,
   simulateScore,
@@ -56,7 +57,7 @@ interface GameContextType {
   upgradeStadium: () => void;
   takeLoan: () => string | null;
   handleNextWeek: () => number;
-  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => void;
+  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => void;
   resetGame: () => void;
 }
 
@@ -291,7 +292,7 @@ const loadGameState = (): GameState | null => {
     const normalizedPlayers = normalizePlayerRecord(parsed.players);
     const players = Object.keys(normalizedPlayers).length > 0 ? normalizedPlayers : getTeamSquadRecord(selectedTeam);
     const season = typeof parsed.season === 'number' ? parsed.season : initialState.season;
-    const leagueMatches = normalizeLeagueMatches(parsed.leagueMatches);
+    const leagueMatches = normalizeLeagueMatchRecords(parsed.leagueMatches);
     const loadedState: GameState = {
       ...initialState,
       ...parsed,
@@ -737,7 +738,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     return ticketRevenue;
   };
 
-  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => {
+  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => {
     setGameState(prev => {
       if (prev.economy.isBankrupt) {
         return prev;
@@ -791,6 +792,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         homeGoals,
         awayGoals,
         isUserMatch: true,
+        details,
       };
 
       const resultDelta = userGoals > opponentGoals
