@@ -8,6 +8,7 @@ import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
 import EconomyView from './components/EconomyView';
 import LeagueTableCard from './components/LeagueTableCard';
+import LeagueTablesView from './components/LeagueTablesView';
 import TeamBadge from './components/TeamBadge';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
 
@@ -162,14 +163,7 @@ const App: React.FC = () => {
       case 'economy':
         return <EconomyView />;
       case 'table':
-        return (
-          <LeagueTableCard
-            leagueName={selectedTeam?.league ?? ''}
-            season={gameState.season}
-            selectedTeamId={selectedTeam?.id ?? ''}
-            standings={leagueTable}
-          />
-        );
+        return <LeagueTablesView currentStandings={leagueTable} />;
       default:
         return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
     }

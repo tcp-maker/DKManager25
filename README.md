@@ -32,7 +32,8 @@ State indeholder:
 - fan mood (`fanMood`)
 - stadionkapacitet (`stadiumCapacity`)
 - sæson (`season`) og uge (`week`)
-- historik over ligakampe (`leagueMatches`)
+- historik over ligakampe (`leagueMatches`) for alle sæsoner
+- sæsonarkiv (`seasonHistory`) med sluttabel og slutplacering for hver afsluttet sæson
 - antal stadionudvidelser (`stadiumUpgrades`)
 
 Spilflowet er:
@@ -66,10 +67,10 @@ Kampresultater påvirker nu state sådan:
 
 ## Kendte begrænsninger
 
-- Der er stadig ingen automatiserede tests eller lint-scripts i repoet
+- Der er endnu ingen lint-scripts; datatests (`src/data/*.test.ts`) køres med `npx tsx --test src/data/*.test.ts`
 - Klubrækkerne er baseret på aktuelle/relevante DBU-/Divisionsforeningen-referencer, men `baseRating` og spillerdata er stadig spilbalancerede prototypeværdier
 - Klubspecifikke spillerfrø er implementeret, men kun et udsnit er verificeret mod eksterne trupkilder; resterende hold bruger tydelige `[fallback]`-navne pr. klub
-- Ligaforløbet er stadig en prototype med begrænset sæsonhistorik og uden op-/nedrykning
+- Ligaforløbet er stadig en prototype uden op-/nedrykning
 - Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
 
 ## Teknologi
@@ -199,6 +200,8 @@ npm run preview
 
 - Divisionerne er nu modelleret som `Superliga`, `1. division`, `2. division` og `3. division`
 - Hver division har 12 klubber og et komplet hjemme/ude-program, så hvert hold spiller 22 ligakampe pr. sæson
+- Når alle 22 kampe er spillet, arkiveres sæsonen: kampene bevares, og sluttabellen gemmes i `seasonHistory`, så tidligere sæsoner kan ses under **Kampe** (Kamp Historie) og **Tabel**
+- Ældre saves uden `seasonHistory` får automatisk genopbygget arkivet for de afsluttede sæsoner, der stadig findes kampe for
 - Når du vælger en klub, får du netop denne klubs deterministiske 18-mandstrup med stabile spiller-id'er
 - Eksisterende saves indlæses fortsat via normalisering af `selectedTeam`, `players` og `leagueMatches`
 

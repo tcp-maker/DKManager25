@@ -945,3 +945,175 @@ export const buildLeagueStandings = (
       a.teamName.localeCompare(b.teamName, 'da-DK')
     );
 };
+
+export interface SeasonArchiveEntry {
+  season: number;
+  teamId: string;
+  teamName: string;
+  leagueName: string;
+  standings: LeagueStanding[];
+  finalPosition: number | null;
+  matchesPlayed: number;
+}
+
+const STANDING_NUMBER_KEYS = [
+  'played',
+  'won',
+  'drawn',
+  'lost',
+  'goalsFor',
+  'goalsAgainst',
+  'goalDifference',
+  'points',
+] as const;
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+
+export const getSeasonMatches = (matches: LeagueMatchRecord[], season: number): LeagueMatchRecord[] =>
+  matches.filter(match => match.season === season);
+
+export const buildSeasonArchiveEntry = (
+  selectedTeam: Team | null,
+  season: number,
+  matches: LeagueMatchRecord[],
+): SeasonArchiveEntry | null => {
+  if (!selectedTeam) return null;
+
+  const currentTeam = getTeamById(selectedTeam.id) ?? selectedTeam;
+  const league = getLeagueByTeamId(currentTeam.id);
+  if (!league) return null;
+
+  const standings = buildLeagueStandings(currentTeam, season, matches);
+  const positionIndex = standings.findIndex(standing => standing.teamId === currentTeam.id);
+
+  return {
+    season,
+    teamId: currentTeam.id,
+    teamName: currentTeam.name,
+    leagueName: league.name,
+    standings,
+    finalPosition: positionIndex >= 0 ? positionIndex + 1 : null,
+    matchesPlayed: positionIndex >= 0 ? standings[positionIndex].played : 0,
+  };
+};
+
+const normalizeArchivedStanding = (rawStanding: unknown): LeagueStanding | null => {
+  if (!rawStanding || typeof rawStanding !== 'object') {
+    return null;
+  }
+
+  const candidate = rawStanding as Partial<LeagueStanding>;
+  if (typeof candidate.teamId !== 'string' || typeof candidate.teamName !== 'string') {
+    return null;
+  }
+
+  if (STANDING_NUMBER_KEYS.some(key => !isFiniteNumber(candidate[key]))) {
+    return null;
+  }
+
+  return {
+    teamId: candidate.teamId,
+    teamName: candidate.teamName,
+    played: candidate.played as number,
+    won: candidate.won as number,
+    drawn: candidate.drawn as number,
+    lost: candidate.lost as number,
+    goalsFor: candidate.goalsFor as number,
+    goalsAgainst: candidate.goalsAgainst as number,
+    goalDifference: candidate.goalDifference as number,
+    points: candidate.points as number,
+  };
+};
+
+const normalizeArchiveEntry = (rawEntry: unknown): SeasonArchiveEntry | null => {
+  if (!rawEntry || typeof rawEntry !== 'object') {
+    return null;
+  }
+
+  const candidate = rawEntry as Partial<SeasonArchiveEntry>;
+  if (
+    !isFiniteNumber(candidate.season)
+    || typeof candidate.teamId !== 'string'
+    || !Array.isArray(candidate.standings)
+  ) {
+    return null;
+  }
+
+  const standings = candidate.standings
+    .map(normalizeArchivedStanding)
+    .filter((standing): standing is LeagueStanding => standing !== null);
+  if (standings.length === 0) {
+    return null;
+  }
+
+  const positionIndex = standings.findIndex(standing => standing.teamId === candidate.teamId);
+
+  return {
+    season: candidate.season,
+    teamId: candidate.teamId,
+    teamName: typeof candidate.teamName === 'string' ? candidate.teamName : standings[Math.max(0, positionIndex)].teamName,
+    leagueName: typeof candidate.leagueName === 'string' ? candidate.leagueName : '',
+    standings,
+    finalPosition: positionIndex >= 0 ? positionIndex + 1 : null,
+    matchesPlayed: positionIndex >= 0 ? standings[positionIndex].played : 0,
+  };
+};
+
+/**
+ * Validates persisted season archives and backfills missing archives for completed
+ * seasons (earlier than `currentSeason`) that still have match records, so older
+ * saves without `seasonHistory` keep their available history.
+ */
+export const normalizeSeasonHistory = (
+  rawHistory: unknown,
+  selectedTeam: Team | null,
+  currentSeason: number,
+  matches: LeagueMatchRecord[],
+): SeasonArchiveEntry[] => {
+  const archiveBySeason = new Map<number, SeasonArchiveEntry>();
+
+  if (Array.isArray(rawHistory)) {
+    rawHistory.forEach(rawEntry => {
+      const entry = normalizeArchiveEntry(rawEntry);
+      if (entry && entry.season < currentSeason && !archiveBySeason.has(entry.season)) {
+        archiveBySeason.set(entry.season, entry);
+      }
+    });
+  }
+
+  const seasonsWithMatches = new Set(
+    matches.filter(match => match.season < currentSeason).map(match => match.season),
+  );
+  seasonsWithMatches.forEach(season => {
+    if (archiveBySeason.has(season)) return;
+
+    const entry = buildSeasonArchiveEntry(selectedTeam, season, matches);
+    if (entry) {
+      archiveBySeason.set(season, entry);
+    }
+  });
+
+  return Array.from(archiveBySeason.values()).sort((a, b) => a.season - b.season);
+};
+
+export const archiveSeason = (
+  history: SeasonArchiveEntry[],
+  selectedTeam: Team | null,
+  season: number,
+  matches: LeagueMatchRecord[],
+): SeasonArchiveEntry[] => {
+  if (history.some(entry => entry.season === season)) {
+    return history;
+  }
+
+  const entry = buildSeasonArchiveEntry(selectedTeam, season, matches);
+  if (!entry) {
+    return history;
+  }
+
+  return [...history, entry].sort((a, b) => a.season - b.season);
+};
+
+/** Returns the current season followed by all archived seasons, newest first. */
+export const getAvailableSeasons = (currentSeason: number, history: SeasonArchiveEntry[]): number[] =>
+  Array.from(new Set([currentSeason, ...history.map(entry => entry.season)])).sort((a, b) => b - a);

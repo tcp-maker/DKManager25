@@ -7,8 +7,11 @@ import {
 } from '../data/players';
 import {
   MATCH_TIMELINE,
+  getAvailableSeasons,
   getSeasonFixtures,
+  getSeasonMatches,
   getTeamById,
+  type LeagueMatchRecord,
   type MatchDetails,
   type MatchEvent,
   type MatchEventPhase,
@@ -218,15 +221,38 @@ const MatchView: React.FC = () => {
   const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
   const [matchResult, setMatchResult] = useState<PlayedMatchSummary | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
+  const [historySeason, setHistorySeason] = useState(gameState.season);
+  const [historyScope, setHistoryScope] = useState<'mine' | 'all'>('mine');
   const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
   const [liveTick, setLiveTick] = useState(0);
   const [expandedHistoryMatchId, setExpandedHistoryMatchId] = useState<string | null>(null);
   const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
   const fixtures = useMemo(() => getSeasonFixtures(selectedTeam), [selectedTeam]);
   const seasonMatches = useMemo(
-    () => gameState.leagueMatches.filter(match => match.season === gameState.season),
+    () => getSeasonMatches(gameState.leagueMatches, gameState.season),
     [gameState.leagueMatches, gameState.season],
   );
+  const availableSeasons = useMemo(
+    () => getAvailableSeasons(gameState.season, gameState.seasonHistory),
+    [gameState.season, gameState.seasonHistory],
+  );
+  const historyMatches = useMemo(
+    () => getSeasonMatches(gameState.leagueMatches, historySeason),
+    [gameState.leagueMatches, historySeason],
+  );
+  const historyArchive = gameState.seasonHistory.find(entry => entry.season === historySeason) ?? null;
+  const currentSeasonPlayedCount = useMemo(
+    () => seasonMatches.filter(match => match.isUserMatch).length,
+    [seasonMatches],
+  );
+
+  useEffect(() => {
+    setHistorySeason(gameState.season);
+  }, [gameState.season]);
+
+  useEffect(() => {
+    setExpandedHistoryMatchId(null);
+  }, [historySeason]);
   const playedFixtureIds = useMemo(
     () => new Set(seasonMatches.filter(match => match.isUserMatch).map(match => match.fixtureId)),
     [seasonMatches],
@@ -242,7 +268,7 @@ const MatchView: React.FC = () => {
     [fixtures, playedFixtureIds, nextPlayableWeek],
   );
   const playedMatches = useMemo<PlayedMatchSummary[]>(
-    () => seasonMatches
+    () => historyMatches
       .filter(match => match.isUserMatch && selectedTeam)
       .map(match => {
         const isHome = match.homeTeamId === selectedTeam?.id;
@@ -261,8 +287,33 @@ const MatchView: React.FC = () => {
         };
       })
       .sort((a, b) => b.week - a.week),
-    [seasonMatches, selectedTeam],
+    [historyMatches, selectedTeam],
   );
+  const historyRecord = useMemo(
+    () => playedMatches.reduce(
+      (acc, match) => ({
+        won: acc.won + (match.result === 'WIN' ? 1 : 0),
+        drawn: acc.drawn + (match.result === 'DRAW' ? 1 : 0),
+        lost: acc.lost + (match.result === 'LOSS' ? 1 : 0),
+        goalsFor: acc.goalsFor + match.userGoals,
+        goalsAgainst: acc.goalsAgainst + match.opponentGoals,
+      }),
+      { won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 },
+    ),
+    [playedMatches],
+  );
+  const historyRounds = useMemo(() => {
+    const rounds = new Map<number, LeagueMatchRecord[]>();
+    historyMatches.forEach(match => {
+      rounds.set(match.week, [...(rounds.get(match.week) ?? []), match]);
+    });
+    return Array.from(rounds.entries())
+      .sort(([weekA], [weekB]) => weekB - weekA)
+      .map(([week, matches]) => ({
+        week,
+        matches: [...matches].sort((a, b) => Number(b.isUserMatch) - Number(a.isUserMatch)),
+      }));
+  }, [historyMatches]);
   const isSeasonComplete = fixtures.length > 0 && playedFixtureIds.size >= fixtures.length;
   const nextAdvanceStartsNewSeason = Boolean(
     matchResult
@@ -411,7 +462,7 @@ const MatchView: React.FC = () => {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Kamp Historie ({playedMatches.length})
+            Kamp Historie ({currentSeasonPlayedCount})
           </button>
         </div>
 
@@ -631,9 +682,82 @@ const MatchView: React.FC = () => {
 
         {activeTab === 'history' && (
           <div>
-            <h2 className="text-2xl font-bold mb-4">Kamp Historie</h2>
-            {playedMatches.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">Ingen kampe spillet i sæson {gameState.season} endnu</p>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-2xl font-bold">Kamp Historie</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  Sæson
+                  <select
+                    value={historySeason}
+                    onChange={event => setHistorySeason(Number(event.target.value))}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 text-gray-900"
+                  >
+                    {availableSeasons.map(season => (
+                      <option key={season} value={season}>
+                        Sæson {season}{season === gameState.season ? ' (aktuel)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex rounded border border-gray-300 overflow-hidden text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryScope('mine')}
+                    className={`px-3 py-1 ${historyScope === 'mine' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Mine kampe
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryScope('all')}
+                    className={`px-3 py-1 ${historyScope === 'all' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    Alle ligakampe
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {(playedMatches.length > 0 || historyArchive) && (
+              <div className="mb-4 rounded bg-white border border-gray-200 px-4 py-3 text-sm text-gray-700 flex flex-wrap gap-x-6 gap-y-1">
+                <span className="font-semibold">
+                  Sæson {historySeason}{historyArchive ? ' • Afsluttet' : ' • I gang'}
+                </span>
+                {historyArchive?.finalPosition && (
+                  <span>Slutplacering: <span className="font-bold">{historyArchive.finalPosition}.</span></span>
+                )}
+                <span>Kampe: <span className="font-bold">{playedMatches.length}</span></span>
+                <span>V-U-T: <span className="font-bold">{historyRecord.won}-{historyRecord.drawn}-{historyRecord.lost}</span></span>
+                <span>Mål: <span className="font-bold">{historyRecord.goalsFor}-{historyRecord.goalsAgainst}</span></span>
+              </div>
+            )}
+
+            {historyScope === 'all' ? (
+              historyRounds.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Ingen kampe spillet i sæson {historySeason} endnu</p>
+              ) : (
+                <div className="space-y-4">
+                  {historyRounds.map(round => (
+                    <div key={round.week} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <p className="bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-600">Sæson {historySeason} • Uge {round.week}</p>
+                      <ul className="divide-y">
+                        {round.matches.map(match => (
+                          <li
+                            key={match.fixtureId}
+                            className={`grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2 text-sm ${match.isUserMatch ? 'bg-blue-50 font-semibold' : ''}`}
+                          >
+                            <span className="text-right">{match.homeTeamName}</span>
+                            <span className="font-bold tabular-nums">{match.homeGoals} - {match.awayGoals}</span>
+                            <span>{match.awayTeamName}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : playedMatches.length === 0 ? (
+              <p className="text-gray-500 text-center py-8">Ingen kampe spillet i sæson {historySeason} endnu</p>
             ) : (
               <div className="space-y-3">
                 {playedMatches.map((match) => (
@@ -649,7 +773,7 @@ const MatchView: React.FC = () => {
                   >
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex-1">
-                        <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {match.week}</p>
+                        <p className="text-sm text-gray-600">Sæson {historySeason} • Uge {match.week}</p>
                         <div className="mt-1 flex items-center gap-3">
                           <TeamBadge
                             team={getTeamById(match.opponentId) ?? { name: match.opponent, logo: '⚽' }}

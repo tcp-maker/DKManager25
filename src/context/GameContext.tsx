@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
+  archiveSeason,
   buildRoundMatchRecords,
   getLeagueSeasonSchedule,
   getSeasonFixtures,
   getTeamById,
   normalizeLeagueMatchRecords,
+  normalizeSeasonHistory,
   type LeagueMatchRecord,
   type MatchDetails,
   type ScheduledMatch,
+  type SeasonArchiveEntry,
 } from '../data/leagues';
 import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
 import {
@@ -40,6 +43,7 @@ interface GameState {
   season: number;
   week: number;
   leagueMatches: LeagueMatchRecord[];
+  seasonHistory: SeasonArchiveEntry[];
   economy: EconomyState;
 }
 
@@ -86,6 +90,7 @@ const createInitialGameState = (): GameState => ({
   season: 1,
   week: 1,
   leagueMatches: [],
+  seasonHistory: [],
   economy: createDefaultEconomyState(null, 3000),
 });
 
@@ -286,6 +291,8 @@ const loadGameState = (): GameState | null => {
     const selectedTeam = parsed.selectedTeam ? (getTeamById(parsed.selectedTeam.id) ?? parsed.selectedTeam) : null;
     const normalizedPlayers = normalizePlayerRecord(parsed.players);
     const players = Object.keys(normalizedPlayers).length > 0 ? normalizedPlayers : getTeamSquadRecord(selectedTeam);
+    const season = typeof parsed.season === 'number' ? parsed.season : initialState.season;
+    const leagueMatches = normalizeLeagueMatchRecords(parsed.leagueMatches);
     const loadedState: GameState = {
       ...initialState,
       ...parsed,
@@ -295,9 +302,10 @@ const loadGameState = (): GameState | null => {
       fanCount: typeof parsed.fanCount === 'number' ? parsed.fanCount : initialState.fanCount,
       stadiumCapacity: typeof parsed.stadiumCapacity === 'number' ? parsed.stadiumCapacity : initialState.stadiumCapacity,
       fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialState.fanMood,
-      season: typeof parsed.season === 'number' ? parsed.season : initialState.season,
+      season,
       week: typeof parsed.week === 'number' ? parsed.week : initialState.week,
-      leagueMatches: normalizeLeagueMatchRecords(parsed.leagueMatches),
+      leagueMatches,
+      seasonHistory: normalizeSeasonHistory(parsed.seasonHistory, selectedTeam, season, leagueMatches),
       economy: initialState.economy,
     };
 
@@ -713,9 +721,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         week: isSeasonFinished ? 1 : nextUnplayedFixture?.week ?? prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
         budget: updatedBudget,
-        leagueMatches: isSeasonFinished
-          ? prev.leagueMatches.filter(match => match.season >= Math.max(1, prev.season - 2))
-          : prev.leagueMatches,
+        seasonHistory: isSeasonFinished
+          ? archiveSeason(prev.seasonHistory, prev.selectedTeam, prev.season, prev.leagueMatches)
+          : prev.seasonHistory,
         economy: {
           ...prev.economy,
           consecutiveCrisisWeeks,
