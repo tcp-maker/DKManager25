@@ -463,7 +463,7 @@ const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
     return [];
   }
 
-  return events.reduce((acc, rawEvent) => {
+  return events.reduce<MatchEvent[]>((acc, rawEvent) => {
     if (!rawEvent || typeof rawEvent !== 'object') {
       return acc;
     }
@@ -503,7 +503,7 @@ const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
       awayGoals: Math.max(0, Math.floor(candidate.awayGoals)),
     });
     return acc;
-  }, [] as MatchEvent[])
+  }, [])
     .sort((a, b) =>
       a.minute - b.minute
       || MATCH_EVENT_TYPE_PRIORITY[a.type] - MATCH_EVENT_TYPE_PRIORITY[b.type]
@@ -814,6 +814,60 @@ export const simulateDetailedMatch = (
 export const simulateScore = (homeRating: number, awayRating: number) =>
   simulateScoreWithRng(homeRating, awayRating, Math.random);
 
+export type MatchScoreSimulator = (homeTeamId: string, awayTeamId: string) => { homeGoals: number; awayGoals: number };
+
+const simulateScoreByTeamRatings: MatchScoreSimulator = (homeTeamId, awayTeamId) =>
+  simulateScore(getTeamById(homeTeamId)?.baseRating ?? 70, getTeamById(awayTeamId)?.baseRating ?? 70);
+
+const buildMatchKey = (season: number, fixtureId: string) => `${season}:${fixtureId}`;
+
+/**
+ * Builds the match records created when the user's fixture is played.
+ * Every other fixture is taken from the user's fixture's own round (and any earlier
+ * round of the same season that has not been completed yet, except the user's own fixtures), so the number of matches
+ * per round always follows the actual schedule instead of a fixed or current-week round.
+ */
+export const buildRoundMatchRecords = (
+  schedule: LeagueFixture[],
+  season: number,
+  userTeamId: string,
+  userFixtureId: string,
+  userScore: { homeGoals: number; awayGoals: number; details?: MatchDetails },
+  existingMatches: LeagueMatchRecord[],
+  simulate: MatchScoreSimulator = simulateScoreByTeamRatings,
+): LeagueMatchRecord[] => {
+  const userFixture = schedule.find(fixture => fixture.id === userFixtureId);
+  if (!userFixture) return [];
+
+  const recordedKeys = new Set(existingMatches.map(match => buildMatchKey(match.season, match.fixtureId)));
+  if (recordedKeys.has(buildMatchKey(season, userFixture.id))) return [];
+
+  return schedule
+    .filter(fixture =>
+      fixture.week <= userFixture.week
+      && !recordedKeys.has(buildMatchKey(season, fixture.id))
+      && (fixture.id === userFixture.id || (fixture.homeTeamId !== userTeamId && fixture.awayTeamId !== userTeamId)))
+    .sort((a, b) => a.week - b.week)
+    .map(fixture => {
+      const isUserMatch = fixture.id === userFixture.id;
+      const score = isUserMatch ? userScore : simulate(fixture.homeTeamId, fixture.awayTeamId);
+
+      return {
+        fixtureId: fixture.id,
+        season,
+        week: fixture.week,
+        homeTeamId: fixture.homeTeamId,
+        homeTeamName: fixture.homeTeamName,
+        awayTeamId: fixture.awayTeamId,
+        awayTeamName: fixture.awayTeamName,
+        homeGoals: score.homeGoals,
+        awayGoals: score.awayGoals,
+        isUserMatch,
+        ...(isUserMatch && userScore.details ? { details: userScore.details } : {}),
+      };
+    });
+};
+
 export const buildLeagueStandings = (
   selectedTeam: Team | null,
   season: number,
@@ -842,9 +896,15 @@ export const buildLeagueStandings = (
     ]))
   );
 
+  const countedMatchKeys = new Set<string>();
+
   matches
     .filter(match => match.season === season)
     .forEach(match => {
+      const matchKey = buildMatchKey(match.season, match.fixtureId);
+      if (countedMatchKeys.has(matchKey)) return;
+      countedMatchKeys.add(matchKey);
+
       const home = standings.get(match.homeTeamId);
       const away = standings.get(match.awayTeamId);
 
