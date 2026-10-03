@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { loadGameState, purchasePlayer, sellOwnedPlayer, updateOwnedPlayer } from '../context/GameContext';
+import { createElement } from 'react';
+import { renderToString } from 'react-dom/server';
+import { GameProvider, loadGameState, purchasePlayer, sellOwnedPlayer, updateOwnedPlayer, useGame } from '../context/GameContext';
 import { createDefaultEconomyState } from '../lib/economy';
 import { buildRoundMatchRecords, buildSeasonArchiveEntry, getLeagueSeasonSchedule, getSeasonFixtures, LEAGUES, normalizeLeagueMatchRecords } from './leagues';
 import { getCurrentTeamSquad, getTeamSquadRecord, normalizePlayerRecord, TRANSFER_MARKET_PLAYERS } from './players';
@@ -27,6 +29,25 @@ afterEach(() => {
 });
 
 describe('club and squad save migration', () => {
+  it('makes rapid calls through the same stale provider callbacks authoritative', () => {
+    const [first, second] = TRANSFER_MARKET_PLAYERS;
+    saved = JSON.stringify({ selectedClub: club, budget: first.value + second.value - 1 });
+    let actions!: ReturnType<typeof useGame>;
+    const Capture = () => {
+      actions = useGame();
+      return null;
+    };
+    renderToString(createElement(GameProvider, { children: createElement(Capture) }));
+    assert.equal(actions.addPlayer({ ...first, value: 0 }), true);
+    assert.equal(actions.addPlayer(first), false);
+    assert.equal(actions.addPlayer({ ...first, id: 'own_buy1_1_1_2' }), false);
+    assert.equal(actions.addPlayer(second), false);
+    actions.sellPlayer(first.id);
+    actions.sellPlayer(first.id);
+    assert.equal(actions.addPlayer(second), true);
+    assert.equal(actions.addPlayer(first), false);
+  });
+
   it('migrates owned market clones, preserves finances, and gives ownership priority over market copies', () => {
     const source = TRANSFER_MARKET_PLAYERS[0];
     saved = JSON.stringify({
