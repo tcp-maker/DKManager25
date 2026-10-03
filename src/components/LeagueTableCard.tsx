@@ -7,14 +7,48 @@ interface LeagueTableCardProps {
   season: number;
   selectedTeamId: string;
   standings: LeagueStanding[];
+  availableSeasons?: number[];
+  currentSeason?: number;
+  onSeasonChange?: (season: number) => void;
 }
 
-const LeagueTableCard: React.FC<LeagueTableCardProps> = ({ leagueName, season, selectedTeamId, standings }) => {
+const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
+  leagueName,
+  season,
+  selectedTeamId,
+  standings,
+  availableSeasons,
+  currentSeason,
+  onSeasonChange,
+}) => {
+  const isArchivedSeason = currentSeason !== undefined && season !== currentSeason;
+  const showSeasonSelector = Boolean(onSeasonChange && availableSeasons && availableSeasons.length > 1);
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-gray-100 px-4 py-4">
-        <h2 className="text-xl font-bold">Ligatabel</h2>
-        <p className="text-sm text-gray-600">{leagueName} • Sæson {season}</p>
+      <div className="border-b border-gray-100 px-4 py-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">{isArchivedSeason ? 'Sluttabel' : 'Ligatabel'}</h2>
+          <p className="text-sm text-gray-600">
+            {leagueName} • Sæson {season}{isArchivedSeason ? ' (afsluttet)' : ''}
+          </p>
+        </div>
+        {showSeasonSelector && (
+          <label className="text-sm text-gray-600 flex items-center gap-2">
+            Sæson
+            <select
+              value={season}
+              onChange={event => onSeasonChange?.(Number(event.target.value))}
+              className="rounded border border-gray-300 bg-white px-2 py-1 text-gray-900"
+            >
+              {availableSeasons?.map(option => (
+                <option key={option} value={option}>
+                  Sæson {option}{option === currentSeason ? ' (aktuel)' : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <div className="max-h-[70vh] overflow-auto">

@@ -12,7 +12,7 @@ const StadiumView: React.FC = () => {
   const upgrades = Math.max(0, (gameState.stadiumCapacity - 3000) / 2500);
 
   // Stadium name based on team
-  const stadiumName = gameState.selectedTeam ? `${gameState.selectedTeam.name} Stadion` : 'Dit Stadion';
+  const stadiumName = gameState.selectedClub ? `${gameState.selectedClub.name} Stadion` : 'Dit Stadion';
 
   const handleUpgrade = (): string | null => {
     if (gameState.budget < 500000) {

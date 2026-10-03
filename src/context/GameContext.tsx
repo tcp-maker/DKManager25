@@ -1,5 +1,17 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { getLeagueSeasonSchedule, getSeasonFixtures, getTeamById, type LeagueMatchRecord, type ScheduledMatch, simulateScore } from '../data/leagues';
+import {
+  archiveSeason,
+  buildRoundMatchRecords,
+  getLeagueSeasonSchedule,
+  getSeasonFixtures,
+  getTeamById,
+  normalizeLeagueMatchRecords,
+  normalizeSeasonHistory,
+  type LeagueMatchRecord,
+  type MatchDetails,
+  type ScheduledMatch,
+  type SeasonArchiveEntry,
+} from '../data/leagues';
 import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
 import {
   calculateBoardStatus,
@@ -19,32 +31,34 @@ import {
 } from '../lib/economy';
 import type { EconomyPeriodSummary, EconomyState, EconomyTransaction } from '../types/economy';
 import type { Player } from '../types/player';
-import type { Team } from '../types/teams';
+import type { Club } from '../types/clubs';
+import type { SquadState } from '../types/squads';
 
 interface GameState {
-  selectedTeam: Team | null;
+  selectedClub: Club | null;
   budget: number;
-  players: Record<string, Player>;
+  squad: SquadState;
   fanCount: number;
   stadiumCapacity: number;
   fanMood: number;
   season: number;
   week: number;
   leagueMatches: LeagueMatchRecord[];
+  seasonHistory: SeasonArchiveEntry[];
   economy: EconomyState;
 }
 
 interface GameContextType {
   gameState: GameState;
-  selectTeam: (team: Team) => void;
-  restartCurrentTeam: () => void;
+  selectClub: (club: Club) => void;
+  restartCurrentClub: () => void;
   addPlayer: (player: Player) => boolean;
   sellPlayer: (playerId: string) => void;
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
   takeLoan: () => string | null;
   handleNextWeek: () => number;
-  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => void;
+  recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => void;
   resetGame: () => void;
 }
 
@@ -68,20 +82,21 @@ const VALID_TRANSACTION_CATEGORIES = new Set<EconomyTransaction['category']>([
 const buildWeekKey = (season: number, week: number) => `${season}-${week}`;
 
 const createInitialGameState = (): GameState => ({
-  selectedTeam: null,
+  selectedClub: null,
   budget: 1000000,
-  players: {},
+  squad: { clubId: '', players: {} },
   fanCount: 1200,
   stadiumCapacity: 3000,
   fanMood: 50,
   season: 1,
   week: 1,
   leagueMatches: [],
+  seasonHistory: [],
   economy: createDefaultEconomyState(null, 3000),
 });
 
 const getWeeklyMatchResult = (state: GameState): 'win' | 'draw' | 'loss' | 'none' => {
-  const selectedTeamId = state.selectedTeam?.id;
+  const selectedTeamId = state.selectedClub?.id;
   if (!selectedTeamId) {
     return 'none';
   }
@@ -181,24 +196,24 @@ const reconcileGameState = (state: GameState): GameState => {
   const trimmedTransactions = trimTransactions(state.economy.transactions, ECONOMY_TRANSACTION_LIMIT);
   const stadiumBookValue = Math.max(
     state.economy.stadiumBookValue,
-    calculateStadiumBookValue(state.selectedTeam, state.stadiumCapacity),
+    calculateStadiumBookValue(state.selectedClub, state.stadiumCapacity),
   );
-  const squadValue = calculateSquadValue(state.players);
+  const squadValue = calculateSquadValue(state.squad.players);
   const equity = calculateEquity(state.budget, squadValue, stadiumBookValue, state.economy.debt);
-  const weeklyInterestRate = calculateDebtInterestRate(state.selectedTeam, state.economy.debt, equity);
+  const weeklyInterestRate = calculateDebtInterestRate(state.selectedClub, state.economy.debt, equity);
   const projectedIncome =
     calculateTicketRevenue(state.fanCount, state.stadiumCapacity)
     + calculateWeeklySponsorIncome(
-      state.selectedTeam,
+      state.selectedClub,
       state.fanCount,
       state.fanMood,
       state.stadiumCapacity,
       getWeeklyMatchResult(state),
     );
-  const wageBill = calculateSquadWageBill(state.players);
+  const wageBill = calculateSquadWageBill(state.squad.players);
   const projectedExpenses =
     wageBill
-    + calculateWeeklyOperationsCost(state.selectedTeam, state.fanCount, state.stadiumCapacity)
+    + calculateWeeklyOperationsCost(state.selectedClub, state.fanCount, state.stadiumCapacity)
     + Math.round(state.economy.debt * weeklyInterestRate);
   const currentWeekSummary = calculatePeriodSummary(trimmedTransactions, state.season, state.week);
   const weeklyCashflow = hasCurrentWeekTransactions(trimmedTransactions, state.season, state.week)
@@ -225,28 +240,28 @@ const reconcileGameState = (state: GameState): GameState => {
 };
 
 const normalizeEconomyState = (
-  state: Pick<GameState, 'selectedTeam' | 'budget' | 'players' | 'stadiumCapacity' | 'season' | 'week'>,
+  state: Pick<GameState, 'selectedClub' | 'budget' | 'squad' | 'stadiumCapacity' | 'season' | 'week'>,
   rawEconomy: unknown,
 ): EconomyState => {
-  const fallbackEconomy = createDefaultEconomyState(state.selectedTeam, state.stadiumCapacity);
+  const fallbackEconomy = createDefaultEconomyState(state.selectedClub, state.stadiumCapacity);
   const parsedEconomy = rawEconomy && typeof rawEconomy === 'object'
     ? rawEconomy as Partial<EconomyState>
     : null;
   const transactions = normalizeTransactions(parsedEconomy?.transactions);
   const stadiumBookValue = typeof parsedEconomy?.stadiumBookValue === 'number' && parsedEconomy.stadiumBookValue > 0
     ? Math.round(parsedEconomy.stadiumBookValue)
-    : calculateStadiumBookValue(state.selectedTeam, state.stadiumCapacity);
+    : calculateStadiumBookValue(state.selectedClub, state.stadiumCapacity);
   const debt = typeof parsedEconomy?.debt === 'number' && parsedEconomy.debt > 0
     ? Math.round(parsedEconomy.debt)
     : 0;
-  const equity = calculateEquity(state.budget, calculateSquadValue(state.players), stadiumBookValue, debt);
+  const equity = calculateEquity(state.budget, calculateSquadValue(state.squad.players), stadiumBookValue, debt);
 
   return {
     ...fallbackEconomy,
     transactions,
     debt,
     stadiumBookValue,
-    weeklyInterestRate: calculateDebtInterestRate(state.selectedTeam, debt, equity),
+    weeklyInterestRate: calculateDebtInterestRate(state.selectedClub, debt, equity),
     consecutiveCrisisWeeks: typeof parsedEconomy?.consecutiveCrisisWeeks === 'number' && parsedEconomy.consecutiveCrisisWeeks > 0
       ? Math.floor(parsedEconomy.consecutiveCrisisWeeks)
       : 0,
@@ -265,30 +280,42 @@ const saveGameState = (state: GameState) => {
   }
 };
 
-const loadGameState = (): GameState | null => {
+export const loadGameState = (): GameState | null => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) {
       return null;
     }
 
-    const parsed = JSON.parse(saved) as Partial<GameState>;
+    const parsed = JSON.parse(saved) as Partial<GameState> & {
+      selectedTeam?: Club | null;
+      players?: unknown;
+    };
     const initialState = createInitialGameState();
-    const selectedTeam = parsed.selectedTeam ? (getTeamById(parsed.selectedTeam.id) ?? parsed.selectedTeam) : null;
-    const normalizedPlayers = normalizePlayerRecord(parsed.players);
-    const players = Object.keys(normalizedPlayers).length > 0 ? normalizedPlayers : getTeamSquadRecord(selectedTeam);
+    const savedClub = parsed.selectedClub !== undefined ? parsed.selectedClub : parsed.selectedTeam;
+    const selectedClub = savedClub ? (getTeamById(savedClub.id) ?? savedClub) : null;
+    const savedPlayers = parsed.squad
+      ? (parsed.squad.clubId === selectedClub?.id ? parsed.squad.players : undefined)
+      : parsed.players;
+    const normalizedPlayers = normalizePlayerRecord(savedPlayers);
+    const hasEmptySquad = savedPlayers && typeof savedPlayers === 'object' && Object.keys(savedPlayers).length === 0;
+    const players = selectedClub
+      ? (Object.keys(normalizedPlayers).length > 0 || hasEmptySquad ? normalizedPlayers : getTeamSquadRecord(selectedClub))
+      : {};
+    const season = typeof parsed.season === 'number' ? parsed.season : initialState.season;
+    const leagueMatches = normalizeLeagueMatchRecords(parsed.leagueMatches);
     const loadedState: GameState = {
       ...initialState,
-      ...parsed,
-      selectedTeam,
+      selectedClub,
       budget: typeof parsed.budget === 'number' ? parsed.budget : initialState.budget,
-      players,
+      squad: { clubId: selectedClub?.id ?? '', players },
       fanCount: typeof parsed.fanCount === 'number' ? parsed.fanCount : initialState.fanCount,
       stadiumCapacity: typeof parsed.stadiumCapacity === 'number' ? parsed.stadiumCapacity : initialState.stadiumCapacity,
       fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialState.fanMood,
-      season: typeof parsed.season === 'number' ? parsed.season : initialState.season,
+      season,
       week: typeof parsed.week === 'number' ? parsed.week : initialState.week,
-      leagueMatches: Array.isArray(parsed.leagueMatches) ? parsed.leagueMatches : [],
+      leagueMatches,
+      seasonHistory: normalizeSeasonHistory(parsed.seasonHistory, selectedClub, season, leagueMatches),
       economy: initialState.economy,
     };
 
@@ -315,32 +342,32 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     saveGameState(gameState);
   }, [gameState]);
 
-  const selectTeam = (team: Team) => {
-    const resolvedTeam = getTeamById(team.id) ?? team;
+  const selectClub = (club: Club) => {
+    const resolvedClub = getTeamById(club.id) ?? club;
     const initialState = createInitialGameState();
     const nextState: GameState = {
       ...initialState,
-      selectedTeam: resolvedTeam,
-      players: getTeamSquadRecord(resolvedTeam),
-      economy: createDefaultEconomyState(resolvedTeam, initialState.stadiumCapacity),
+      selectedClub: resolvedClub,
+      squad: { clubId: resolvedClub.id, players: getTeamSquadRecord(resolvedClub) },
+      economy: createDefaultEconomyState(resolvedClub, initialState.stadiumCapacity),
     };
 
     setGameState(reconcileGameState(nextState));
   };
 
-  const restartCurrentTeam = () => {
+  const restartCurrentClub = () => {
     setGameState(prev => {
       const initialState = createInitialGameState();
-      if (!prev.selectedTeam) {
+      if (!prev.selectedClub) {
         return reconcileGameState(initialState);
       }
 
-      const resolvedTeam = getTeamById(prev.selectedTeam.id) ?? prev.selectedTeam;
+      const resolvedClub = getTeamById(prev.selectedClub.id) ?? prev.selectedClub;
       return reconcileGameState({
         ...initialState,
-        selectedTeam: resolvedTeam,
-        players: getTeamSquadRecord(resolvedTeam),
-        economy: createDefaultEconomyState(resolvedTeam, initialState.stadiumCapacity),
+        selectedClub: resolvedClub,
+        squad: { clubId: resolvedClub.id, players: getTeamSquadRecord(resolvedClub) },
+        economy: createDefaultEconomyState(resolvedClub, initialState.stadiumCapacity),
       });
     });
   };
@@ -352,7 +379,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     const cost = player.askingPrice ?? player.value;
 
-    if (gameState.players[player.id]) {
+    if (gameState.squad.players[player.id]) {
       console.warn(`Spiller ${player.name} er allerede i truppen`);
       return false;
     }
@@ -363,7 +390,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setGameState(prev => {
-      if (prev.economy.isBankrupt || prev.players[player.id] || prev.budget < cost) {
+      if (prev.economy.isBankrupt || prev.squad.players[player.id] || prev.budget < cost) {
         return prev;
       }
 
@@ -379,7 +406,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return reconcileGameState({
         ...prev,
         budget: prev.budget - cost,
-        players: { ...prev.players, [player.id]: player },
+        squad: { ...prev.squad, players: { ...prev.squad.players, [player.id]: player } },
         economy: {
           ...prev.economy,
           transactions: [...prev.economy.transactions, transaction],
@@ -400,12 +427,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const player = prev.players[playerId];
+      const player = prev.squad.players[playerId];
       if (!player) {
         return prev;
       }
 
-      const newPlayers = { ...prev.players };
+      const newPlayers = { ...prev.squad.players };
       delete newPlayers[playerId];
       const transaction = createEconomyTransaction(
         prev.economy.transactions.length + 1,
@@ -420,7 +447,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return reconcileGameState({
         ...prev,
         budget: prev.budget + player.value,
-        players: newPlayers,
+        squad: { ...prev.squad, players: newPlayers },
         economy: {
           ...prev.economy,
           transactions: [...prev.economy.transactions, transaction],
@@ -439,18 +466,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
-      const currentPlayer = prev.players[playerId];
+      const currentPlayer = prev.squad.players[playerId];
       if (!currentPlayer) {
         return prev;
       }
 
       return reconcileGameState({
         ...prev,
-        players: {
-          ...prev.players,
-          [playerId]: {
-            ...currentPlayer,
-            ...updates,
+        squad: {
+          ...prev.squad,
+          players: {
+            ...prev.squad.players,
+            [playerId]: {
+              ...currentPlayer,
+              ...updates,
+            },
           },
         },
       });
@@ -485,7 +515,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         stadiumCapacity: nextCapacity,
         economy: {
           ...prev.economy,
-          stadiumBookValue: Math.max(prev.economy.stadiumBookValue + cost, calculateStadiumBookValue(prev.selectedTeam, nextCapacity)),
+          stadiumBookValue: Math.max(prev.economy.stadiumBookValue + cost, calculateStadiumBookValue(prev.selectedClub, nextCapacity)),
           transactions: [...prev.economy.transactions, transaction],
         },
       });
@@ -493,7 +523,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const takeLoan = (): string | null => {
-    if (!gameState.selectedTeam) {
+    if (!gameState.selectedClub) {
       return 'Vælg en klub først.';
     }
 
@@ -502,11 +532,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const currentOffer = calculateLoanOffer({
-      selectedTeam: gameState.selectedTeam,
+      selectedClub: gameState.selectedClub,
       cash: gameState.budget,
       debt: gameState.economy.debt,
       stadiumBookValue: gameState.economy.stadiumBookValue,
-      squadValue: calculateSquadValue(gameState.players),
+      squadValue: calculateSquadValue(gameState.squad.players),
       fanCount: gameState.fanCount,
       stadiumCapacity: gameState.stadiumCapacity,
     });
@@ -526,11 +556,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const offer = calculateLoanOffer({
-        selectedTeam: prev.selectedTeam,
+        selectedClub: prev.selectedClub,
         cash: prev.budget,
         debt: prev.economy.debt,
         stadiumBookValue: prev.economy.stadiumBookValue,
-        squadValue: calculateSquadValue(prev.players),
+        squadValue: calculateSquadValue(prev.squad.players),
         fanCount: prev.fanCount,
         stadiumCapacity: prev.stadiumCapacity,
       });
@@ -573,11 +603,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const ticketRevenue = calculateTicketRevenue(gameState.fanCount, gameState.stadiumCapacity);
 
     setGameState(prev => {
-      if (!prev.selectedTeam || prev.economy.isBankrupt) {
+      if (!prev.selectedClub || prev.economy.isBankrupt) {
         return prev;
       }
 
-      const seasonFixtures = getSeasonFixtures(prev.selectedTeam);
+      const seasonFixtures = getSeasonFixtures(prev.selectedClub);
       const playedFixtureIds = new Set(
         prev.leagueMatches
           .filter(match => match.season === prev.season && match.isUserMatch)
@@ -597,17 +627,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       const matchResult = getWeeklyMatchResult(prev);
       const sponsorIncome = calculateWeeklySponsorIncome(
-        prev.selectedTeam,
+        prev.selectedClub,
         prev.fanCount,
         prev.fanMood,
         prev.stadiumCapacity,
         matchResult,
       );
-      const wageBill = calculateSquadWageBill(prev.players);
-      const operationsCost = calculateWeeklyOperationsCost(prev.selectedTeam, prev.fanCount, prev.stadiumCapacity);
-      const squadValue = calculateSquadValue(prev.players);
+      const wageBill = calculateSquadWageBill(prev.squad.players);
+      const operationsCost = calculateWeeklyOperationsCost(prev.selectedClub, prev.fanCount, prev.stadiumCapacity);
+      const squadValue = calculateSquadValue(prev.squad.players);
       const currentEquity = calculateEquity(prev.budget, squadValue, prev.economy.stadiumBookValue, prev.economy.debt);
-      const interestRate = calculateDebtInterestRate(prev.selectedTeam, prev.economy.debt, currentEquity);
+      const interestRate = calculateDebtInterestRate(prev.selectedClub, prev.economy.debt, currentEquity);
       const interestCost = Math.round(prev.economy.debt * interestRate);
 
       const newTransactions = [
@@ -704,9 +734,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         week: isSeasonFinished ? 1 : nextUnplayedFixture?.week ?? prev.week + 1,
         season: isSeasonFinished ? prev.season + 1 : prev.season,
         budget: updatedBudget,
-        leagueMatches: isSeasonFinished
-          ? prev.leagueMatches.filter(match => match.season >= Math.max(1, prev.season - 2))
-          : prev.leagueMatches,
+        seasonHistory: isSeasonFinished
+          ? archiveSeason(prev.seasonHistory, prev.selectedClub, prev.season, prev.leagueMatches)
+          : prev.seasonHistory,
         economy: {
           ...prev.economy,
           consecutiveCrisisWeeks,
@@ -721,61 +751,30 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     return ticketRevenue;
   };
 
-  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number) => {
+  const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => {
     setGameState(prev => {
       if (prev.economy.isBankrupt) {
         return prev;
       }
 
-      const selectedTeam = prev.selectedTeam ? (getTeamById(prev.selectedTeam.id) ?? prev.selectedTeam) : null;
-      if (!selectedTeam) {
+      const selectedClub = prev.selectedClub ? (getTeamById(prev.selectedClub.id) ?? prev.selectedClub) : null;
+      if (!selectedClub) {
         return prev;
       }
-
-      const alreadyPlayed = prev.leagueMatches.some(match => match.season === prev.season && match.fixtureId === fixture.id);
-      if (alreadyPlayed) {
-        return prev;
-      }
-
-      const otherMatches = getLeagueSeasonSchedule(selectedTeam)
-        .filter(match =>
-          match.week === prev.week
-          && match.id !== fixture.id
-          && !prev.leagueMatches.some(existing => existing.season === prev.season && existing.fixtureId === match.id),
-        )
-        .map(match => {
-          const homeTeam = getTeamById(match.homeTeamId);
-          const awayTeam = getTeamById(match.awayTeamId);
-          const otherResult = simulateScore(homeTeam?.baseRating ?? 70, awayTeam?.baseRating ?? 70);
-
-          return {
-            fixtureId: match.id,
-            season: prev.season,
-            week: prev.week,
-            homeTeamId: match.homeTeamId,
-            homeTeamName: match.homeTeamName,
-            awayTeamId: match.awayTeamId,
-            awayTeamName: match.awayTeamName,
-            homeGoals: otherResult.homeGoals,
-            awayGoals: otherResult.awayGoals,
-            isUserMatch: false,
-          };
-        });
 
       const homeGoals = fixture.isHome ? userGoals : opponentGoals;
       const awayGoals = fixture.isHome ? opponentGoals : userGoals;
-      const userMatch: LeagueMatchRecord = {
-        fixtureId: fixture.id,
-        season: prev.season,
-        week: prev.week,
-        homeTeamId: fixture.isHome ? selectedTeam.id : fixture.opponentId,
-        homeTeamName: fixture.isHome ? selectedTeam.name : fixture.opponent,
-        awayTeamId: fixture.isHome ? fixture.opponentId : selectedTeam.id,
-        awayTeamName: fixture.isHome ? fixture.opponent : selectedTeam.name,
-        homeGoals,
-        awayGoals,
-        isUserMatch: true,
-      };
+      const newMatches = buildRoundMatchRecords(
+        getLeagueSeasonSchedule(selectedClub),
+        prev.season,
+        selectedClub.id,
+        fixture.id,
+        { homeGoals, awayGoals, details },
+        prev.leagueMatches,
+      );
+      if (newMatches.length === 0) {
+        return prev;
+      }
 
       const resultDelta = userGoals > opponentGoals
         ? { fanCount: 50, fanMood: 5 }
@@ -789,8 +788,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         fanMood: Math.max(0, Math.min(100, prev.fanMood + resultDelta.fanMood)),
         leagueMatches: [
           ...prev.leagueMatches,
-          userMatch,
-          ...otherMatches,
+          ...newMatches,
         ],
       });
     });
@@ -805,8 +803,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     <GameContext.Provider
       value={{
         gameState,
-        selectTeam,
-        restartCurrentTeam,
+        selectClub,
+        restartCurrentClub,
         addPlayer,
         sellPlayer,
         updatePlayer,

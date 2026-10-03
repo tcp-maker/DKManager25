@@ -12,7 +12,7 @@ const TransferMarketView: React.FC = () => {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Konverter Record til Array
-  const playerList = Object.values(gameState.players);
+  const playerList = Object.values(gameState.squad.players);
   const playersForSale = playerList.filter(p => p.isForSale);
   const squadPlayers = playerList.filter(p => !p.isForSale);
 
@@ -20,7 +20,7 @@ const TransferMarketView: React.FC = () => {
   const availableForBuy: Player[] = TRANSFER_MARKET_PLAYERS;
 
   const handleSellPlayer = (playerId: string): string | null => {
-    const player = gameState.players[playerId];
+    const player = gameState.squad.players[playerId];
     if (!player) {
       return 'Spilleren findes ikke længere i truppen.';
     }
@@ -35,7 +35,7 @@ const TransferMarketView: React.FC = () => {
       return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`;
     }
 
-    const existingCopies = Object.keys(gameState.players).filter(playerId => playerId.startsWith(`own_${player.id}_`)).length;
+    const existingCopies = Object.keys(gameState.squad.players).filter(playerId => playerId.startsWith(`own_${player.id}_`)).length;
     const newPlayer = {
       ...player,
       id: `own_${player.id}_${gameState.season}_${gameState.week}_${existingCopies + 1}`,
@@ -54,7 +54,7 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleToggleSale = (playerId: string) => {
-    const player = gameState.players[playerId];
+    const player = gameState.squad.players[playerId];
     if (player) {
       updatePlayer(playerId, {
         isForSale: !player.isForSale,

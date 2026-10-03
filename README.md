@@ -9,9 +9,9 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Holdspecificerede, deterministiske starttrupper med positionsfordeling, ASI, roller, skills og værdi
 - Transferflow for køb, sætte til salg, annullere salg og sælge med budgetopdatering
 - Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
-- Kampsimulering med begrænsede sandsynligheder, konsistente scorelinjer og anvendte konsekvenser i game state
+- Kampsimulering med 45 minutters første halvleg, 15 minutters pause og 45 minutters anden halvleg (kampuret slutter ved 90), konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
-- Økonomisektion med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter, egenkapital og bestyrelsesstatus
+- Klub-side med bestyrelse, sæsonbalance, stadionestimater og økonomi med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter og egenkapital
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 - Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app
@@ -24,16 +24,25 @@ Spillet bruger én delt state i `src/context/GameContext.tsx`.
 
 State indeholder:
 
-- valgt klub (`selectedTeam`)
-- spillertrup (`players`)
+- valgt klub (`selectedClub`, typen `Club`)
+- spillertrup (`squad: { clubId, players }`), hvor `players` er et spillerregister
 - budget
 - økonomi (`economy`) med gæld, transaktioner, stadionværdi, rente og bestyrelsesstatus
 - antal fans (`fanCount`)
 - fan mood (`fanMood`)
 - stadionkapacitet (`stadiumCapacity`)
 - sæson (`season`) og uge (`week`)
-- historik over ligakampe (`leagueMatches`)
+- historik over ligakampe (`leagueMatches`) for alle sæsoner
+- sæsonarkiv (`seasonHistory`) med sluttabel og slutplacering for hver afsluttet sæson
 - antal stadionudvidelser (`stadiumUpgrades`)
+
+Topnavigationen er **Trup, Transfer, Kampe, Stadion, Klub og Tabel** (tasterne **1–6**; **5** åbner Klub). **Trup** viser kun den aktive, gemte spillertrup med positionsantal, ASI, individuelle værdier og spillerdetaljer – ingen bestyrelse, klubøkonomi, samlet trupværdi eller lønmasse. Spillerregister, gemte trupper og transferopdateringer er uændrede.
+
+**Klub** samler klubidentitet, bestyrelsens vurdering, økonomi/sæsonbalance, finansiering og stadionaktivitet. **Stadion** bruges fortsat til udvidelser. URL-hash og sti understøtter `club`/`klub`; gamle `economy`/`okonomi`/`økonomi`-links åbner også Klub og normaliseres til `#club`. Android bruger samme webnavigation.
+
+**Sæsonbalance** er indtægter minus udgifter for den aktuelle sæsons bevarede bogføringer. Lån, transfers og stadioninvesteringer indgår: tallet er pengestrøm, ikke et revideret overskud. Kun de seneste 180 transaktioner bevares, så sæsonbalancen og kategorisummerne kan være ufuldstændige.
+
+**Estimeret gennemsnitligt tilskuertal** beregnes som bevaret billetsalg divideret med den fælles billetpris (150 kr) og antal forskellige bogførte billetuger i sæsonen. Visningen angiver sæson, ugeinterval og antal bevarede perioder. Det er ikke faktiske hjemmekampe eller en fuldstændig sæsonhistorik. Uden billetsalgsperioder vises **Endnu ingen tilskuerhistorik** og et særskilt aktuelt estimat `min(fans, kapacitet)`. Belægning sammenholdes med den nuværende kapacitet og vises som en tilgængelig indikator fra 0–100%; historiske kapaciteter og tilskuertal pr. kamp registreres ikke.
 
 Spilflowet er:
 
@@ -41,7 +50,7 @@ Spilflowet er:
 2. Gennemgå klubbens egen trup og transfermarked
 3. Spil den planlagte ligakamp i den aktuelle uge
 4. Få kampens fanpåvirkning registreret og bogfør derefter billetindtægter, sponsorindtægter, løn, drift og renter ved ugefremskridt
-5. Brug økonomi-fanen til at følge cashflow, transaktioner, gæld, egenkapital og bestyrelsens vurdering
+5. Brug Klub-fanen til at følge pengestrøm, transaktioner, gæld, egenkapital og bestyrelsens vurdering
 6. Udvid stadion, når budgettet tillader det
 
 Økonomimodellen bruger fortsat `budget` som kassebeholdning og beregner egenkapital som:
@@ -66,10 +75,10 @@ Kampresultater påvirker nu state sådan:
 
 ## Kendte begrænsninger
 
-- Der er stadig ingen automatiserede tests eller lint-scripts i repoet
+- Der er endnu ingen lint-scripts; datatests (`src/data/*.test.ts`) køres med `npx tsx --test src/data/*.test.ts`
 - Klubrækkerne er baseret på aktuelle/relevante DBU-/Divisionsforeningen-referencer, men `baseRating` og spillerdata er stadig spilbalancerede prototypeværdier
 - Klubspecifikke spillerfrø er implementeret, men kun et udsnit er verificeret mod eksterne trupkilder; resterende hold bruger tydelige `[fallback]`-navne pr. klub
-- Ligaforløbet er stadig en prototype med begrænset sæsonhistorik og uden op-/nedrykning
+- Ligaforløbet er stadig en prototype uden op-/nedrykning
 - Facilities i stadionvisningen er stadig præsentationsfelter og ikke gameplay-systemer
 
 ## Teknologi
@@ -169,6 +178,18 @@ Når signing er sat op, vil release-builds automatisk bruge den. Selve Play Stor
 
 Første Android-build kræver også adgang til Gradle/Google Maven for at hente Android build-afhængigheder, hvis de ikke allerede findes lokalt i cachen.
 
+Android-builds kræver Node.js `>=22.12.0` (`@capacitor/cli` 8 kræver Node 22+), JDK 21 (den genererede `android/app/capacitor.build.gradle` sætter Java 21) samt Android SDK `platforms;android-36` og `build-tools;36.0.0`.
+
+### Android CI (GitHub Actions)
+
+`.github/workflows/android-debug-apk.yml` kører på push/pull request mod `main` og manuelt via `workflow_dispatch` (Actions → "Build Android Debug APK" → "Run workflow"). Workflowet:
+
+- bruger det forudinstallerede Android SDK på `ubuntu-24.04`-runneren (ikke `android-actions/setup-android`) og installerer/verificerer de nødvendige SDK-pakker eksplicit med `sdkmanager --sdk_root`
+- kører `npm ci`, `npx --no-install tsc --noEmit`, `npm run build:mobile` og `./gradlew assembleDebug testDebugUnitTest lintDebug` med Node 22 og Temurin JDK 21
+- uploader `android-reports` (lint-/testrapporter, 7 dage) og ved succes `android-debug-apk` (`app-debug.apk`, 14 dage)
+
+Bemærk: GitHub opdaterer stadig de hostede runner-images, så buildet er ikke fuldt hermetisk. Instrumenterede tests (`androidTest`) køres ikke i CI, da de kræver emulator/enhed.
+
 Android-wrapperen bruger nu en mere app-venlig opsætning med:
 
 - native statuslinje i appens farver
@@ -199,8 +220,10 @@ npm run preview
 
 - Divisionerne er nu modelleret som `Superliga`, `1. division`, `2. division` og `3. division`
 - Hver division har 12 klubber og et komplet hjemme/ude-program, så hvert hold spiller 22 ligakampe pr. sæson
+- Når alle 22 kampe er spillet, arkiveres sæsonen: kampene bevares, og sluttabellen gemmes i `seasonHistory`, så tidligere sæsoner kan ses under **Kampe** (Kamp Historie) og **Tabel**
+- Ældre saves uden `seasonHistory` får automatisk genopbygget arkivet for de afsluttede sæsoner, der stadig findes kampe for
 - Når du vælger en klub, får du netop denne klubs deterministiske 18-mandstrup med stabile spiller-id'er
-- Eksisterende saves indlæses fortsat via normalisering af `selectedTeam`, `players` og `leagueMatches`
+- Eksisterende saves med `selectedTeam` og `players` migreres automatisk til `selectedClub` og `squad` uden at nulstille økonomi eller sæson. Manglende spillerdata udfyldes med klubbens starttrup; en gemt tom trup bevares. Nye saves bruger kun de nye felter, og `leagueMatches` normaliseres fortsat.
 
 ### Kilder til klubvalg
 

@@ -1,6 +1,6 @@
 import type { EconomyPeriodSummary, EconomyState, EconomyTransaction, EconomyTransactionCategory, BoardStatus, BoardStatusLevel } from '../types/economy';
 import type { Player, PlayerRole } from '../types/player';
-import type { Team } from '../types/teams';
+import type { Club } from '../types/clubs';
 
 type MatchEconomyResult = 'win' | 'draw' | 'loss' | 'none';
 
@@ -23,7 +23,7 @@ interface BoardStatusInput {
 }
 
 interface LoanOfferInput {
-  selectedTeam: Team | null;
+  selectedClub: Club | null;
   cash: number;
   debt: number;
   stadiumBookValue: number;
@@ -96,8 +96,8 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 
 const roundToNearest = (value: number, unit: number) => Math.round(value / unit) * unit;
 
-const getLeagueEconomyProfile = (selectedTeam: Team | null) =>
-  (selectedTeam?.league ? LEAGUE_ECONOMY_PROFILES[selectedTeam.league] : undefined) ?? DEFAULT_PROFILE;
+const getLeagueEconomyProfile = (selectedClub: Club | null) =>
+  (selectedClub?.league ? LEAGUE_ECONOMY_PROFILES[selectedClub.league] : undefined) ?? DEFAULT_PROFILE;
 
 export const createEmptyBoardStatus = (): BoardStatus => ({
   level: 'Stabil',
@@ -108,13 +108,13 @@ export const createEmptyBoardStatus = (): BoardStatus => ({
 });
 
 export const createDefaultEconomyState = (
-  selectedTeam: Team | null,
+  selectedClub: Club | null,
   stadiumCapacity: number,
 ): EconomyState => ({
   debt: 0,
   transactions: [],
-  stadiumBookValue: calculateStadiumBookValue(selectedTeam, stadiumCapacity),
-  weeklyInterestRate: calculateDebtInterestRate(selectedTeam, 0, 0),
+  stadiumBookValue: calculateStadiumBookValue(selectedClub, stadiumCapacity),
+  weeklyInterestRate: calculateDebtInterestRate(selectedClub, 0, 0),
   boardStatus: createEmptyBoardStatus(),
   consecutiveCrisisWeeks: 0,
   isBankrupt: false,
@@ -163,20 +163,51 @@ export const calculateSquadWageBill = (players: Record<string, Player> | Player[
   return playerList.reduce((sum, player) => sum + estimateWeeklySalary(player), 0);
 };
 
+export const TICKET_PRICE = 150;
+
 export const calculateTicketRevenue = (fanCount: number, stadiumCapacity: number) =>
-  Math.max(0, Math.min(fanCount, stadiumCapacity) * 150);
+  Math.max(0, Math.min(fanCount, stadiumCapacity) * TICKET_PRICE);
+
+export const formatCurrency = (value: number, signed = false) => {
+  const prefix = value < 0 ? '-' : signed && value > 0 ? '+' : '';
+  return `${prefix}${Math.abs(value).toLocaleString('da-DK')} kr`;
+};
+
+export const calculateAttendanceEstimate = (
+  transactions: EconomyTransaction[],
+  season: number,
+  fanCount: number,
+  stadiumCapacity: number,
+) => {
+  const capacity = Number.isFinite(stadiumCapacity) ? Math.max(0, stadiumCapacity) : 0;
+  const current = Math.min(Number.isFinite(fanCount) ? Math.max(0, fanCount) : 0, capacity);
+  const periods = new Map<number, number>();
+  for (const transaction of transactions) {
+    if (transaction.season !== season || transaction.category !== 'ticket_sales'
+      || transaction.type !== 'income' || !Number.isFinite(transaction.amount) || transaction.amount < 0) {
+      continue;
+    }
+    periods.set(transaction.week, (periods.get(transaction.week) ?? 0) + transaction.amount / TICKET_PRICE);
+  }
+  const weeks = [...periods.keys()].sort((left, right) => left - right);
+  const average = periods.size > 0
+    ? [...periods.values()].reduce((sum, attendance) => sum + attendance, 0) / periods.size
+    : null;
+  const occupancy = capacity > 0 ? clamp((average ?? current) / capacity * 100, 0, 100) : 0;
+  return { capacity, current, average, occupancy, periodCount: periods.size, firstWeek: weeks[0], lastWeek: weeks.at(-1) };
+};
 
 export const calculateWeeklySponsorIncome = (
-  selectedTeam: Team | null,
+  selectedClub: Club | null,
   fanCount: number,
   fanMood: number,
   stadiumCapacity: number,
   matchResult: MatchEconomyResult,
 ) => {
-  const profile = getLeagueEconomyProfile(selectedTeam);
+  const profile = getLeagueEconomyProfile(selectedClub);
   const attendanceBase = Math.min(fanCount, stadiumCapacity);
   const resultBonus = matchResult === 'win' ? 30000 : matchResult === 'draw' ? 12000 : matchResult === 'loss' ? 2000 : 0;
-  const ratingValue = (selectedTeam?.baseRating ?? 60) * 850;
+  const ratingValue = (selectedClub?.baseRating ?? 60) * 850;
   const fanValue = attendanceBase * 12;
   const moodValue = fanMood * 480;
 
@@ -184,22 +215,22 @@ export const calculateWeeklySponsorIncome = (
 };
 
 export const calculateWeeklyOperationsCost = (
-  selectedTeam: Team | null,
+  selectedClub: Club | null,
   fanCount: number,
   stadiumCapacity: number,
 ) => {
-  const profile = getLeagueEconomyProfile(selectedTeam);
+  const profile = getLeagueEconomyProfile(selectedClub);
   return roundToNearest(profile.operationsBase + stadiumCapacity * 6 + fanCount * 3, 1000);
 };
 
-export const calculateStadiumBookValue = (selectedTeam: Team | null, stadiumCapacity: number) => {
-  const profile = getLeagueEconomyProfile(selectedTeam);
+export const calculateStadiumBookValue = (selectedClub: Club | null, stadiumCapacity: number) => {
+  const profile = getLeagueEconomyProfile(selectedClub);
   const upgrades = Math.max(0, Math.round((stadiumCapacity - 3000) / 2500));
   return profile.stadiumBaseValue + upgrades * 500000;
 };
 
-export const calculateDebtInterestRate = (selectedTeam: Team | null, debt: number, equity: number) => {
-  const profile = getLeagueEconomyProfile(selectedTeam);
+export const calculateDebtInterestRate = (selectedClub: Club | null, debt: number, equity: number) => {
+  const profile = getLeagueEconomyProfile(selectedClub);
   const riskBase = debt <= 0
     ? 0
     : clamp(debt / Math.max(500000, Math.abs(equity) + 500000), 0, 2.4) * 0.0025;
@@ -373,7 +404,7 @@ export const calculateBoardStatus = ({
 };
 
 export const calculateLoanOffer = ({
-  selectedTeam,
+  selectedClub,
   cash,
   debt,
   stadiumBookValue,
@@ -381,8 +412,8 @@ export const calculateLoanOffer = ({
   fanCount,
   stadiumCapacity,
 }: LoanOfferInput) => {
-  const profile = getLeagueEconomyProfile(selectedTeam);
-  const projectedIncome = calculateTicketRevenue(fanCount, stadiumCapacity) + calculateWeeklySponsorIncome(selectedTeam, fanCount, 50, stadiumCapacity, 'none');
+  const profile = getLeagueEconomyProfile(selectedClub);
+  const projectedIncome = calculateTicketRevenue(fanCount, stadiumCapacity) + calculateWeeklySponsorIncome(selectedClub, fanCount, 50, stadiumCapacity, 'none');
   const assetBase = Math.max(500000, cash + squadValue + stadiumBookValue + projectedIncome);
   const maxDebt = roundToNearest(assetBase * profile.loanCapRatio, 50000);
   const amount = Math.min(profile.loanStep, Math.max(0, maxDebt - debt));
