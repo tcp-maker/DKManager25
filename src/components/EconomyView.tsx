@@ -61,8 +61,8 @@ const renderCategoryList = (entries: Array<[EconomyTransactionCategory, number]>
 const EconomyView: React.FC = () => {
   const { gameState, takeLoan } = useGame();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const selectedTeam = gameState.selectedTeam;
-  const players = useMemo(() => Object.values(gameState.players), [gameState.players]);
+  const selectedClub = gameState.selectedClub;
+  const players = useMemo(() => Object.values(gameState.squad.players), [gameState.squad.players]);
   const squadValue = useMemo(() => calculateSquadValue(players), [players]);
   const wageBill = useMemo(() => calculateSquadWageBill(players), [players]);
   const displayedWeekSummary = useMemo(
@@ -80,8 +80,8 @@ const EconomyView: React.FC = () => {
   );
   const projectedIncome = useMemo(
     () => calculateTicketRevenue(gameState.fanCount, gameState.stadiumCapacity)
-      + calculateWeeklySponsorIncome(selectedTeam, gameState.fanCount, gameState.fanMood, gameState.stadiumCapacity, 'none'),
-    [selectedTeam, gameState.fanCount, gameState.fanMood, gameState.stadiumCapacity],
+      + calculateWeeklySponsorIncome(selectedClub, gameState.fanCount, gameState.fanMood, gameState.stadiumCapacity, 'none'),
+    [selectedClub, gameState.fanCount, gameState.fanMood, gameState.stadiumCapacity],
   );
   const wageRatio = wageBill / Math.max(displayedWeekSummary.income || projectedIncome, 1);
   const equity = calculateEquity(gameState.budget, squadValue, gameState.economy.stadiumBookValue, gameState.economy.debt);
@@ -99,7 +99,7 @@ const EconomyView: React.FC = () => {
     .sort(([, leftAmount], [, rightAmount]) => (rightAmount ?? 0) - (leftAmount ?? 0)) as Array<[EconomyTransactionCategory, number]>;
   const recentTransactions = [...gameState.economy.transactions].reverse().slice(0, 10);
   const loanOffer = calculateLoanOffer({
-    selectedTeam,
+    selectedClub,
     cash: gameState.budget,
     debt: gameState.economy.debt,
     stadiumBookValue: gameState.economy.stadiumBookValue,
@@ -114,11 +114,11 @@ const EconomyView: React.FC = () => {
     <div className="p-4 max-w-6xl mx-auto">
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-3">
-          {selectedTeam && <TeamBadge team={selectedTeam} size="lg" />}
+          {selectedClub && <TeamBadge team={selectedClub} size="lg" />}
           <div>
             <h1 className="text-3xl font-bold">Økonomi</h1>
             <p className="text-sm text-gray-600">
-              {selectedTeam?.name} • Sæson {gameState.season} • Uge {gameState.week}
+              {selectedClub?.name} • Sæson {gameState.season} • Uge {gameState.week}
             </p>
           </div>
         </div>

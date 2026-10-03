@@ -24,8 +24,8 @@ Spillet bruger én delt state i `src/context/GameContext.tsx`.
 
 State indeholder:
 
-- valgt klub (`selectedTeam`)
-- spillertrup (`players`)
+- valgt klub (`selectedClub`, typen `Club`)
+- spillertrup (`squad: { clubId, players }`), hvor `players` er et spillerregister
 - budget
 - økonomi (`economy`) med gæld, transaktioner, stadionværdi, rente og bestyrelsesstatus
 - antal fans (`fanCount`)
@@ -35,6 +35,8 @@ State indeholder:
 - historik over ligakampe (`leagueMatches`) for alle sæsoner
 - sæsonarkiv (`seasonHistory`) med sluttabel og slutplacering for hver afsluttet sæson
 - antal stadionudvidelser (`stadiumUpgrades`)
+
+Topnavigationen har en klubsektion med navn, logo, liga, kassebeholdning, fan mood og stadionkapacitet på alle faner, også Økonomi. På Trup-fanen vises desuden en separat trupsektion med antal spillere, trupværdi, løn/uge og gennemsnitlig ASI. Trupvisningen indeholder kun spillere, opdelt i målmand, forsvar, midtbane og angreb; klubbens regnskab og bestyrelse findes under Økonomi.
 
 Spilflowet er:
 
@@ -203,7 +205,7 @@ npm run preview
 - Når alle 22 kampe er spillet, arkiveres sæsonen: kampene bevares, og sluttabellen gemmes i `seasonHistory`, så tidligere sæsoner kan ses under **Kampe** (Kamp Historie) og **Tabel**
 - Ældre saves uden `seasonHistory` får automatisk genopbygget arkivet for de afsluttede sæsoner, der stadig findes kampe for
 - Når du vælger en klub, får du netop denne klubs deterministiske 18-mandstrup med stabile spiller-id'er
-- Eksisterende saves indlæses fortsat via normalisering af `selectedTeam`, `players` og `leagueMatches`
+- Eksisterende saves med `selectedTeam` og `players` migreres automatisk til `selectedClub` og `squad` uden at nulstille økonomi eller sæson. Manglende spillerdata udfyldes med klubbens starttrup; en gemt tom trup bevares. Nye saves bruger kun de nye felter, og `leagueMatches` normaliseres fortsat.
 
 ### Kilder til klubvalg
 

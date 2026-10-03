@@ -10,12 +10,12 @@ interface LeagueTablesViewProps {
 const LeagueTablesView: React.FC<LeagueTablesViewProps> = ({ currentStandings }) => {
   const { gameState } = useGame();
   const [selectedSeason, setSelectedSeason] = useState(gameState.season);
-  const selectedTeam = gameState.selectedTeam;
+  const selectedClub = gameState.selectedClub;
   const availableSeasons = useMemo(
     () => getAvailableSeasons(gameState.season, gameState.seasonHistory),
     [gameState.season, gameState.seasonHistory],
   );
-  const seasonMatchCount = useMemo(() => getSeasonFixtures(selectedTeam).length, [selectedTeam]);
+  const seasonMatchCount = useMemo(() => getSeasonFixtures(selectedClub).length, [selectedClub]);
   const completedSeasons = useMemo(
     () => [...gameState.seasonHistory].sort((a, b) => b.season - a.season),
     [gameState.seasonHistory],
@@ -32,9 +32,9 @@ const LeagueTablesView: React.FC<LeagueTablesViewProps> = ({ currentStandings })
   return (
     <div className="space-y-6">
       <LeagueTableCard
-        leagueName={isCurrentSeason ? (selectedTeam?.league ?? '') : (archivedEntry?.leagueName || selectedTeam?.league || '')}
+        leagueName={isCurrentSeason ? (selectedClub?.league ?? '') : (archivedEntry?.leagueName || selectedClub?.league || '')}
         season={season}
-        selectedTeamId={isCurrentSeason ? (selectedTeam?.id ?? '') : (archivedEntry?.teamId ?? '')}
+        selectedTeamId={isCurrentSeason ? (selectedClub?.id ?? '') : (archivedEntry?.teamId ?? '')}
         standings={isCurrentSeason ? currentStandings : (archivedEntry?.standings ?? [])}
         availableSeasons={availableSeasons}
         currentSeason={gameState.season}
