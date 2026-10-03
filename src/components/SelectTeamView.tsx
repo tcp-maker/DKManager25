@@ -74,7 +74,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectClub }) => {
             <li>✓ Vælg din klub fra Superliga, 1. division, 2. division eller 3. division</li>
             <li>✓ Du starter med 1.000.000 kr i budget</li>
             <li>✓ Hver klub starter med en separat, deterministisk trup på 18 spillere</li>
-            <li>✓ Brug topbaren efter klubvalg til hurtigt at følge med i uge, fans og økonomi</li>
+            <li>✓ Brug Klub-fanen efter klubvalg til at følge uge, fans, bestyrelse og økonomi</li>
             <li>✓ Administrer transfers, kampe og stadion for at blive Danmarks bedste manager!</li>
           </ul>
         </div>

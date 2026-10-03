@@ -163,8 +163,39 @@ export const calculateSquadWageBill = (players: Record<string, Player> | Player[
   return playerList.reduce((sum, player) => sum + estimateWeeklySalary(player), 0);
 };
 
+export const TICKET_PRICE = 150;
+
 export const calculateTicketRevenue = (fanCount: number, stadiumCapacity: number) =>
-  Math.max(0, Math.min(fanCount, stadiumCapacity) * 150);
+  Math.max(0, Math.min(fanCount, stadiumCapacity) * TICKET_PRICE);
+
+export const formatCurrency = (value: number, signed = false) => {
+  const prefix = value < 0 ? '-' : signed && value > 0 ? '+' : '';
+  return `${prefix}${Math.abs(value).toLocaleString('da-DK')} kr`;
+};
+
+export const calculateAttendanceEstimate = (
+  transactions: EconomyTransaction[],
+  season: number,
+  fanCount: number,
+  stadiumCapacity: number,
+) => {
+  const capacity = Number.isFinite(stadiumCapacity) ? Math.max(0, stadiumCapacity) : 0;
+  const current = Math.min(Number.isFinite(fanCount) ? Math.max(0, fanCount) : 0, capacity);
+  const periods = new Map<number, number>();
+  for (const transaction of transactions) {
+    if (transaction.season !== season || transaction.category !== 'ticket_sales'
+      || transaction.type !== 'income' || !Number.isFinite(transaction.amount) || transaction.amount < 0) {
+      continue;
+    }
+    periods.set(transaction.week, (periods.get(transaction.week) ?? 0) + transaction.amount / TICKET_PRICE);
+  }
+  const weeks = [...periods.keys()].sort((left, right) => left - right);
+  const average = periods.size > 0
+    ? [...periods.values()].reduce((sum, attendance) => sum + attendance, 0) / periods.size
+    : null;
+  const occupancy = capacity > 0 ? clamp((average ?? current) / capacity * 100, 0, 100) : 0;
+  return { capacity, current, average, occupancy, periodCount: periods.size, firstWeek: weeks[0], lastWeek: weeks.at(-1) };
+};
 
 export const calculateWeeklySponsorIncome = (
   selectedClub: Club | null,
