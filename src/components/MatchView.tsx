@@ -513,7 +513,7 @@ const MatchView: React.FC = () => {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
                     <h3 className="text-2xl font-bold">⚽ Kamp i gang</h3>
-                    <p className="text-sm text-gray-600">Tidslinjen følger 2 halvlege á 15 minutter med 5 minutters pause.</p>
+                    <p className="text-sm text-gray-600">Tidslinjen følger {liveMatch.details.timeline.firstHalfMinutes} + {liveMatch.details.timeline.secondHalfMinutes} minutter med {liveMatch.details.timeline.halftimeMinutes} minutters pause.</p>
                     <div className="mt-4 flex justify-between items-center rounded-xl border border-green-200 bg-white/80 p-4">
                       <div className="text-center flex-1">
                         <div className="mb-2 flex justify-center">
