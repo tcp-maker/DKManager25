@@ -116,7 +116,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      setActiveView(resolveViewFromLocation());
+      const view = resolveViewFromLocation();
+      setActiveView(view);
+      const expectedHash = `#${view}`;
+      if (window.location.hash !== expectedHash) {
+        window.history.replaceState(null, '', expectedHash);
+      }
     };
 
     window.addEventListener('hashchange', handleHashChange);
