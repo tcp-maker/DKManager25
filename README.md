@@ -9,7 +9,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Holdspecificerede, deterministiske starttrupper med positionsfordeling, ASI, roller, skills og værdi
 - Transferflow for køb, sætte til salg, annullere salg og sælge med budgetopdatering
 - Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
-- Kampsimulering med begrænsede sandsynligheder, konsistente scorelinjer og anvendte konsekvenser i game state
+- Kampsimulering med 45 minutters første halvleg, 15 minutters pause og 45 minutters anden halvleg (kampuret slutter ved 90), konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
 - Økonomisektion med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter, egenkapital og bestyrelsesstatus
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
