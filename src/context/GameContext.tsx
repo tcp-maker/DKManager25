@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   archiveSeason,
   buildRoundMatchRecords,
@@ -12,7 +12,7 @@ import {
   type ScheduledMatch,
   type SeasonArchiveEntry,
 } from '../data/leagues';
-import { getTeamSquadRecord, normalizePlayerRecord } from '../data/players';
+import { canonicalizePlayerId, getTeamSquadRecord, normalizePlayerRecord, normalizeTransferMarket } from '../data/players';
 import {
   calculateBoardStatus,
   calculateDebtInterestRate,
@@ -38,6 +38,7 @@ interface GameState {
   selectedClub: Club | null;
   budget: number;
   squad: SquadState;
+  transferMarket: Record<string, Player>;
   fanCount: number;
   stadiumCapacity: number;
   fanMood: number;
@@ -85,6 +86,7 @@ const createInitialGameState = (): GameState => ({
   selectedClub: null,
   budget: 1000000,
   squad: { clubId: '', players: {} },
+  transferMarket: normalizeTransferMarket(undefined, {}),
   fanCount: 1200,
   stadiumCapacity: 3000,
   fanMood: 50,
@@ -309,6 +311,7 @@ export const loadGameState = (): GameState | null => {
       selectedClub,
       budget: typeof parsed.budget === 'number' ? parsed.budget : initialState.budget,
       squad: { clubId: selectedClub?.id ?? '', players },
+      transferMarket: normalizeTransferMarket(parsed.transferMarket, players),
       fanCount: typeof parsed.fanCount === 'number' ? parsed.fanCount : initialState.fanCount,
       stadiumCapacity: typeof parsed.stadiumCapacity === 'number' ? parsed.stadiumCapacity : initialState.stadiumCapacity,
       fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialState.fanMood,
@@ -335,8 +338,85 @@ const deleteGameState = () => {
   }
 };
 
+export const purchasePlayer = (state: GameState, playerId: string): GameState => {
+  const id = canonicalizePlayerId(playerId);
+  if (
+    !state.selectedClub
+    || state.economy.isBankrupt
+    || Object.prototype.hasOwnProperty.call(state.squad.players, id)
+    || !Object.prototype.hasOwnProperty.call(state.transferMarket, id)
+  ) {
+    return state;
+  }
+  const player = state.transferMarket[id];
+  const cost = player.askingPrice ?? player.value;
+  if (!Number.isFinite(cost) || cost < 0 || !Number.isFinite(state.budget) || state.budget < cost) {
+    return state;
+  }
+  const transferMarket = { ...state.transferMarket };
+  delete transferMarket[id];
+  const transaction = createEconomyTransaction(
+    state.economy.transactions.length + 1, state.season, state.week,
+    'expense', 'player_purchase', cost, `Køb af ${player.name}`,
+  );
+  return reconcileGameState({
+    ...state,
+    budget: state.budget - cost,
+    squad: {
+      ...state.squad,
+      players: { ...state.squad.players, [id]: { ...player, id, isForSale: false, askingPrice: undefined } },
+    },
+    transferMarket,
+    economy: { ...state.economy, transactions: [...state.economy.transactions, transaction] },
+  });
+};
+
+export const sellOwnedPlayer = (state: GameState, playerId: string): GameState => {
+  const id = canonicalizePlayerId(playerId);
+  if (state.economy.isBankrupt || !Object.prototype.hasOwnProperty.call(state.squad.players, id)) {
+    return state;
+  }
+  const player = state.squad.players[id];
+  if (!Number.isFinite(player.value) || player.value < 0) {
+    return state;
+  }
+  const players = { ...state.squad.players };
+  delete players[id];
+  const transaction = createEconomyTransaction(
+    state.economy.transactions.length + 1, state.season, state.week,
+    'income', 'player_sale', player.value, `Salg af ${player.name}`,
+  );
+  return reconcileGameState({
+    ...state,
+    budget: state.budget + player.value,
+    squad: { ...state.squad, players },
+    transferMarket: { ...state.transferMarket, [id]: { ...player, id, isForSale: false, askingPrice: undefined } },
+    economy: { ...state.economy, transactions: [...state.economy.transactions, transaction] },
+  });
+};
+
+export const updateOwnedPlayer = (state: GameState, playerId: string, updates: Partial<Player>): GameState => {
+  const id = canonicalizePlayerId(playerId);
+  if (state.economy.isBankrupt || !Object.prototype.hasOwnProperty.call(state.squad.players, id)) {
+    return state;
+  }
+  return reconcileGameState({
+    ...state,
+    squad: {
+      ...state.squad,
+      players: { ...state.squad.players, [id]: { ...state.squad.players[id], ...updates, id } },
+    },
+  });
+};
+
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setGameState] = useState<GameState>(() => loadGameState() ?? reconcileGameState(createInitialGameState()));
+  const [gameState, setReactGameState] = useState<GameState>(() => loadGameState() ?? reconcileGameState(createInitialGameState()));
+  const stateRef = useRef(gameState);
+  const setGameState = (update: GameState | ((prev: GameState) => GameState)) => {
+    const next = typeof update === 'function' ? update(stateRef.current) : update;
+    stateRef.current = next;
+    setReactGameState(next);
+  };
 
   useEffect(() => {
     saveGameState(gameState);
@@ -373,47 +453,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addPlayer = (player: Player): boolean => {
-    if (gameState.economy.isBankrupt) {
+    const previous = stateRef.current;
+    const next = purchasePlayer(previous, player.id);
+    if (next === previous) {
       return false;
     }
-
-    const cost = player.askingPrice ?? player.value;
-
-    if (gameState.squad.players[player.id]) {
-      console.warn(`Spiller ${player.name} er allerede i truppen`);
-      return false;
-    }
-
-    if (gameState.budget < cost) {
-      console.warn(`Ikke budget nok til at købe ${player.name}. Mangler: ${cost - gameState.budget} kr`);
-      return false;
-    }
-
-    setGameState(prev => {
-      if (prev.economy.isBankrupt || prev.squad.players[player.id] || prev.budget < cost) {
-        return prev;
-      }
-
-      const transaction = createEconomyTransaction(
-        prev.economy.transactions.length + 1,
-        prev.season,
-        prev.week,
-        'expense',
-        'player_purchase',
-        cost,
-        `Køb af ${player.name}`,
-      );
-      return reconcileGameState({
-        ...prev,
-        budget: prev.budget - cost,
-        squad: { ...prev.squad, players: { ...prev.squad.players, [player.id]: player } },
-        economy: {
-          ...prev.economy,
-          transactions: [...prev.economy.transactions, transaction],
-        },
-      });
-    });
-
+    setGameState(next);
     return true;
   };
 
@@ -422,38 +467,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    setGameState(prev => {
-      if (prev.economy.isBankrupt) {
-        return prev;
-      }
-
-      const player = prev.squad.players[playerId];
-      if (!player) {
-        return prev;
-      }
-
-      const newPlayers = { ...prev.squad.players };
-      delete newPlayers[playerId];
-      const transaction = createEconomyTransaction(
-        prev.economy.transactions.length + 1,
-        prev.season,
-        prev.week,
-        'income',
-        'player_sale',
-        player.value,
-        `Salg af ${player.name}`,
-      );
-
-      return reconcileGameState({
-        ...prev,
-        budget: prev.budget + player.value,
-        squad: { ...prev.squad, players: newPlayers },
-        economy: {
-          ...prev.economy,
-          transactions: [...prev.economy.transactions, transaction],
-        },
-      });
-    });
+    setGameState(prev => sellOwnedPlayer(prev, playerId));
   };
 
   const updatePlayer = (playerId: string, updates: Partial<Player>) => {
@@ -461,30 +475,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    setGameState(prev => {
-      if (prev.economy.isBankrupt) {
-        return prev;
-      }
-
-      const currentPlayer = prev.squad.players[playerId];
-      if (!currentPlayer) {
-        return prev;
-      }
-
-      return reconcileGameState({
-        ...prev,
-        squad: {
-          ...prev.squad,
-          players: {
-            ...prev.squad.players,
-            [playerId]: {
-              ...currentPlayer,
-              ...updates,
-            },
-          },
-        },
-      });
-    });
+    setGameState(prev => updateOwnedPlayer(prev, playerId, updates));
   };
 
   const upgradeStadium = () => {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { loadGameState } from '../context/GameContext';
+import { loadGameState, purchasePlayer, sellOwnedPlayer, updateOwnedPlayer } from '../context/GameContext';
 import { createDefaultEconomyState } from '../lib/economy';
 import { buildRoundMatchRecords, buildSeasonArchiveEntry, getLeagueSeasonSchedule, getSeasonFixtures, LEAGUES, normalizeLeagueMatchRecords } from './leagues';
-import { getTeamSquadRecord, normalizePlayerRecord } from './players';
+import { getCurrentTeamSquad, getTeamSquadRecord, normalizePlayerRecord, TRANSFER_MARKET_PLAYERS } from './players';
 
 const club = LEAGUES[0].teams[0];
 const otherClub = LEAGUES[0].teams[1];
@@ -27,6 +27,112 @@ afterEach(() => {
 });
 
 describe('club and squad save migration', () => {
+  it('migrates owned market clones, preserves finances, and gives ownership priority over market copies', () => {
+    const source = TRANSFER_MARKET_PLAYERS[0];
+    saved = JSON.stringify({
+      selectedClub: club, budget: 456789, season: 3, week: 8,
+      squad: { clubId: club.id, players: {
+        own_buy1_1_1_1: { ...source, id: 'own_buy1_1_1_1', age: 34, asi: 888 },
+        duplicateKey: { ...source, id: 'own_buy1_1_1_1', age: 20 },
+      } },
+      transferMarket: { buy1: source, alias: { ...TRANSFER_MARKET_PLAYERS[1], id: 'buy2' } },
+    });
+    const state = loadGameState()!;
+    assert.deepEqual(Object.keys(state.squad.players), ['buy1']);
+    assert.equal(state.squad.players.buy1.age, 34);
+    assert.equal(state.squad.players.buy1.asi, 888);
+    assert.equal(state.budget, 456789);
+    assert.equal(state.season, 3);
+    assert.equal(state.week, 8);
+    assert.deepEqual(Object.keys(state.transferMarket), ['buy2']);
+    saved = JSON.stringify(state);
+    assert.deepEqual(loadGameState(), state);
+  });
+
+  it('removes migrated owned identities from a legacy static market', () => {
+    saved = JSON.stringify({
+      selectedTeam: club,
+      players: { own_buy1_1_1_1: { ...TRANSFER_MARKET_PLAYERS[0], id: 'own_buy1_1_1_1' } },
+    });
+    const state = loadGameState()!;
+    assert.equal(state.transferMarket.buy1, undefined);
+    assert.equal(Object.keys(state.transferMarket).length, 4);
+    assert.equal(purchasePlayer(state, 'buy1'), state);
+  });
+
+  it('transfers one stable identity, charges once, and rejects repeated/stale or unavailable purchases', () => {
+    saved = JSON.stringify({ selectedClub: club, budget: 100000000 });
+    const initial = loadGameState()!;
+    const player = initial.transferMarket.buy1;
+    const purchased = purchasePlayer(initial, player.id);
+    assert.equal(purchased.budget, initial.budget - player.value);
+    assert.equal(purchased.squad.players.buy1.id, 'buy1');
+    assert.equal(purchased.transferMarket.buy1, undefined);
+    assert.equal(purchased.economy.transactions.length, 1);
+    assert.equal(purchasePlayer(purchased, 'buy1'), purchased);
+    assert.equal(purchasePlayer(purchased, 'own_buy1_1_1_2'), purchased);
+    assert.equal(purchasePlayer(purchased, 'unknown'), purchased);
+    saved = JSON.stringify(purchased);
+    const reloaded = loadGameState()!;
+    assert.deepEqual(reloaded, purchased);
+    assert.equal(purchasePlayer(reloaded, 'buy1'), reloaded);
+    const sold = sellOwnedPlayer(reloaded, 'buy1');
+    assert.equal(sold.budget, initial.budget);
+    assert.equal(sold.squad.players.buy1, undefined);
+    assert.equal(sold.transferMarket.buy1.id, 'buy1');
+    assert.equal(sellOwnedPlayer(sold, 'buy1'), sold);
+    saved = JSON.stringify(sold);
+    assert.deepEqual(loadGameState(), sold);
+    const boughtAgain = purchasePlayer(loadGameState()!, 'buy1');
+    assert.equal(boughtAgain.squad.players.buy1.id, 'buy1');
+    assert.equal(boughtAgain.economy.transactions.length, 3);
+  });
+
+  it('rejects insufficient funds, bankruptcy, and invalid prices without charging', () => {
+    saved = JSON.stringify({ selectedClub: club, budget: 0 });
+    const state = loadGameState()!;
+    assert.equal(purchasePlayer(state, 'buy1'), state);
+    const bankrupt = { ...state, budget: 100000000, economy: { ...state.economy, isBankrupt: true } };
+    assert.equal(purchasePlayer(bankrupt, 'buy1'), bankrupt);
+    for (const price of [-1, NaN, Infinity]) {
+      const invalid = {
+        ...state, budget: 100000000,
+        transferMarket: { ...state.transferMarket, buy1: { ...state.transferMarket.buy1, askingPrice: price } },
+      };
+      assert.equal(purchasePlayer(invalid, 'buy1'), invalid);
+    }
+  });
+
+  it('preserves progression and immutable IDs through sale, repurchase and global ownership views', () => {
+    saved = JSON.stringify({ selectedClub: club, budget: 100000000 });
+    const initial = loadGameState()!;
+    const player = Object.values(initial.squad.players)[0];
+    const progressed = updateOwnedPlayer(initial, player.id, { id: 'changed-id', asi: 999, age: 34 });
+    assert.equal(progressed.squad.players[player.id].id, player.id);
+    assert.equal(progressed.squad.players['changed-id'], undefined);
+    const sold = sellOwnedPlayer(progressed, player.id);
+    assert.equal(getCurrentTeamSquad(club, sold.squad, sold.transferMarket).some(p => p.id === player.id), false);
+    const purchased = purchasePlayer(sold, player.id);
+    assert.equal(purchased.squad.players[player.id].asi, 999);
+    assert.equal(purchased.squad.players[player.id].age, 34);
+    const otherPlayer = Object.values(getTeamSquadRecord(otherClub))[0];
+    const relocated = purchasePlayer({
+      ...purchased, transferMarket: { ...purchased.transferMarket, [otherPlayer.id]: otherPlayer },
+    }, otherPlayer.id);
+    assert.equal(getCurrentTeamSquad(otherClub, relocated.squad, relocated.transferMarket)
+      .some(p => p.id === otherPlayer.id), false);
+    const world = LEAGUES.flatMap(league => league.teams.flatMap(team =>
+      getCurrentTeamSquad(team, relocated.squad, relocated.transferMarket)));
+    const ids = [...world, ...Object.values(relocated.transferMarket)].map(p => p.id);
+    assert.equal(ids.length, 869);
+    assert.equal(new Set(ids).size, ids.length);
+    for (const record of [relocated.squad.players, relocated.transferMarket]) {
+      for (const [key, currentPlayer] of Object.entries(record)) {
+        assert.equal(key, currentPlayer.id);
+      }
+    }
+  });
+
   it('migrates a legacy save without losing transfers, finances or season progress', () => {
     const player = { ...Object.values(getTeamSquadRecord(club))[0], isForSale: true, askingPrice: 123456 };
     const players = normalizePlayerRecord({ [player.id]: player });

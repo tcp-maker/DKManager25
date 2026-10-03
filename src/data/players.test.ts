@@ -8,6 +8,7 @@ import {
   calculateASI,
   getDeterministicPlayerName,
   getTeamSquad,
+  STARTER_PLAYERS,
   normalizePlayer,
   normalizePlayerRecord,
 } from './players';
@@ -22,6 +23,69 @@ const normalizeSeedName = (name: string) =>
     .toLocaleLowerCase('da-DK');
 
 describe('team-specific squad generation', () => {
+  it('has 869 globally unique playable catalog IDs, with a separate starter fallback', () => {
+    const clubPlayers = allTeams.flatMap(team => getTeamSquad(team));
+    const catalog = [...clubPlayers, ...TRANSFER_MARKET_PLAYERS];
+    assert.equal(clubPlayers.length, 864);
+    assert.equal(catalog.length, 869);
+    assert.equal(new Set(catalog.map(player => player.id)).size, catalog.length);
+    assert.equal(new Set([...catalog, ...STARTER_PLAYERS].map(player => player.id)).size, 887);
+    for (const player of catalog) {
+      assert.equal(normalizePlayer(player)?.id, player.id);
+    }
+  });
+
+  it('preserves every FC København seeded name and its existing generated ID', () => {
+    const team = allTeams.find(candidate => candidate.id === 'fckoebenhavn')!;
+    const expectedNames = [
+      'Diant Ramaj', 'Rúnar Alex Rúnarsson', 'Asger Sørensen', 'Felix Beijmo',
+      'Marcos López', 'Birger Meling', 'Rodrigo Huescas', 'William Clem',
+      'Alex Král', 'Mads Emil Madsen', 'Magnus Mattsson', 'Thomas Delaney',
+      'Mohamed Elyounoussi', 'Thapelo Maseko', 'Andreas Cornelius',
+      'Geovanni Vianney Ndjee', 'Viktor Dadason', 'Maher Carrizo',
+    ];
+    assert.equal(TEAM_PLAYER_SEEDS.fckoebenhavn.length, 18);
+    assert.deepEqual(getTeamSquad(team).map(player => [player.id, player.name]),
+      expectedNames.map((name, index) => [`fckoebenhavn-player-${index + 1}`, name]));
+  });
+
+  it('migrates duplicate inner IDs and legacy copies deterministically without name deduplication', () => {
+    const source = TRANSFER_MARKET_PLAYERS[0];
+    const canonical = { ...source, age: 35, asi: 999, value: 765432, salary: 12300 };
+    const entries = [
+      ['wrong-key', { ...source, age: 20 }],
+      ['buy1', canonical],
+      ['own_buy1_1_2_1', { ...source, id: 'own_buy1_1_2_1', age: 30 }],
+      ['namesake', { ...source, id: 'distinct', name: source.name }],
+      ['invalid', null],
+    ];
+    const migrated = normalizePlayerRecord(Object.fromEntries(entries));
+    assert.deepEqual(migrated, normalizePlayerRecord(Object.fromEntries([...entries].reverse())));
+    assert.deepEqual(migrated, normalizePlayerRecord(migrated));
+    assert.equal(Object.keys(migrated).length, 2);
+    assert.equal(migrated.buy1.age, canonical.age);
+    assert.equal(migrated.buy1.asi, canonical.asi);
+    assert.equal(migrated.buy1.value, canonical.value);
+    assert.equal(migrated.buy1.salary, canonical.salary);
+    assert.deepEqual(migrated.buy1.skills, canonical.skills);
+    assert.equal(migrated.distinct.name, migrated.buy1.name);
+    for (const [key, player] of Object.entries(migrated)) {
+      assert.equal(key, player.id);
+    }
+  });
+
+  it('chooses a stable legacy survivor and never treats names or unrelated own IDs as identity', () => {
+    const source = TRANSFER_MARKET_PLAYERS[1];
+    const migrated = normalizePlayerRecord({
+      own_buy2_2_1_1: { ...source, id: 'own_buy2_2_1_1', age: 33 },
+      own_buy2_1_1_1: { ...source, id: 'own_buy2_1_1_1', age: 31 },
+      own_custom_1: { ...source, id: 'own_custom_1' },
+    });
+    assert.equal(migrated.buy2.age, 31);
+    assert.ok(migrated.own_custom_1);
+    assert.deepEqual(migrated, normalizePlayerRecord(migrated));
+  });
+
   it('uses each club-specific pool when a seed list exists', () => {
     const seededClubIds = ['fckoebenhavn', 'broendby', 'midtjylland'];
 
