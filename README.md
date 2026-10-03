@@ -11,7 +11,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
 - Kampsimulering med 45 minutters første halvleg, 15 minutters pause og 45 minutters anden halvleg (kampuret slutter ved 90), konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
-- Økonomisektion med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter, egenkapital og bestyrelsesstatus
+- Klub-side med bestyrelse, sæsonbalance, stadionestimater og økonomi med transaktionslog, ugentlige lønninger, sponsorindtægter, gæld, renter og egenkapital
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 - Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app
@@ -36,7 +36,13 @@ State indeholder:
 - sæsonarkiv (`seasonHistory`) med sluttabel og slutplacering for hver afsluttet sæson
 - antal stadionudvidelser (`stadiumUpgrades`)
 
-Topnavigationen har en klubsektion med navn, logo, liga, kassebeholdning, fan mood og stadionkapacitet på alle faner, også Økonomi. På Trup-fanen vises desuden en separat trupsektion med antal spillere, trupværdi, løn/uge og gennemsnitlig ASI. Trupvisningen indeholder kun spillere, opdelt i målmand, forsvar, midtbane og angreb; klubbens regnskab og bestyrelse findes under Økonomi.
+Topnavigationen er **Trup, Transfer, Kampe, Stadion, Klub og Tabel** (tasterne **1–6**; **5** åbner Klub). **Trup** viser kun den aktive, gemte spillertrup med positionsantal, ASI, individuelle værdier og spillerdetaljer – ingen bestyrelse, klubøkonomi, samlet trupværdi eller lønmasse. Spillerregister, gemte trupper og transferopdateringer er uændrede.
+
+**Klub** samler klubidentitet, bestyrelsens vurdering, økonomi/sæsonbalance, finansiering og stadionaktivitet. **Stadion** bruges fortsat til udvidelser. URL-hash og sti understøtter `club`/`klub`; gamle `economy`/`okonomi`/`økonomi`-links åbner også Klub og normaliseres til `#club`. Android bruger samme webnavigation.
+
+**Sæsonbalance** er indtægter minus udgifter for den aktuelle sæsons bevarede bogføringer. Lån, transfers og stadioninvesteringer indgår: tallet er pengestrøm, ikke et revideret overskud. Kun de seneste 180 transaktioner bevares, så sæsonbalancen og kategorisummerne kan være ufuldstændige.
+
+**Estimeret gennemsnitligt tilskuertal** beregnes som bevaret billetsalg divideret med den fælles billetpris (150 kr) og antal forskellige bogførte billetuger i sæsonen. Visningen angiver sæson, ugeinterval og antal bevarede perioder. Det er ikke faktiske hjemmekampe eller en fuldstændig sæsonhistorik. Uden billetsalgsperioder vises **Endnu ingen tilskuerhistorik** og et særskilt aktuelt estimat `min(fans, kapacitet)`. Belægning sammenholdes med den nuværende kapacitet og vises som en tilgængelig indikator fra 0–100%; historiske kapaciteter og tilskuertal pr. kamp registreres ikke.
 
 Spilflowet er:
 
@@ -44,7 +50,7 @@ Spilflowet er:
 2. Gennemgå klubbens egen trup og transfermarked
 3. Spil den planlagte ligakamp i den aktuelle uge
 4. Få kampens fanpåvirkning registreret og bogfør derefter billetindtægter, sponsorindtægter, løn, drift og renter ved ugefremskridt
-5. Brug økonomi-fanen til at følge cashflow, transaktioner, gæld, egenkapital og bestyrelsens vurdering
+5. Brug Klub-fanen til at følge pengestrøm, transaktioner, gæld, egenkapital og bestyrelsens vurdering
 6. Udvid stadion, når budgettet tillader det
 
 Økonomimodellen bruger fortsat `budget` som kassebeholdning og beregner egenkapital som:

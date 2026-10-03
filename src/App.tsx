@@ -6,47 +6,19 @@ import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
-import EconomyView from './components/EconomyView';
+import ClubView from './components/ClubView';
 import LeagueTableCard from './components/LeagueTableCard';
 import LeagueTablesView from './components/LeagueTablesView';
 import TeamBadge from './components/TeamBadge';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
-import { calculateSquadValue, calculateSquadWageBill } from './lib/economy';
-
-type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table';
-
-const viewAliases: Record<string, AppView> = {
-  team: 'team',
-  trup: 'team',
-  transfers: 'transfers',
-  transfer: 'transfers',
-  matches: 'matches',
-  kampe: 'matches',
-  stadium: 'stadium',
-  stadion: 'stadium',
-  economy: 'economy',
-  okonomi: 'economy',
-  økonomi: 'economy',
-  table: 'table',
-  tabel: 'table',
-};
+import { resolveAppView, type AppView } from './lib/navigation';
 
 const resolveViewFromLocation = (): AppView => {
   if (typeof window === 'undefined') {
     return 'team';
   }
 
-  const hashView = decodeURIComponent(window.location.hash.replace(/^#/, '')).toLowerCase();
-  if (hashView && viewAliases[hashView]) {
-    return viewAliases[hashView];
-  }
-
-  const pathSegment = decodeURIComponent(window.location.pathname.replace(/^\/+/, '').split('/')[0] ?? '').toLowerCase();
-  if (pathSegment && viewAliases[pathSegment]) {
-    return viewAliases[pathSegment];
-  }
-
-  return 'team';
+  return resolveAppView(window.location.hash, window.location.pathname);
 };
 
 const App: React.FC = () => {
@@ -57,8 +29,6 @@ const App: React.FC = () => {
   const startNewGameButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedClub = gameState.selectedClub ? (getTeamById(gameState.selectedClub.id) ?? gameState.selectedClub) : null;
-  const players = Object.values(gameState.squad.players);
-  const averageAsi = players.length > 0 ? Math.round(players.reduce((sum, player) => sum + player.asi, 0) / players.length) : 0;
   const isBankrupt = gameState.economy.isBankrupt;
   const leagueTable = useMemo(
     () => buildLeagueStandings(selectedClub, gameState.season, gameState.leagueMatches),
@@ -103,7 +73,7 @@ const App: React.FC = () => {
 
       if (event.key === '5') {
         event.preventDefault();
-        setActiveView('economy');
+        setActiveView('club');
         return;
       }
 
@@ -146,7 +116,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      setActiveView(resolveViewFromLocation());
+      const view = resolveViewFromLocation();
+      setActiveView(view);
+      const expectedHash = `#${view}`;
+      if (window.location.hash !== expectedHash) {
+        window.history.replaceState(null, '', expectedHash);
+      }
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -163,8 +138,8 @@ const App: React.FC = () => {
         return <MatchView />;
       case 'stadium':
         return <StadiumView />;
-      case 'economy':
-        return <EconomyView />;
+      case 'club':
+        return <ClubView />;
       case 'table':
         return <LeagueTablesView currentStandings={leagueTable} />;
       default:
@@ -238,7 +213,7 @@ const App: React.FC = () => {
                 <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
                 <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
                 <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
-                <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
+                <button onClick={() => setActiveView('club')} className={activeView === 'club' ? 'font-bold' : ''}>Klub</button>
                 <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
               </div>
 
@@ -265,43 +240,13 @@ const App: React.FC = () => {
                 />
               </div>
             </div>
-            <div className="max-w-7xl mx-auto mt-4 grid gap-4">
-              <section aria-label="Klub" className="rounded-lg bg-blue-700 p-4">
-                <h2 className="mb-3 font-bold">Klub</h2>
-                <div className="flex flex-wrap items-center gap-6">
-                  <div className="flex items-center gap-3">
-                    <TeamBadge team={selectedClub} size="lg" />
-                    <div>
-                      <p className="font-semibold">{selectedClub.name}</p>
-                      <p className="text-sm">{selectedClub.league}</p>
-                    </div>
-                  </div>
-                  <dl className="flex flex-wrap gap-6">
-                    <div><dt>Kassebeholdning</dt><dd className="font-bold">{gameState.budget.toLocaleString('da-DK')} kr</dd></div>
-                    <div><dt>Fan mood</dt><dd className="font-bold">{gameState.fanMood}/100</dd></div>
-                    <div><dt>Stadionkapacitet</dt><dd className="font-bold">{gameState.stadiumCapacity.toLocaleString('da-DK')}</dd></div>
-                  </dl>
-                </div>
-              </section>
-              {activeView === 'team' && (
-                <section aria-label="Trup" className="rounded-lg bg-blue-700 p-4">
-                  <h2 className="mb-3 font-bold">Trup</h2>
-                  <dl className="flex flex-wrap gap-6">
-                    <div><dt>Antal spillere</dt><dd className="font-bold">{players.length}</dd></div>
-                    <div><dt>Trupværdi</dt><dd className="font-bold">{calculateSquadValue(players).toLocaleString('da-DK')} kr</dd></div>
-                    <div><dt>Løn/uge</dt><dd className="font-bold">{calculateSquadWageBill(players).toLocaleString('da-DK')} kr</dd></div>
-                    <div><dt>Gennemsnitlig ASI</dt><dd className="font-bold">{averageAsi}</dd></div>
-                  </dl>
-                </section>
-              )}
-            </div>
           </nav>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]">
+            <div className={`grid gap-6 ${activeView !== 'team' && activeView !== 'club' && activeView !== 'table' ? 'xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]' : ''}`}>
               <div>{renderMainView()}</div>
 
-              {activeView !== 'table' && (
+              {activeView !== 'table' && activeView !== 'team' && activeView !== 'club' && (
                 <aside className="xl:sticky xl:top-4 xl:self-start">
                   <LeagueTableCard
                     leagueName={selectedClub.league}
