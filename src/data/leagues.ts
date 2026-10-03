@@ -1,5 +1,1 @@
-export const MATCH_TIMELINE: MatchTimelineConfig = {
-  firstHalfMinutes: 45,
-  halftimeMinutes: 15,
-  secondHalfMinutes: 45,
-};
+        summary: `${homeTeamName} og ${awayTeamName} spillede ${summarizeResult(score.homeGoals, score.awayGoals)} efter 2x45 minutter og en pause på 15 minutter. Slutresultatet blev ${score.homeGoals}-${score.awayGoals}.`,
