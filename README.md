@@ -26,6 +26,7 @@ State indeholder:
 
 - valgt klub (`selectedClub`, typen `Club`)
 - spillertrup (`squad: { clubId, players }`), hvor `players` er et spillerregister
+- tilgængelige transfers (`transferMarket`), gemt som spillerregister; køb/salg flytter samme ID mellem marked og trup
 - budget
 - økonomi (`economy`) med gæld, transaktioner, stadionværdi, rente og bestyrelsesstatus
 - antal fans (`fanCount`)
@@ -65,6 +66,16 @@ Ved hver uge bogføres:
 - deterministisk sponsorindtægt baseret på klubniveau, fans, fan mood og kampresultat
 - ugentlige lønninger ud fra truppens spillerlønninger
 - klub-/stadiondrift og eventuelle renter på gæld
+
+### Spilleridentitet og migrering af saves
+
+Optælling før og efter identitetsrettelsen: **869 unikke spilbare spiller-ID'er** = 48 klubber × 18 spillere (864) + 5 transferfrø. Det er ikke en komplet database med 1.000 spillere. `STARTER_PLAYERS` har yderligere 18 separate prototype-ID'er uden for de spilbare ligaer (887 inklusive fallback). FC Københavns 18 eksisterende frø og deres genererede ID'er er bevaret; ingen trupdata er hentet eller tilføjet.
+
+`getTeamSquad` er en deterministisk startskabelon, ikke et ekstra ejerskab. Den valgte klub bruger kun den gemte trup, også efter salg. `getCurrentTeamSquad` viser øvrige klubbers skabeloner uden spillere, som nu findes i den aktive trup eller på det gemte marked, så flyttede spillere ikke genopstår hos deres tidligere klub. Markedet viser kun tilgængelige spillere. State-laget afgør køb ud fra det aktuelle marked og budget (ikke UI-kopiens pris), og opdaterer ejerskab, budget og bogføring samlet; gentagne/forældede køb afvises uden betaling.
+
+Ved indlæsning bliver kendte gamle kopier (`own_buy1`, `own_buy1_1_2_1` osv.) til deres oprindelige `buy1`-ID. Registerets nøgle bliver altid spillerens indre ID. Dubletter afgøres deterministisk: først en kanonisk indre ID med matchende nøgle, derefter andre kanoniske poster, derefter gamle kopier med matchende nøgle, og til sidst øvrige kopier. Ved lige prioritet vinder leksikografisk første kildenøgle; det er ikke en vurdering af nyeste eller bedste progression. Vinderens attributter bevares gennem den eksisterende feltvalidering; dubletternes progression sammenlægges ikke. Navne bruges aldrig til identitetsdeduplikering.
+
+Den ejede trup har forrang over eventuelle markedskopier. Ældre saves uden marked får de fem oprindelige transfer-ID'er minus allerede ejede spillere; tidligere solgte poster kan ikke genskabes, da gamle saves ikke gemte dem. Nye salg bevarer spiller og progression på markedet med samme ID. Budget, sæson, gæld og historiske betalinger nulstilles ikke, og der gives ingen retroaktive refusioner. Migreringen er idempotent. Der er ingen gemte lineup-/spillerudvalgsreferencer at omskrive; spillerudvalg i UI er lokal, ikke-persistent state.
 
 Kampresultater påvirker nu state sådan:
 

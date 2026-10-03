@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ConfirmAction from './ConfirmAction';
 import PlayerDetailsPanel from './PlayerDetailsPanel';
-import { ROLE_LABELS, TRANSFER_MARKET_PLAYERS } from '../data/players';
+import { ROLE_LABELS } from '../data/players';
 import { useGame } from '../context/GameContext';
 import { Player } from '../types/player';
 
@@ -16,8 +16,8 @@ const TransferMarketView: React.FC = () => {
   const playersForSale = playerList.filter(p => p.isForSale);
   const squadPlayers = playerList.filter(p => !p.isForSale);
 
-  // Dummy spillere der kan købes
-  const availableForBuy: Player[] = TRANSFER_MARKET_PLAYERS;
+  const availableForBuy = Object.values(gameState.transferMarket)
+    .filter(player => !Object.prototype.hasOwnProperty.call(gameState.squad.players, player.id));
 
   const handleSellPlayer = (playerId: string): string | null => {
     const player = gameState.squad.players[playerId];
@@ -35,15 +35,7 @@ const TransferMarketView: React.FC = () => {
       return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`;
     }
 
-    const existingCopies = Object.keys(gameState.squad.players).filter(playerId => playerId.startsWith(`own_${player.id}_`)).length;
-    const newPlayer = {
-      ...player,
-      id: `own_${player.id}_${gameState.season}_${gameState.week}_${existingCopies + 1}`,
-      isForSale: false,
-      askingPrice: undefined
-    };
-
-    const wasAdded = addPlayer(newPlayer);
+    const wasAdded = addPlayer(player);
     if (!wasAdded) {
       return `Købet af ${player.name} kunne ikke gennemføres.`;
     }

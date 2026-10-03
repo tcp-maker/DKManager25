@@ -1,5 +1,6 @@
 import { Player, PlayerRole, PlayerSkills, SkillKey } from '../types/player';
 import { Team } from '../types/teams';
+import type { SquadState } from '../types/squads';
 import { estimateWeeklySalary } from '../lib/economy';
 import { LEAGUES, getTeamById } from './leagues';
 
@@ -538,6 +539,9 @@ const normalizePlayerIdValue = (playerId: unknown): string | null => {
   return normalizedId.length > 0 ? normalizedId : null;
 };
 
+export const canonicalizePlayerId = (playerId: string): string =>
+  playerId.trim().replace(/^own_(buy\d+)(?:_\d+)*$/i, (_, id: string) => id.toLowerCase());
+
 const normalizePlayerNameValue = (name: unknown): string | null => {
   if (typeof name !== 'string') {
     return null;
@@ -673,15 +677,30 @@ export const getTeamSquad = (team: Team | null): Player[] => {
 };
 
 export const getTeamSquadRecord = (team: Team | null): Record<string, Player> =>
-  getTeamSquad(team).reduce((acc, player) => {
-    acc[player.id] = player;
-    return acc;
-  }, {} as Record<string, Player>);
+  normalizePlayerRecord(Object.fromEntries(getTeamSquad(team).map(player => [player.id, player])));
+
+export const getCurrentTeamSquad = (
+  team: Team,
+  squad: SquadState,
+  transferMarket: Record<string, Player>,
+): Player[] => {
+  const teamId = (getTeamById(team.id) ?? team).id;
+  if (teamId === squad.clubId) {
+    return Object.values(squad.players);
+  }
+
+  const relocatedIds = new Set([...Object.keys(squad.players), ...Object.keys(transferMarket)]);
+  return getTeamSquad(team).filter(player => !relocatedIds.has(player.id));
+};
 
 export const TRANSFER_MARKET_PLAYERS = transferSeeds.map(createPlayer);
 
 export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: string): Player | null => {
-  const normalizedId = normalizePlayerIdValue(rawPlayer.id) ?? fallbackId;
+  if (!rawPlayer || typeof rawPlayer !== 'object') {
+    return null;
+  }
+  const sourceId = normalizePlayerIdValue(rawPlayer.id) ?? normalizePlayerIdValue(fallbackId);
+  const normalizedId = sourceId ? canonicalizePlayerId(sourceId) : undefined;
   const normalizedName = resolvePlayerName(rawPlayer.name, normalizedId);
   if (!rawPlayer.position) {
     return null;
@@ -745,11 +764,32 @@ export const normalizePlayerRecord = (players: unknown): Record<string, Player> 
     return {};
   }
 
-  return Object.entries(players as Record<string, LegacyPlayerShape>).reduce((acc, [playerId, rawPlayer]) => {
-    const normalized = normalizePlayer(rawPlayer, playerId);
-    if (normalized) {
-      acc[playerId] = normalized;
+  const candidates = Object.entries(players as Record<string, LegacyPlayerShape>)
+    .map(([key, rawPlayer]) => ({ key, rawPlayer, player: normalizePlayer(rawPlayer, key) }))
+    .filter(candidate => candidate.player !== null);
+  const priority = (candidate: typeof candidates[number]) => {
+    const sourceId = normalizePlayerIdValue(candidate.rawPlayer.id) ?? candidate.key;
+    return sourceId === candidate.player!.id
+      ? (candidate.key === candidate.player!.id ? 0 : 1)
+      : (candidate.key === sourceId ? 2 : 3);
+  };
+  candidates.sort((a, b) => priority(a) - priority(b) || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  const uniquePlayers = new Map<string, Player>();
+  for (const { player } of candidates) {
+    if (player && !uniquePlayers.has(player.id)) {
+      uniquePlayers.set(player.id, player);
     }
-    return acc;
-  }, {} as Record<string, Player>);
+  }
+  return Object.fromEntries(uniquePlayers);
+};
+
+export const normalizeTransferMarket = (
+  market: unknown,
+  players: Record<string, Player>,
+): Record<string, Player> => {
+  const normalized = market && typeof market === 'object'
+    ? normalizePlayerRecord(market)
+    : normalizePlayerRecord(Object.fromEntries(TRANSFER_MARKET_PLAYERS.map(player => [player.id, player])));
+  return Object.fromEntries(Object.entries(normalized).filter(([id]) =>
+    !Object.prototype.hasOwnProperty.call(players, id)));
 };
