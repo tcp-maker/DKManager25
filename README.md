@@ -170,6 +170,18 @@ Når signing er sat op, vil release-builds automatisk bruge den. Selve Play Stor
 
 Første Android-build kræver også adgang til Gradle/Google Maven for at hente Android build-afhængigheder, hvis de ikke allerede findes lokalt i cachen.
 
+Android-builds kræver Node.js `>=22.12.0` (`@capacitor/cli` 8 kræver Node 22+), JDK 21 (den genererede `android/app/capacitor.build.gradle` sætter Java 21) samt Android SDK `platforms;android-36` og `build-tools;36.0.0`.
+
+### Android CI (GitHub Actions)
+
+`.github/workflows/android-debug-apk.yml` kører på push/pull request mod `main` og manuelt via `workflow_dispatch` (Actions → "Build Android Debug APK" → "Run workflow"). Workflowet:
+
+- bruger det forudinstallerede Android SDK på `ubuntu-24.04`-runneren (ikke `android-actions/setup-android`) og installerer/verificerer de nødvendige SDK-pakker eksplicit med `sdkmanager --sdk_root`
+- kører `npm ci`, `npx --no-install tsc --noEmit`, `npm run build:mobile` og `./gradlew assembleDebug testDebugUnitTest lintDebug` med Node 22 og Temurin JDK 21
+- uploader `android-reports` (lint-/testrapporter, 7 dage) og ved succes `android-debug-apk` (`app-debug.apk`, 14 dage)
+
+Bemærk: GitHub opdaterer stadig de hostede runner-images, så buildet er ikke fuldt hermetisk. Instrumenterede tests (`androidTest`) køres ikke i CI, da de kræver emulator/enhed.
+
 Android-wrapperen bruger nu en mere app-venlig opsætning med:
 
 - native statuslinje i appens farver
