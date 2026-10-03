@@ -1,13 +1,13 @@
 import React from 'react';
 import { LEAGUES } from '../data/leagues';
-import { Team } from '../types/teams';
+import type { Club } from '../types/clubs';
 import TeamBadge from './TeamBadge';
 
 interface SelectTeamViewProps {
-  onSelectTeam: (team: Team) => void;
+  onSelectClub: (club: Club) => void;
 }
 
-const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
+const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectClub }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -49,7 +49,7 @@ const SelectTeamView: React.FC<SelectTeamViewProps> = ({ onSelectTeam }) => {
                 {league.teams.map((team) => (
                   <button
                     key={team.id}
-                    onClick={() => onSelectTeam(team as Team)}
+                    onClick={() => onSelectClub(team)}
                     className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all p-5 text-center card-hover border-2 border-transparent hover:border-blue-500"
                     aria-label={`Vælg ${team.name}`}
                   >

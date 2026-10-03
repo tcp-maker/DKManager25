@@ -11,6 +11,7 @@ import LeagueTableCard from './components/LeagueTableCard';
 import LeagueTablesView from './components/LeagueTablesView';
 import TeamBadge from './components/TeamBadge';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
+import { calculateSquadValue, calculateSquadWageBill } from './lib/economy';
 
 type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table';
 
@@ -49,17 +50,19 @@ const resolveViewFromLocation = (): AppView => {
 };
 
 const App: React.FC = () => {
-  const { gameState, selectTeam, restartCurrentTeam, resetGame } = useGame();
+  const { gameState, selectClub, restartCurrentClub, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
   const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
   const [isRestartConfirmationOpen, setIsRestartConfirmationOpen] = useState(false);
   const startNewGameButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
+  const selectedClub = gameState.selectedClub ? (getTeamById(gameState.selectedClub.id) ?? gameState.selectedClub) : null;
+  const players = Object.values(gameState.squad.players);
+  const averageAsi = players.length > 0 ? Math.round(players.reduce((sum, player) => sum + player.asi, 0) / players.length) : 0;
   const isBankrupt = gameState.economy.isBankrupt;
   const leagueTable = useMemo(
-    () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
-    [selectedTeam, gameState.season, gameState.leagueMatches],
+    () => buildLeagueStandings(selectedClub, gameState.season, gameState.leagueMatches),
+    [selectedClub, gameState.season, gameState.leagueMatches],
   );
 
   useEffect(() => {
@@ -110,7 +113,7 @@ const App: React.FC = () => {
         return;
       }
 
-      if (selectedTeam && event.key.toLowerCase() === 'r') {
+      if (selectedClub && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         setIsRestartConfirmationOpen(true);
       }
@@ -118,7 +121,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isBankrupt, selectedTeam]);
+  }, [isBankrupt, selectedClub]);
 
   useEffect(() => {
     if (!isBankrupt) {
@@ -153,7 +156,7 @@ const App: React.FC = () => {
   const renderMainView = () => {
     switch (activeView) {
       case 'team':
-        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
+        return <TeamView />;
       case 'transfers':
         return <TransferMarketView />;
       case 'matches':
@@ -165,7 +168,7 @@ const App: React.FC = () => {
       case 'table':
         return <LeagueTablesView currentStandings={leagueTable} />;
       default:
-        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
+        return <TeamView />;
     }
   };
 
@@ -176,15 +179,15 @@ const App: React.FC = () => {
   };
 
   const handleStartNewGame = () => {
-    restartCurrentTeam();
+    restartCurrentClub();
     setActiveView('team');
     return null;
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {!selectedTeam ? (
-        <SelectTeamView onSelectTeam={selectTeam} />
+      {!selectedClub ? (
+        <SelectTeamView onSelectClub={selectClub} />
       ) : isBankrupt ? (
         <main className="flex min-h-screen items-center justify-center px-4 py-8">
           <section
@@ -201,16 +204,16 @@ const App: React.FC = () => {
                 Klubben er solgt til Stanglakrids FC. Bestyrelsen har erklæret klubben konkurs, og din ledelse er afsluttet.
               </p>
               <p className="mt-3 text-sm leading-6 text-red-900/80">
-                {selectedTeam.name} nåede tre sammenhængende afsluttede uger i status <span className="font-semibold">Krise</span>.
+                {selectedClub.name} nåede tre sammenhængende afsluttede uger i status <span className="font-semibold">Krise</span>.
                 Du kan ikke fortsætte sæsonen fra denne gemte tilstand.
               </p>
             </div>
 
             <div className="mt-6 flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <TeamBadge team={selectedTeam} size="lg" />
+                <TeamBadge team={selectedClub} size="lg" />
                 <div>
-                  <p className="font-semibold text-gray-900">{selectedTeam.name}</p>
+                  <p className="font-semibold text-gray-900">{selectedClub.name}</p>
                   <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
                 </div>
               </div>
@@ -262,6 +265,36 @@ const App: React.FC = () => {
                 />
               </div>
             </div>
+            <div className="max-w-7xl mx-auto mt-4 grid gap-4">
+              <section aria-label="Klub" className="rounded-lg bg-blue-700 p-4">
+                <h2 className="mb-3 font-bold">Klub</h2>
+                <div className="flex flex-wrap items-center gap-6">
+                  <div className="flex items-center gap-3">
+                    <TeamBadge team={selectedClub} size="lg" />
+                    <div>
+                      <p className="font-semibold">{selectedClub.name}</p>
+                      <p className="text-sm">{selectedClub.league}</p>
+                    </div>
+                  </div>
+                  <dl className="flex flex-wrap gap-6">
+                    <div><dt>Kassebeholdning</dt><dd className="font-bold">{gameState.budget.toLocaleString('da-DK')} kr</dd></div>
+                    <div><dt>Fan mood</dt><dd className="font-bold">{gameState.fanMood}/100</dd></div>
+                    <div><dt>Stadionkapacitet</dt><dd className="font-bold">{gameState.stadiumCapacity.toLocaleString('da-DK')}</dd></div>
+                  </dl>
+                </div>
+              </section>
+              {activeView === 'team' && (
+                <section aria-label="Trup" className="rounded-lg bg-blue-700 p-4">
+                  <h2 className="mb-3 font-bold">Trup</h2>
+                  <dl className="flex flex-wrap gap-6">
+                    <div><dt>Antal spillere</dt><dd className="font-bold">{players.length}</dd></div>
+                    <div><dt>Trupværdi</dt><dd className="font-bold">{calculateSquadValue(players).toLocaleString('da-DK')} kr</dd></div>
+                    <div><dt>Løn/uge</dt><dd className="font-bold">{calculateSquadWageBill(players).toLocaleString('da-DK')} kr</dd></div>
+                    <div><dt>Gennemsnitlig ASI</dt><dd className="font-bold">{averageAsi}</dd></div>
+                  </dl>
+                </section>
+              )}
+            </div>
           </nav>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
@@ -271,9 +304,9 @@ const App: React.FC = () => {
               {activeView !== 'table' && (
                 <aside className="xl:sticky xl:top-4 xl:self-start">
                   <LeagueTableCard
-                    leagueName={selectedTeam.league}
+                    leagueName={selectedClub.league}
                     season={gameState.season}
-                    selectedTeamId={selectedTeam.id}
+                    selectedTeamId={selectedClub.id}
                     standings={leagueTable}
                   />
                 </aside>

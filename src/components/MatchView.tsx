@@ -200,8 +200,8 @@ const MatchView: React.FC = () => {
   const [liveMatch, setLiveMatch] = useState<LiveMatchState | null>(null);
   const [liveTick, setLiveTick] = useState(0);
   const [expandedHistoryMatchId, setExpandedHistoryMatchId] = useState<string | null>(null);
-  const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
-  const fixtures = useMemo(() => getSeasonFixtures(selectedTeam), [selectedTeam]);
+  const selectedClub = gameState.selectedClub ? (getTeamById(gameState.selectedClub.id) ?? gameState.selectedClub) : null;
+  const fixtures = useMemo(() => getSeasonFixtures(selectedClub), [selectedClub]);
   const seasonMatches = useMemo(
     () => getSeasonMatches(gameState.leagueMatches, gameState.season),
     [gameState.leagueMatches, gameState.season],
@@ -243,9 +243,9 @@ const MatchView: React.FC = () => {
   );
   const playedMatches = useMemo<PlayedMatchSummary[]>(
     () => historyMatches
-      .filter(match => match.isUserMatch && selectedTeam)
+      .filter(match => match.isUserMatch && selectedClub)
       .map(match => {
-        const isHome = match.homeTeamId === selectedTeam?.id;
+        const isHome = match.homeTeamId === selectedClub?.id;
         const userGoals = isHome ? match.homeGoals : match.awayGoals;
         const opponentGoals = isHome ? match.awayGoals : match.homeGoals;
         const result: PlayedMatchSummary['result'] = userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW';
@@ -261,7 +261,7 @@ const MatchView: React.FC = () => {
         };
       })
       .sort((a, b) => b.week - a.week),
-    [historyMatches, selectedTeam],
+    [historyMatches, selectedClub],
   );
   const historyRecord = useMemo(
     () => playedMatches.reduce(
@@ -297,8 +297,8 @@ const MatchView: React.FC = () => {
   );
 
   const squadStrength = useMemo(
-    () => calculateSquadStrength(Object.values(gameState.players)),
-    [gameState.players],
+    () => calculateSquadStrength(Object.values(gameState.squad.players)),
+    [gameState.squad.players],
   );
   const currentOpponent = currentMatch ? getTeamById(currentMatch.opponentId) : null;
   const leftSideIsUser = Boolean(currentMatch?.isHome);
@@ -368,15 +368,15 @@ const MatchView: React.FC = () => {
     : null;
 
   const simulateMatch = (match: ScheduledMatch) => {
-    if (isMatchPlaying || !selectedTeam) {
+    if (isMatchPlaying || !selectedClub) {
       return;
     }
 
     const opponentStrength = getBalancedOpponentStrength(match.opponentRating);
-    const homeTeamName = match.isHome ? selectedTeam.name : match.opponent;
-    const awayTeamName = match.isHome ? match.opponent : selectedTeam.name;
-    const homeTeamId = match.isHome ? selectedTeam.id : match.opponentId;
-    const awayTeamId = match.isHome ? match.opponentId : selectedTeam.id;
+    const homeTeamName = match.isHome ? selectedClub.name : match.opponent;
+    const awayTeamName = match.isHome ? match.opponent : selectedClub.name;
+    const homeTeamId = match.isHome ? selectedClub.id : match.opponentId;
+    const awayTeamId = match.isHome ? match.opponentId : selectedClub.id;
     const detailedResult = simulateDetailedMatch(
       match.isHome ? getMatchPerformanceRating(squadStrength, true) : getMatchPerformanceRating(opponentStrength, true),
       match.isHome ? getMatchPerformanceRating(opponentStrength, false) : getMatchPerformanceRating(squadStrength, false),
@@ -450,7 +450,7 @@ const MatchView: React.FC = () => {
                 <div className="flex justify-between items-center mb-4">
                   <div className="text-center flex-1">
                     <div className="mb-2 flex justify-center">
-                      <TeamBadge team={leftSideIsUser && selectedTeam ? selectedTeam : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
+                      <TeamBadge team={leftSideIsUser && selectedClub ? selectedClub : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
                     </div>
                     <p className="text-sm text-gray-600">{leftSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
                     <p className={`text-4xl font-bold ${leftSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
@@ -462,7 +462,7 @@ const MatchView: React.FC = () => {
                   </div>
                   <div className="text-center flex-1">
                     <div className="mb-2 flex justify-center">
-                      <TeamBadge team={rightSideIsUser && selectedTeam ? selectedTeam : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
+                      <TeamBadge team={rightSideIsUser && selectedClub ? selectedClub : (currentOpponent ?? { name: matchResult.opponent, logo: '⚽' })} size="lg" />
                     </div>
                     <p className="text-sm text-gray-600">{rightSideIsUser ? 'Dit Hold' : matchResult.opponent}</p>
                     <p className={`text-4xl font-bold ${rightSideIsUser ? 'text-green-600' : 'text-blue-600'}`}>
