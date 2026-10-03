@@ -1,8 +1,8 @@
 import React from 'react';
-import { Team } from '../types/teams';
+import type { Club } from '../types/clubs';
 
 interface TeamBadgeProps {
-  team: Pick<Team, 'name' | 'logo'> & Partial<Pick<Team, 'primaryColor' | 'secondaryColor'>>;
+  team: Pick<Club, 'name' | 'logo'> & Partial<Pick<Club, 'primaryColor' | 'secondaryColor'>>;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }

@@ -6,59 +6,33 @@ import TransferMarketView from './components/TransferMarketView';
 import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
-import EconomyView from './components/EconomyView';
+import ClubView from './components/ClubView';
 import LeagueTableCard from './components/LeagueTableCard';
+import LeagueTablesView from './components/LeagueTablesView';
 import TeamBadge from './components/TeamBadge';
 import { buildLeagueStandings, getTeamById } from './data/leagues';
-
-type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'economy' | 'table';
-
-const viewAliases: Record<string, AppView> = {
-  team: 'team',
-  trup: 'team',
-  transfers: 'transfers',
-  transfer: 'transfers',
-  matches: 'matches',
-  kampe: 'matches',
-  stadium: 'stadium',
-  stadion: 'stadium',
-  economy: 'economy',
-  okonomi: 'economy',
-  økonomi: 'economy',
-  table: 'table',
-  tabel: 'table',
-};
+import { resolveAppView, type AppView } from './lib/navigation';
 
 const resolveViewFromLocation = (): AppView => {
   if (typeof window === 'undefined') {
     return 'team';
   }
 
-  const hashView = decodeURIComponent(window.location.hash.replace(/^#/, '')).toLowerCase();
-  if (hashView && viewAliases[hashView]) {
-    return viewAliases[hashView];
-  }
-
-  const pathSegment = decodeURIComponent(window.location.pathname.replace(/^\/+/, '').split('/')[0] ?? '').toLowerCase();
-  if (pathSegment && viewAliases[pathSegment]) {
-    return viewAliases[pathSegment];
-  }
-
-  return 'team';
+  return resolveAppView(window.location.hash, window.location.pathname);
 };
 
 const App: React.FC = () => {
-  const { gameState, selectTeam, restartCurrentTeam, resetGame } = useGame();
+  const { gameState, selectClub, restartCurrentClub, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
   const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
   const [isRestartConfirmationOpen, setIsRestartConfirmationOpen] = useState(false);
   const startNewGameButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const selectedTeam = gameState.selectedTeam ? (getTeamById(gameState.selectedTeam.id) ?? gameState.selectedTeam) : null;
+  const selectedClub = gameState.selectedClub ? (getTeamById(gameState.selectedClub.id) ?? gameState.selectedClub) : null;
   const isBankrupt = gameState.economy.isBankrupt;
   const leagueTable = useMemo(
-    () => buildLeagueStandings(selectedTeam, gameState.season, gameState.leagueMatches),
-    [selectedTeam, gameState.season, gameState.leagueMatches],
+    () => buildLeagueStandings(selectedClub, gameState.season, gameState.leagueMatches),
+    [selectedClub, gameState.season, gameState.leagueMatches],
   );
 
   useEffect(() => {
@@ -99,7 +73,7 @@ const App: React.FC = () => {
 
       if (event.key === '5') {
         event.preventDefault();
-        setActiveView('economy');
+        setActiveView('club');
         return;
       }
 
@@ -109,7 +83,7 @@ const App: React.FC = () => {
         return;
       }
 
-      if (selectedTeam && event.key.toLowerCase() === 'r') {
+      if (selectedClub && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         setIsRestartConfirmationOpen(true);
       }
@@ -117,7 +91,7 @@ const App: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isBankrupt, selectedTeam]);
+  }, [isBankrupt, selectedClub]);
 
   useEffect(() => {
     if (!isBankrupt) {
@@ -142,7 +116,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const handleHashChange = () => {
-      setActiveView(resolveViewFromLocation());
+      const view = resolveViewFromLocation();
+      setActiveView(view);
+      const expectedHash = `#${view}`;
+      if (window.location.hash !== expectedHash) {
+        window.history.replaceState(null, '', expectedHash);
+      }
     };
 
     window.addEventListener('hashchange', handleHashChange);
@@ -152,26 +131,19 @@ const App: React.FC = () => {
   const renderMainView = () => {
     switch (activeView) {
       case 'team':
-        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
+        return <TeamView />;
       case 'transfers':
         return <TransferMarketView />;
       case 'matches':
         return <MatchView />;
       case 'stadium':
         return <StadiumView />;
-      case 'economy':
-        return <EconomyView />;
+      case 'club':
+        return <ClubView />;
       case 'table':
-        return (
-          <LeagueTableCard
-            leagueName={selectedTeam?.league ?? ''}
-            season={gameState.season}
-            selectedTeamId={selectedTeam?.id ?? ''}
-            standings={leagueTable}
-          />
-        );
+        return <LeagueTablesView currentStandings={leagueTable} />;
       default:
-        return <TeamView onOpenEconomy={() => setActiveView('economy')} />;
+        return <TeamView />;
     }
   };
 
@@ -182,15 +154,15 @@ const App: React.FC = () => {
   };
 
   const handleStartNewGame = () => {
-    restartCurrentTeam();
+    restartCurrentClub();
     setActiveView('team');
     return null;
   };
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {!selectedTeam ? (
-        <SelectTeamView onSelectTeam={selectTeam} />
+      {!selectedClub ? (
+        <SelectTeamView onSelectClub={selectClub} />
       ) : isBankrupt ? (
         <main className="flex min-h-screen items-center justify-center px-4 py-8">
           <section
@@ -207,16 +179,16 @@ const App: React.FC = () => {
                 Klubben er solgt til Stanglakrids FC. Bestyrelsen har erklæret klubben konkurs, og din ledelse er afsluttet.
               </p>
               <p className="mt-3 text-sm leading-6 text-red-900/80">
-                {selectedTeam.name} nåede tre sammenhængende afsluttede uger i status <span className="font-semibold">Krise</span>.
+                {selectedClub.name} nåede tre sammenhængende afsluttede uger i status <span className="font-semibold">Krise</span>.
                 Du kan ikke fortsætte sæsonen fra denne gemte tilstand.
               </p>
             </div>
 
             <div className="mt-6 flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <TeamBadge team={selectedTeam} size="lg" />
+                <TeamBadge team={selectedClub} size="lg" />
                 <div>
-                  <p className="font-semibold text-gray-900">{selectedTeam.name}</p>
+                  <p className="font-semibold text-gray-900">{selectedClub.name}</p>
                   <p className="text-sm text-gray-600">Sæson {gameState.season} • Uge {gameState.week}</p>
                 </div>
               </div>
@@ -241,7 +213,7 @@ const App: React.FC = () => {
                 <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
                 <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
                 <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
-                <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
+                <button onClick={() => setActiveView('club')} className={activeView === 'club' ? 'font-bold' : ''}>Klub</button>
                 <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
               </div>
 
@@ -271,15 +243,15 @@ const App: React.FC = () => {
           </nav>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]">
+            <div className={`grid gap-6 ${activeView !== 'team' && activeView !== 'club' && activeView !== 'table' ? 'xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]' : ''}`}>
               <div>{renderMainView()}</div>
 
-              {activeView !== 'table' && (
+              {activeView !== 'table' && activeView !== 'team' && activeView !== 'club' && (
                 <aside className="xl:sticky xl:top-4 xl:self-start">
                   <LeagueTableCard
-                    leagueName={selectedTeam.league}
+                    leagueName={selectedClub.league}
                     season={gameState.season}
-                    selectedTeamId={selectedTeam.id}
+                    selectedTeamId={selectedClub.id}
                     standings={leagueTable}
                   />
                 </aside>
