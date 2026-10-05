@@ -9,6 +9,7 @@ import {
   MATCH_TIMELINE,
   getAvailableSeasons,
   getLivePhase,
+  getPendingUserMatch,
   getSeasonFixtures,
   getSeasonMatches,
   getTeamById,
@@ -121,6 +122,22 @@ const swapMatchDetailsPerspective = (details?: MatchDetails): MatchDetails | und
   };
 };
 
+const toPlayedMatchSummary = (match: LeagueMatchRecord, userTeamId: string): PlayedMatchSummary => {
+  const isHome = match.homeTeamId === userTeamId;
+  const userGoals = isHome ? match.homeGoals : match.awayGoals;
+  const opponentGoals = isHome ? match.awayGoals : match.homeGoals;
+  return {
+    id: match.fixtureId,
+    opponentId: isHome ? match.awayTeamId : match.homeTeamId,
+    opponent: isHome ? match.awayTeamName : match.homeTeamName,
+    result: userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW',
+    userGoals,
+    opponentGoals,
+    week: match.week,
+    details: isHome ? match.details : swapMatchDetailsPerspective(match.details),
+  };
+};
+
 const StatCard = ({ label, homeValue, awayValue }: { label: string; homeValue: string | number; awayValue: string | number }) => (
   <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
     <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
@@ -192,8 +209,6 @@ const MatchDetailsPanel = ({
 const MatchView: React.FC = () => {
   const { gameState, handleNextWeek, recordMatchResult } = useGame();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [currentMatch, setCurrentMatch] = useState<ScheduledMatch | null>(null);
-  const [matchResult, setMatchResult] = useState<PlayedMatchSummary | null>(null);
   const [isMatchPlaying, setIsMatchPlaying] = useState(false);
   const [historySeason, setHistorySeason] = useState(gameState.season);
   const [historyScope, setHistoryScope] = useState<'mine' | 'all'>('mine');
@@ -244,22 +259,7 @@ const MatchView: React.FC = () => {
   const playedMatches = useMemo<PlayedMatchSummary[]>(
     () => historyMatches
       .filter(match => match.isUserMatch && selectedClub)
-      .map(match => {
-        const isHome = match.homeTeamId === selectedClub?.id;
-        const userGoals = isHome ? match.homeGoals : match.awayGoals;
-        const opponentGoals = isHome ? match.awayGoals : match.homeGoals;
-        const result: PlayedMatchSummary['result'] = userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW';
-        return {
-          id: match.fixtureId,
-          opponentId: isHome ? match.awayTeamId : match.homeTeamId,
-          opponent: isHome ? match.awayTeamName : match.homeTeamName,
-          result,
-          userGoals,
-          opponentGoals,
-          week: match.week,
-          details: isHome ? match.details : swapMatchDetailsPerspective(match.details),
-        };
-      })
+      .map(match => toPlayedMatchSummary(match, selectedClub?.id ?? ''))
       .sort((a, b) => b.week - a.week),
     [historyMatches, selectedClub],
   );
@@ -289,20 +289,23 @@ const MatchView: React.FC = () => {
       }));
   }, [historyMatches]);
   const isSeasonComplete = fixtures.length > 0 && playedFixtureIds.size >= fixtures.length;
-  const nextAdvanceStartsNewSeason = Boolean(
-    matchResult
-    && currentMatch
-    && fixtures.length > 0
-    && (playedFixtureIds.has(currentMatch.id) ? playedFixtureIds.size : playedFixtureIds.size + 1) >= fixtures.length
+  // The latest committed result is derived from saved game state, so it survives navigation/remounts.
+  const pendingMatch = useMemo(
+    () => getPendingUserMatch(gameState.leagueMatches, gameState.season, gameState.week),
+    [gameState.leagueMatches, gameState.season, gameState.week],
+  );
+  const matchResult = useMemo(
+    () => (pendingMatch && selectedClub ? toPlayedMatchSummary(pendingMatch, selectedClub.id) : null),
+    [pendingMatch, selectedClub],
   );
 
   const squadStrength = useMemo(
     () => calculateSquadStrength(Object.values(gameState.squad.players)),
     [gameState.squad.players],
   );
-  const currentOpponent = currentMatch ? getTeamById(currentMatch.opponentId) : null;
-  const leftSideIsUser = Boolean(currentMatch?.isHome);
-  const rightSideIsUser = currentMatch ? !currentMatch.isHome : false;
+  const currentOpponent = matchResult ? getTeamById(matchResult.opponentId) : null;
+  const leftSideIsUser = Boolean(pendingMatch && selectedClub && pendingMatch.homeTeamId === selectedClub.id);
+  const rightSideIsUser = Boolean(pendingMatch && selectedClub && pendingMatch.awayTeamId === selectedClub.id);
 
   useEffect(() => {
     if (!isMatchPlaying || !liveMatch) {
@@ -316,20 +319,6 @@ const MatchView: React.FC = () => {
 
     if (liveTick >= totalTicks) {
       const timeout = window.setTimeout(() => {
-        const userGoals = liveMatch.fixture.isHome ? liveMatch.homeGoals : liveMatch.awayGoals;
-        const opponentGoals = liveMatch.fixture.isHome ? liveMatch.awayGoals : liveMatch.homeGoals;
-
-        recordMatchResult(liveMatch.fixture, userGoals, opponentGoals, liveMatch.details);
-        setMatchResult({
-          id: liveMatch.fixture.id,
-          opponentId: liveMatch.fixture.opponentId,
-          opponent: liveMatch.fixture.opponent,
-          result: userGoals > opponentGoals ? 'WIN' : userGoals < opponentGoals ? 'LOSS' : 'DRAW',
-          userGoals,
-          opponentGoals,
-          week: gameState.week,
-          details: liveMatch.fixture.isHome ? liveMatch.details : swapMatchDetailsPerspective(liveMatch.details),
-        });
         setIsMatchPlaying(false);
         setLiveMatch(null);
       }, TICK_DURATION_MS);
@@ -342,7 +331,7 @@ const MatchView: React.FC = () => {
     }, TICK_DURATION_MS);
 
     return () => window.clearInterval(interval);
-  }, [gameState.week, isMatchPlaying, liveMatch, liveTick, recordMatchResult]);
+  }, [isMatchPlaying, liveMatch, liveTick]);
 
   const livePhase = liveMatch ? getLivePhase(liveTick, liveMatch.details.timeline) : null;
   const liveEvents = liveMatch && livePhase
@@ -368,7 +357,13 @@ const MatchView: React.FC = () => {
     : null;
 
   const simulateMatch = (match: ScheduledMatch) => {
-    if (isMatchPlaying || !selectedClub) {
+    if (
+      isMatchPlaying
+      || !selectedClub
+      || gameState.economy.isBankrupt
+      || pendingMatch
+      || playedFixtureIds.has(match.id)
+    ) {
       return;
     }
 
@@ -384,9 +379,12 @@ const MatchView: React.FC = () => {
       awayTeamName,
     );
 
+    // Commit the result immediately; the live animation below only replays the recorded details.
+    const userGoals = match.isHome ? detailedResult.homeGoals : detailedResult.awayGoals;
+    const opponentGoals = match.isHome ? detailedResult.awayGoals : detailedResult.homeGoals;
+    recordMatchResult(match, userGoals, opponentGoals, detailedResult.details);
+
     setIsMatchPlaying(true);
-    setCurrentMatch(match);
-    setMatchResult(null);
     setLiveTick(0);
     setLiveMatch({
       fixture: match,
@@ -498,17 +496,15 @@ const MatchView: React.FC = () => {
                 <button
                   onClick={() => {
                     handleNextWeek();
-                    setMatchResult(null);
-                    setCurrentMatch(null);
                   }}
                   className="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                 >
-                  {nextAdvanceStartsNewSeason || isSeasonComplete ? 'Start næste sæson' : 'Gå til næste uge'}
+                  {isSeasonComplete ? 'Start næste sæson' : 'Gå til næste uge'}
                 </button>
               </div>
             )}
 
-            {isMatchPlaying && currentMatch && liveMatch && livePhase && liveStats && (
+            {isMatchPlaying && liveMatch && livePhase && liveStats && (
               <div className="bg-gradient-to-b from-green-100 to-green-50 rounded-lg p-6 mb-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
@@ -582,8 +578,6 @@ const MatchView: React.FC = () => {
                       <button
                         onClick={() => {
                           handleNextWeek();
-                          setMatchResult(null);
-                          setCurrentMatch(null);
                         }}
                         className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition"
                       >
