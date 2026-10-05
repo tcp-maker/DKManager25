@@ -10,6 +10,8 @@ interface LeagueTableCardProps {
   availableSeasons?: number[];
   currentSeason?: number;
   onSeasonChange?: (season: number) => void;
+  id?: string;
+  headingLevel?: 'h2' | 'h3';
 }
 
 const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
@@ -20,22 +22,48 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
   availableSeasons,
   currentSeason,
   onSeasonChange,
+  id,
+  headingLevel: Heading = 'h2',
 }) => {
   const isArchivedSeason = currentSeason !== undefined && season !== currentSeason;
+  const isKnownCurrentSeason = currentSeason !== undefined && season === currentSeason;
   const showSeasonSelector = Boolean(onSeasonChange && availableSeasons && availableSeasons.length > 1);
+  const title = isArchivedSeason ? 'Sluttabel' : 'Ligatabel';
+  const headingId = id ? `${id}-heading` : undefined;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <div className="border-b border-gray-100 px-4 py-4 flex flex-wrap items-start justify-between gap-3">
+    <div
+      id={id}
+      className={`rounded-lg border bg-white shadow-sm overflow-hidden ${
+        isArchivedSeason ? 'border-amber-300' : 'border-gray-200'
+      }`}
+    >
+      <div
+        className={`border-b px-4 py-4 flex flex-wrap items-start justify-between gap-3 ${
+          isArchivedSeason ? 'border-amber-200 bg-amber-50' : 'border-gray-100'
+        }`}
+      >
         <div>
-          <h2 className="text-xl font-bold">{isArchivedSeason ? 'Sluttabel' : 'Ligatabel'}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Heading id={headingId} className="text-xl font-bold">{title}</Heading>
+            {isArchivedSeason && (
+              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-900">
+                Afsluttet sæson
+              </span>
+            )}
+            {isKnownCurrentSeason && (
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-green-800">
+                Aktuel sæson
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600">
-            {leagueName} • Sæson {season}{isArchivedSeason ? ' (afsluttet)' : ''}
+            {leagueName} • Sæson {season}{isArchivedSeason ? ' • endelig stilling' : ''}
           </p>
         </div>
         {showSeasonSelector && (
           <label className="text-sm text-gray-600 flex items-center gap-2">
-            Sæson
+            {isArchivedSeason ? 'Vælg afsluttet sæson' : 'Sæson'}
             <select
               value={season}
               onChange={event => onSeasonChange?.(Number(event.target.value))}
@@ -43,7 +71,7 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
             >
               {availableSeasons?.map(option => (
                 <option key={option} value={option}>
-                  Sæson {option}{option === currentSeason ? ' (aktuel)' : ''}
+                  Sæson {option}{currentSeason === undefined ? '' : option === currentSeason ? ' (aktuel)' : ' (afsluttet)'}
                 </option>
               ))}
             </select>
@@ -53,13 +81,16 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
 
       <div className="max-h-[70vh] overflow-auto">
         <table className="min-w-full text-sm">
+          <caption className="sr-only">
+            {title} for {leagueName}, sæson {season}{isArchivedSeason ? ' (afsluttet sæson)' : ''}
+          </caption>
           <thead className="sticky top-0 bg-gray-50 text-gray-600">
             <tr>
-              <th className="px-3 py-2 text-left">#</th>
-              <th className="px-3 py-2 text-left">Hold</th>
-              <th className="px-3 py-2 text-center">K</th>
-              <th className="px-3 py-2 text-center">+/-</th>
-              <th className="px-3 py-2 text-center">P</th>
+              <th scope="col" className="px-3 py-2 text-left">#</th>
+              <th scope="col" className="px-3 py-2 text-left">Hold</th>
+              <th scope="col" className="px-3 py-2 text-center">K</th>
+              <th scope="col" className="px-3 py-2 text-center">+/-</th>
+              <th scope="col" className="px-3 py-2 text-center">P</th>
             </tr>
           </thead>
           <tbody>
@@ -76,6 +107,7 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
                       size="sm"
                     />
                     <span>{team.teamName}</span>
+                    {team.teamId === selectedTeamId && <span className="sr-only">(dit hold)</span>}
                   </div>
                 </td>
                 <td className="px-3 py-2 text-center">{team.played}</td>
