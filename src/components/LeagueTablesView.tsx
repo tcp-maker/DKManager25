@@ -68,7 +68,7 @@ const LeagueTablesView: React.FC<LeagueTablesViewProps> = ({ currentStandings })
         ref={historySectionRef}
         tabIndex={-1}
         aria-labelledby="season-history-section-heading"
-        className="space-y-3 border-t-2 border-dashed border-gray-300 pt-6 focus:outline-none"
+        className="space-y-3 border-t-2 border-dashed border-gray-300 pt-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
       >
         <div>
           <h2 id="season-history-section-heading" className="text-2xl font-bold">

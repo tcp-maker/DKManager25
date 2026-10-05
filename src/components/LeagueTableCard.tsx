@@ -34,6 +34,8 @@ const LeagueTableCard: React.FC<LeagueTableCardProps> = ({
   return (
     <div
       id={id}
+      role={id ? 'region' : undefined}
+      aria-labelledby={headingId}
       className={`rounded-lg border bg-white shadow-sm overflow-hidden ${
         isArchivedSeason ? 'border-amber-300' : 'border-gray-200'
       }`}
