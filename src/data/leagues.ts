@@ -1,4 +1,5 @@
 import { Team } from '../types/teams';
+import { isFiniteNumber } from '../lib/numbers';
 
 export type MatchDifficulty = 'Nem' | 'Moderat' | 'Svær';
 
@@ -448,13 +449,13 @@ const normalizeTimeline = (timeline: unknown): MatchTimelineConfig => {
 
   const candidate = timeline as Partial<MatchTimelineConfig>;
   return {
-    firstHalfMinutes: typeof candidate.firstHalfMinutes === 'number' && candidate.firstHalfMinutes > 0
+    firstHalfMinutes: isFiniteNumber(candidate.firstHalfMinutes) && candidate.firstHalfMinutes > 0
       ? Math.floor(candidate.firstHalfMinutes)
       : MATCH_TIMELINE.firstHalfMinutes,
-    halftimeMinutes: typeof candidate.halftimeMinutes === 'number' && candidate.halftimeMinutes >= 0
+    halftimeMinutes: isFiniteNumber(candidate.halftimeMinutes) && candidate.halftimeMinutes >= 0
       ? Math.floor(candidate.halftimeMinutes)
       : MATCH_TIMELINE.halftimeMinutes,
-    secondHalfMinutes: typeof candidate.secondHalfMinutes === 'number' && candidate.secondHalfMinutes > 0
+    secondHalfMinutes: isFiniteNumber(candidate.secondHalfMinutes) && candidate.secondHalfMinutes > 0
       ? Math.floor(candidate.secondHalfMinutes)
       : MATCH_TIMELINE.secondHalfMinutes,
   };
@@ -478,7 +479,7 @@ const normalizeMatchStats = (stats: unknown): MatchStats | null => {
   ];
 
   for (const key of numericKeys) {
-    if (typeof candidate[key] !== 'number') {
+    if (!isFiniteNumber(candidate[key])) {
       return null;
     }
   }
@@ -507,10 +508,10 @@ const normalizeMatchEvents = (events: unknown): MatchEvent[] => {
 
     const candidate = rawEvent as Partial<MatchEvent>;
     if (
-      typeof candidate.minute !== 'number'
+      !isFiniteNumber(candidate.minute)
       || typeof candidate.description !== 'string'
-      || typeof candidate.homeGoals !== 'number'
-      || typeof candidate.awayGoals !== 'number'
+      || !isFiniteNumber(candidate.homeGoals)
+      || !isFiniteNumber(candidate.awayGoals)
       || !candidate.phase
       || !candidate.type
       || !candidate.team
@@ -597,14 +598,14 @@ export const normalizeLeagueMatchRecord = (rawMatch: unknown): LeagueMatchRecord
   const candidate = rawMatch as Partial<LeagueMatchRecord>;
   if (
     typeof candidate.fixtureId !== 'string'
-    || typeof candidate.season !== 'number'
-    || typeof candidate.week !== 'number'
+    || !isFiniteNumber(candidate.season)
+    || !isFiniteNumber(candidate.week)
     || typeof candidate.homeTeamId !== 'string'
     || typeof candidate.homeTeamName !== 'string'
     || typeof candidate.awayTeamId !== 'string'
     || typeof candidate.awayTeamName !== 'string'
-    || typeof candidate.homeGoals !== 'number'
-    || typeof candidate.awayGoals !== 'number'
+    || !isFiniteNumber(candidate.homeGoals)
+    || !isFiniteNumber(candidate.awayGoals)
     || typeof candidate.isUserMatch !== 'boolean'
   ) {
     return null;
@@ -936,7 +937,7 @@ export const buildLeagueStandings = (
   const countedMatchKeys = new Set<string>();
 
   matches
-    .filter(match => match.season === season)
+    .filter(match => match.season === season && [match.season, match.week, match.homeGoals, match.awayGoals].every(isFiniteNumber))
     .forEach(match => {
       const matchKey = buildMatchKey(match.season, match.fixtureId);
       if (countedMatchKeys.has(matchKey)) return;
@@ -1004,7 +1005,6 @@ const STANDING_NUMBER_KEYS = [
   'points',
 ] as const;
 
-const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 export const getSeasonMatches = (matches: LeagueMatchRecord[], season: number): LeagueMatchRecord[] =>
   matches.filter(match => match.season === season);

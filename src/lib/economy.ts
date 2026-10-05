@@ -113,6 +113,7 @@ export const createDefaultEconomyState = (
 ): EconomyState => ({
   debt: 0,
   transactions: [],
+  transactionSequence: 0,
   stadiumBookValue: calculateStadiumBookValue(selectedClub, stadiumCapacity),
   weeklyInterestRate: calculateDebtInterestRate(selectedClub, 0, 0),
   boardStatus: createEmptyBoardStatus(),
@@ -427,3 +428,11 @@ export const calculateLoanOffer = ({
 
 export const trimTransactions = (transactions: EconomyTransaction[], limit = 180) =>
   transactions.length <= limit ? transactions : transactions.slice(transactions.length - limit);
+
+export const getTransactionSequence = (transactions: EconomyTransaction[], savedSequence: unknown): number =>
+  transactions.reduce((highest, transaction) => {
+    const sequence = Number(transaction.id.match(/^txn-\d+-\d+-(\d+)-/)?.[1]);
+    return Number.isSafeInteger(sequence) && sequence >= 0 ? Math.max(highest, sequence) : highest;
+  }, typeof savedSequence === 'number' && Number.isSafeInteger(savedSequence) && savedSequence >= 0
+    ? Math.max(savedSequence, transactions.length)
+    : transactions.length);

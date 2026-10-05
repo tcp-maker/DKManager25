@@ -5,11 +5,12 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { GameProvider } from './context/GameContext'
 import './index.css'
+import { loadNativeStoredGameState } from './platform/storage'
 
 // Register service worker for PWA support
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
       .then(registration => {
         console.log('Service Worker registered:', registration)
       })
@@ -25,10 +26,15 @@ if (Capacitor.isNativePlatform()) {
   StatusBar.setStyle({ style: Style.Light }).catch(() => undefined)
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+const startApp = async () => {
+  const initialState = Capacitor.isNativePlatform() ? await loadNativeStoredGameState() : undefined;
+  ReactDOM.createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <GameProvider>
+    <GameProvider initialState={initialState}>
       <App />
     </GameProvider>
   </StrictMode>,
 )
+}
+
+void startApp()

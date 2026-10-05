@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { GameProvider, loadGameState, purchasePlayer, sellOwnedPlayer, updateOwnedPlayer, useGame } from '../context/GameContext';
-import { createDefaultEconomyState } from '../lib/economy';
+import { createDefaultEconomyState, createEconomyTransaction } from '../lib/economy';
 import { buildRoundMatchRecords, buildSeasonArchiveEntry, getLeagueSeasonSchedule, getSeasonFixtures, LEAGUES, normalizeLeagueMatchRecords } from './leagues';
 import { getCurrentTeamSquad, getTeamSquadRecord, normalizePlayerRecord, TRANSFER_MARKET_PLAYERS } from './players';
 
@@ -29,6 +29,93 @@ afterEach(() => {
 });
 
 describe('club and squad save migration', () => {
+  it('returns actual loan and week results through stale provider callbacks', () => {
+    let actions!: ReturnType<typeof useGame>;
+    const Capture = () => {
+      actions = useGame();
+      return null;
+    };
+    renderToString(createElement(GameProvider, { children: createElement(Capture) }));
+    assert.notEqual(actions.takeLoan(), null);
+    assert.equal(actions.handleNextWeek(), null);
+    actions.selectClub(club);
+    assert.equal(actions.takeLoan(), null);
+    assert.match(actions.takeLoan()!, /ét nyt lån/);
+    assert.equal(actions.handleNextWeek(), null);
+    const fixture = getSeasonFixtures(club)[0];
+    actions.recordMatchResult(fixture, 2, 0);
+    assert.equal(actions.handleNextWeek(), 1250 * 150);
+    assert.equal(actions.handleNextWeek(), null);
+    assert.equal(actions.takeLoan(), null);
+    assert.match(actions.takeLoan()!, /ét nyt lån/);
+  });
+
+  it('rejects non-finite game, economy, transaction and summary fields', () => {
+    for (const value of [NaN, Infinity, -Infinity]) {
+      const state = loadGameState({
+        selectedClub: club, budget: value, season: value, week: value,
+        fanCount: value, fanMood: value, stadiumCapacity: value,
+        economy: {
+          debt: value, stadiumBookValue: value, consecutiveCrisisWeeks: value,
+          transactionSequence: value,
+          transactions: [
+            { ...createEconomyTransaction(1, 1, 1, 'income', 'loan', 10, 'Loan'), amount: value },
+            createEconomyTransaction(2, value, 1, 'income', 'loan', 10, 'Loan'),
+            createEconomyTransaction(3, 1, value, 'income', 'loan', 10, 'Loan'),
+          ],
+          lastWeekSummary: { season: 1, week: 1, income: value, expenses: 0, net: value },
+        },
+      })!;
+      assert.equal(state.budget, 1000000);
+      assert.equal(state.season, 1);
+      assert.equal(state.week, 1);
+      assert.equal(state.fanCount, 1200);
+      assert.equal(state.fanMood, 50);
+      assert.equal(state.stadiumCapacity, 3000);
+      assert.equal(state.economy.debt, 0);
+      assert.equal(state.economy.consecutiveCrisisWeeks, 0);
+      assert.equal(state.economy.transactionSequence, 0);
+      assert.equal(state.economy.lastWeekSummary, null);
+      assert.deepEqual(state.economy.transactions, []);
+      assert.ok(Number.isFinite(state.economy.stadiumBookValue));
+      assert.ok(Number.isFinite(state.economy.weeklyInterestRate));
+    }
+  });
+
+  it('keeps transaction IDs unique beyond the ledger limit and across reloads', () => {
+    let state = loadGameState({ selectedClub: club, budget: 100000000 })!;
+    const ids = new Set<string>();
+    for (let index = 0; index < 200; index += 1) {
+      state = purchasePlayer(state, 'buy1');
+      ids.add(state.economy.transactions.at(-1)!.id);
+      state = sellOwnedPlayer(state, 'buy1');
+      ids.add(state.economy.transactions.at(-1)!.id);
+    }
+    assert.equal(ids.size, 400);
+    assert.equal(state.economy.transactions.length, 180);
+    assert.equal(state.economy.transactionSequence, 400);
+    saved = JSON.stringify(state);
+    state = purchasePlayer(loadGameState()!, 'buy1');
+    assert.equal(state.economy.transactionSequence, 401);
+    assert.equal(ids.has(state.economy.transactions.at(-1)!.id), false);
+  });
+
+  it('migrates missing or stale counters and repairs legacy duplicate ledger IDs', () => {
+    const transaction = createEconomyTransaction(900, 1, 1, 'income', 'loan', 10, 'Loan');
+    for (const transactionSequence of [undefined, 1, NaN, Infinity]) {
+      const state = loadGameState({
+        selectedClub: club, budget: 100000000,
+        economy: { transactionSequence, transactions: [transaction, transaction] },
+      })!;
+      assert.equal(state.economy.transactionSequence, 900);
+      assert.equal(new Set(state.economy.transactions.map(entry => entry.id)).size, 2);
+      const next = purchasePlayer(state, 'buy1');
+      assert.equal(next.economy.transactionSequence, 901);
+      saved = JSON.stringify(next);
+      assert.deepEqual(loadGameState(), next);
+    }
+  });
+
   it('makes rapid calls through the same stale provider callbacks authoritative', () => {
     const [first, second] = TRANSFER_MARKET_PLAYERS;
     saved = JSON.stringify({ selectedClub: club, budget: first.value + second.value - 1 });

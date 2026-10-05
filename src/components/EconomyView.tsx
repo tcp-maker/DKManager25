@@ -192,11 +192,13 @@ const EconomyView: React.FC = () => {
           </div>
           <button
             type="button"
-            onClick={() => {
+            onClick={event => {
+              event.currentTarget.disabled = true;
               const result = takeLoan();
+              if (result !== null) event.currentTarget.disabled = false;
               setStatusMessage(result ?? `Lånet blev optaget, og kassen er styrket med ${formatCurrency(loanOffer.amount)}.`);
             }}
-            disabled={!loanOffer.available || loanBlockedThisWeek}
+            disabled={!selectedClub || gameState.economy.isBankrupt || !loanOffer.available || loanBlockedThisWeek}
             className="mt-5 w-full rounded bg-blue-600 px-4 py-2 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
           >
             {loanBlockedThisWeek ? 'Lån allerede optaget denne uge' : `Optag lån på ${formatCurrency(loanOffer.amount)}`}

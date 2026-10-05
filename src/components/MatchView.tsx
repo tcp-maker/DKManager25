@@ -496,8 +496,12 @@ const MatchView: React.FC = () => {
                 />
 
                 <button
-                  onClick={() => {
-                    handleNextWeek();
+                  onClick={event => {
+                    event.currentTarget.disabled = true;
+                    if (handleNextWeek() === null) {
+                      event.currentTarget.disabled = false;
+                      return;
+                    }
                     setMatchResult(null);
                     setCurrentMatch(null);
                   }}
@@ -580,8 +584,12 @@ const MatchView: React.FC = () => {
                     </p>
                     {isSeasonComplete && (
                       <button
-                        onClick={() => {
-                          handleNextWeek();
+                        onClick={event => {
+                          event.currentTarget.disabled = true;
+                          if (handleNextWeek() === null) {
+                            event.currentTarget.disabled = false;
+                            return;
+                          }
                           setMatchResult(null);
                           setCurrentMatch(null);
                         }}
