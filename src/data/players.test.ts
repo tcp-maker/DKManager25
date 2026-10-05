@@ -170,13 +170,14 @@ describe('team-specific squad generation', () => {
     }
   });
 
-  it('keeps only the currently verified Brøndby seeds and preserves the corrected Midtjylland strikers', () => {
-    const broendbySeeds = TEAM_PLAYER_SEEDS.broendby.map(seed => seed.name);
-    const midtjyllandSeeds = TEAM_PLAYER_SEEDS.midtjylland.map(seed => seed.name);
+  it('keeps the verified Midtjylland attackers and removes stale Brøndby seeds', () => {
+    const broendbySeeds = new Set((TEAM_PLAYER_SEEDS.broendby ?? []).map(seed => normalizeSeedName(seed.name)));
+    const midtjyllandSeeds = new Set((TEAM_PLAYER_SEEDS.midtjylland ?? []).map(seed => normalizeSeedName(seed.name)));
 
-    assert.deepEqual(broendbySeeds, ['Patrick Pentz', 'Frederik Alves', 'Daniel Wass', 'Marko Divković']);
+    assert.equal(midtjyllandSeeds.has(normalizeSeedName('Mikael Uhre')), true);
+    assert.equal(midtjyllandSeeds.has(normalizeSeedName('Mileta Rajović')), true);
 
-    for (const removedName of [
+    for (const staleName of [
       'Mads Hermansen',
       'Sebastian Sebulonsen',
       'Kevin Mensah',
@@ -191,11 +192,29 @@ describe('team-specific squad generation', () => {
       'Mathias Kvistgaarden',
       'Andreas Maxsø',
     ]) {
-      assert.equal(broendbySeeds.includes(removedName), false, `${removedName} should no longer be seeded for Brøndby`);
+      assert.equal(broendbySeeds.has(normalizeSeedName(staleName)), false, `${staleName} should not stay in Brøndby's 2026 seed list`);
     }
 
-    assert.equal(midtjyllandSeeds.includes('Mikael Uhre'), true);
-    assert.equal(midtjyllandSeeds.includes('Mileta Rajović'), true);
+    for (const currentName of [
+      'Gavin Beavers',
+      'Luis Binks',
+      'Jordi Vanlerberghe',
+      'Oliver Villadsen',
+      'Marko Divković',
+      'Mats Köhlert',
+      'Bartosz Slisz',
+      'Casper Winther',
+      'Daniel Wass',
+      'Max Ejdum',
+      'Mads Frøkjær-Jensen',
+      'Olti Hyseni',
+      'Sho Fukuda',
+      'Patrick Mortensen',
+      'Emmanuel Dennis',
+      'Jacob Ambæk',
+    ]) {
+      assert.equal(broendbySeeds.has(normalizeSeedName(currentName)), true, `${currentName} should be seeded for Brøndby`);
+    }
   });
 
   it('supports legacy team-id aliases through canonical lookup', () => {
