@@ -44,6 +44,22 @@ describe('team-specific squad generation', () => {
     }
   });
 
+  it('falls back from invalid roles and rejects invalid positions in saved players', () => {
+    const source = TRANSFER_MARKET_PLAYERS[0];
+    const malformed = normalizePlayer({
+      ...source,
+      primaryRole: 'unknown-role',
+      secondaryRoles: ['unknown-role'],
+      salary: undefined,
+    } as unknown as Parameters<typeof normalizePlayer>[0])!;
+    assert.equal(malformed.primaryRole, 'winger');
+    assert.deepEqual(malformed.secondaryRoles, []);
+    assert.ok(Number.isFinite(malformed.salary));
+    assert.equal(normalizePlayer({ ...source, position: 'unknown-position' } as unknown as Parameters<typeof normalizePlayer>[0]), null);
+    const unsafeValue = normalizePlayer({ ...source, value: Number.MAX_VALUE })!;
+    assert.ok(Number.isSafeInteger(unsafeValue.value));
+  });
+
   it('has 869 globally unique playable catalog IDs, with a separate starter fallback', () => {
     const clubPlayers = allTeams.flatMap(team => getTeamSquad(team));
     const catalog = [...clubPlayers, ...TRANSFER_MARKET_PLAYERS];

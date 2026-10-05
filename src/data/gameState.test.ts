@@ -82,14 +82,32 @@ describe('club and squad save migration', () => {
     }
   });
 
+  it('normalizes finite but invalid save ranges before gameplay calculations', () => {
+    const state = loadGameState({
+      selectedClub: club,
+      budget: Number.MAX_VALUE,
+      fanCount: -10,
+      fanMood: 150,
+      stadiumCapacity: 0,
+      season: 0,
+      week: -2,
+    })!;
+    assert.equal(state.budget, 1000000);
+    assert.equal(state.fanCount, 1200);
+    assert.equal(state.fanMood, 100);
+    assert.equal(state.stadiumCapacity, 3000);
+    assert.equal(state.season, 1);
+    assert.equal(state.week, 1);
+  });
+
   it('keeps transaction IDs unique beyond the ledger limit and across reloads', () => {
     let state = loadGameState({ selectedClub: club, budget: 100000000 })!;
     const ids = new Set<string>();
     for (let index = 0; index < 200; index += 1) {
       state = purchasePlayer(state, 'buy1');
-      ids.add(state.economy.transactions.at(-1)!.id);
+      ids.add(state.economy.transactions[state.economy.transactions.length - 1]!.id);
       state = sellOwnedPlayer(state, 'buy1');
-      ids.add(state.economy.transactions.at(-1)!.id);
+      ids.add(state.economy.transactions[state.economy.transactions.length - 1]!.id);
     }
     assert.equal(ids.size, 400);
     assert.equal(state.economy.transactions.length, 180);
@@ -97,7 +115,7 @@ describe('club and squad save migration', () => {
     saved = JSON.stringify(state);
     state = purchasePlayer(loadGameState()!, 'buy1');
     assert.equal(state.economy.transactionSequence, 401);
-    assert.equal(ids.has(state.economy.transactions.at(-1)!.id), false);
+    assert.equal(ids.has(state.economy.transactions[state.economy.transactions.length - 1]!.id), false);
   });
 
   it('migrates missing or stale counters and repairs legacy duplicate ledger IDs', () => {
@@ -209,6 +227,23 @@ describe('club and squad save migration', () => {
       };
       assert.equal(purchasePlayer(invalid, 'buy1'), invalid);
     }
+  });
+
+  it('uses the market asking price consistently for purchase validation and accounting', () => {
+    const initial = loadGameState({ selectedClub: club, budget: 100000000 })!;
+    const player = initial.transferMarket.buy1;
+    const askingPrice = player.value + 50000;
+    const priced = {
+      ...initial,
+      budget: askingPrice,
+      transferMarket: {
+        ...initial.transferMarket,
+        buy1: { ...player, askingPrice },
+      },
+    };
+    const purchased = purchasePlayer(priced, player.id);
+    assert.equal(purchased.budget, 0);
+    assert.equal(purchased.economy.transactions[0].amount, askingPrice);
   });
 
   it('preserves progression and immutable IDs through sale, repurchase and global ownership views', () => {

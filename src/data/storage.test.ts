@@ -16,6 +16,7 @@ let nativeValue: string | null = null;
 const calls: string[] = [];
 let storage: typeof import('../platform/storage');
 let releaseWrite: (() => void) | undefined;
+let failBrowserWrite = false;
 
 before(async () => {
   Capacitor.isNativePlatform = () => native;
@@ -39,7 +40,13 @@ before(async () => {
     configurable: true,
     value: {
       getItem: () => browserValue,
-      setItem: (_key: string, value: string) => { browserValue = value; },
+      setItem: (_key: string, value: string) => {
+        if (failBrowserWrite) {
+          failBrowserWrite = false;
+          throw new Error('Storage full');
+        }
+        browserValue = value;
+      },
       removeItem: () => { browserValue = null; },
     },
   });
@@ -94,5 +101,13 @@ describe('platform save storage', () => {
     assert.equal(browserValue, null);
     await storage.deleteStoredGameState();
     assert.equal(nativeValue, null);
+  });
+
+  it('reports failed writes and keeps the save queue usable afterward', async () => {
+    native = false;
+    failBrowserWrite = true;
+    await assert.rejects(storage.saveStoredGameState({ budget: 1 }), /Storage full/);
+    await storage.saveStoredGameState({ budget: 2 });
+    assert.equal(browserValue, JSON.stringify({ budget: 2 }));
   });
 });

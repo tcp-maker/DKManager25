@@ -122,6 +122,8 @@ describe('club and economy navigation', () => {
     assert.equal(resolveAppView('#trup', '/club'), 'team');
     assert.equal(resolveAppView('#unknown', '/klub'), 'club');
     assert.equal(resolveAppView('', '/unknown'), 'team');
+    assert.equal(resolveAppView('#%E0%A4%A', '/club'), 'club');
+    assert.equal(resolveAppView('', '/%E0%A4%A'), 'team');
     for (const view of ['team', 'transfers', 'matches', 'stadium', 'table'] as const) {
       assert.equal(resolveAppView(`#${view}`, '/'), view);
     }

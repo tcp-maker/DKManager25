@@ -75,7 +75,7 @@ const StadiumView: React.FC = () => {
       </div>
 
       {statusMessage && (
-        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div role="status" className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           {statusMessage}
         </div>
       )}

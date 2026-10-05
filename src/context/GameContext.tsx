@@ -434,7 +434,7 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
   useEffect(() => {
     void saveStoredGameState(gameState)
       .then(() => setStorageError(null))
-      .catch(() => setStorageError('Spillet kunne ikke gemmes. Kontrollér lagerplads og prøv igen.'));
+      .catch(() => setStorageError('Seneste ændringer kunne ikke gemmes. Der kan være for lidt ledig lagerplads.'));
   }, [gameState]);
 
   const selectClub = (club: Club) => {
