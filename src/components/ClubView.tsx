@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGame } from '../context/GameContext';
-import { calculateAttendanceEstimate, TICKET_PRICE } from '../lib/economy';
+import { calculateAttendanceEstimate, calculateLoanOffer, calculateSquadValue, calculateTicketRevenue, calculateWeeklySponsorIncome, TICKET_PRICE } from '../lib/economy';
 import TeamBadge from './TeamBadge';
 
 const ClubView: React.FC = () => {
@@ -16,8 +16,6 @@ const ClubView: React.FC = () => {
 
   const loanOffer = (() => {
     if (!selectedClub) return { amount: 0, maxDebt: 0, available: false };
-    const { calculateLoanOffer } = require('../lib/economy');
-    const { calculateSquadValue } = require('../lib/squad');
     return calculateLoanOffer({
       selectedClub,
       cash: gameState.budget,
@@ -38,14 +36,11 @@ const ClubView: React.FC = () => {
 
   const projectedIncome = (() => {
     if (!selectedClub) return 0;
-    const { calculateTicketRevenue, LEAGUE_ECONOMY_PROFILES } = require('../lib/economy');
     const ticketRevenue = calculateTicketRevenue(gameState.fanCount, gameState.stadiumCapacity);
-    const profile = LEAGUE_ECONOMY_PROFILES[selectedClub.league] || { sponsorBase: 20000 };
-    return ticketRevenue + profile.sponsorBase;
+    return ticketRevenue + calculateWeeklySponsorIncome(selectedClub, gameState.fanCount, gameState.fanMood, gameState.stadiumCapacity, 'none');
   })();
 
   const squadValue = (() => {
-    const { calculateSquadValue } = require('../lib/squad');
     return calculateSquadValue(gameState.squad.players);
   })();
 
@@ -158,11 +153,13 @@ const ClubView: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => {
+          onClick={event => {
+            event.currentTarget.disabled = true;
             const result = takeLoan();
+            if (result !== null) event.currentTarget.disabled = false;
             setStatusMessage(result ?? `Lånet blev optaget, og kassen er styrket med ${formatCurrency(loanOffer.amount)}.`);
           }}
-          disabled={!loanOffer.available || loanBlockedThisWeek}
+          disabled={!selectedClub || gameState.economy.isBankrupt || !loanOffer.available || loanBlockedThisWeek}
           className="mt-5 w-full rounded bg-blue-600 px-4 py-2 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
         >
           {loanBlockedThisWeek ? 'Lån allerede optaget denne uge' : `Optag lån på ${formatCurrency(loanOffer.amount)}`}

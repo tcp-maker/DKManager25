@@ -59,6 +59,36 @@ describe('season schedule', () => {
 });
 
 describe('season history', () => {
+  it('rejects non-finite scores and periods before they reach standings', () => {
+    const source = playSeason(1)[0];
+    for (const value of [NaN, Infinity, -Infinity]) {
+      for (const key of ['season', 'week', 'homeGoals', 'awayGoals']) {
+        const match = { ...source, [key]: value };
+        assert.deepEqual(normalizeLeagueMatchRecords([match]), []);
+        const standings = buildLeagueStandings(selectedTeam, 1, [match]);
+        assert.ok(standings.every(team => team.played === 0 && team.goalsFor === 0));
+      }
+    }
+  });
+
+  it('sanitizes non-finite match timelines, stats and events', () => {
+    const source = playSeason(1)[0];
+    const { details } = simulateDetailedMatch(60, 60, 'Home', 'Away');
+    for (const value of [NaN, Infinity, -Infinity]) {
+      const timeline = { firstHalfMinutes: value, halftimeMinutes: value, secondHalfMinutes: value };
+      const normalized = normalizeLeagueMatchRecords([{ ...source, details: { ...details, timeline } }])[0];
+      assert.deepEqual(normalized.details!.timeline, MATCH_TIMELINE);
+      for (const key of Object.keys(details.stats)) {
+        const invalid = { ...details, stats: { ...details.stats, [key]: value } };
+        assert.equal(normalizeLeagueMatchRecords([{ ...source, details: invalid }])[0].details, undefined);
+      }
+      for (const key of ['minute', 'homeGoals', 'awayGoals']) {
+        const invalid = { ...details, events: details.events.map(event => ({ ...event, [key]: value })) };
+        assert.equal(normalizeLeagueMatchRecords([{ ...source, details: invalid }])[0].details, undefined);
+      }
+    }
+  });
+
   it('builds an archive entry with final standings and placement', () => {
     const matches = playSeason(1);
     const entry = buildSeasonArchiveEntry(selectedTeam, 1, matches);

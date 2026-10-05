@@ -27,12 +27,15 @@ import {
   calculateWeeklySponsorIncome,
   createDefaultEconomyState,
   createEconomyTransaction,
+  getTransactionSequence,
   trimTransactions,
 } from '../lib/economy';
 import type { EconomyPeriodSummary, EconomyState, EconomyTransaction } from '../types/economy';
 import type { Player } from '../types/player';
 import type { Club } from '../types/clubs';
 import type { SquadState } from '../types/squads';
+import { isFiniteNumber } from '../lib/numbers';
+import { loadStoredGameState, saveStoredGameState, deleteStoredGameState } from '../platform/storage';
 
 interface GameState {
   selectedClub: Club | null;
@@ -58,14 +61,13 @@ interface GameContextType {
   updatePlayer: (playerId: string, updates: Partial<Player>) => void;
   upgradeStadium: () => void;
   takeLoan: () => string | null;
-  handleNextWeek: () => number;
+  handleNextWeek: () => number | null;
   recordMatchResult: (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => void;
   resetGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'dkmanager25_gamestate';
 const ECONOMY_TRANSACTION_LIMIT = 180;
 const BANKRUPTCY_CRISIS_WEEKS = 3;
 const VALID_TRANSACTION_CATEGORIES = new Set<EconomyTransaction['category']>([
@@ -135,11 +137,11 @@ const normalizePeriodSummary = (summary: unknown): EconomyPeriodSummary | null =
 
   const candidate = summary as Partial<EconomyPeriodSummary>;
   if (
-    typeof candidate.season !== 'number'
-    || typeof candidate.week !== 'number'
-    || typeof candidate.income !== 'number'
-    || typeof candidate.expenses !== 'number'
-    || typeof candidate.net !== 'number'
+    !isFiniteNumber(candidate.season)
+    || !isFiniteNumber(candidate.week)
+    || !isFiniteNumber(candidate.income)
+    || !isFiniteNumber(candidate.expenses)
+    || !isFiniteNumber(candidate.net)
   ) {
     return null;
   }
@@ -158,18 +160,18 @@ const normalizeTransactions = (transactions: unknown): EconomyTransaction[] => {
     return [];
   }
 
-  return trimTransactions(
-    transactions.reduce((acc, rawTransaction, index) => {
+  const ids = new Set<string>();
+  return transactions.reduce((acc, rawTransaction, index) => {
       if (!rawTransaction || typeof rawTransaction !== 'object') {
         return acc;
       }
 
       const candidate = rawTransaction as Partial<EconomyTransaction>;
       if (
-        typeof candidate.season !== 'number'
-        || typeof candidate.week !== 'number'
+        !isFiniteNumber(candidate.season)
+        || !isFiniteNumber(candidate.week)
         || (candidate.type !== 'income' && candidate.type !== 'expense')
-        || typeof candidate.amount !== 'number'
+        || !isFiniteNumber(candidate.amount)
         || typeof candidate.description !== 'string'
         || !candidate.category
         || !VALID_TRANSACTION_CATEGORIES.has(candidate.category)
@@ -177,10 +179,15 @@ const normalizeTransactions = (transactions: unknown): EconomyTransaction[] => {
         return acc;
       }
 
+      let id = typeof candidate.id === 'string' && candidate.id.length > 0
+        ? candidate.id
+        : `txn-${candidate.season}-${candidate.week}-${index}-${candidate.category}`;
+      while (ids.has(id)) {
+        id = `legacy-${index}-${id}`;
+      }
+      ids.add(id);
       acc.push({
-        id: typeof candidate.id === 'string' && candidate.id.length > 0
-          ? candidate.id
-          : `txn-${candidate.season}-${candidate.week}-${index}-${candidate.category}`,
+        id,
         season: candidate.season,
         week: candidate.week,
         type: candidate.type,
@@ -189,9 +196,7 @@ const normalizeTransactions = (transactions: unknown): EconomyTransaction[] => {
         description: candidate.description,
       });
       return acc;
-    }, [] as EconomyTransaction[]),
-    ECONOMY_TRANSACTION_LIMIT,
-  );
+    }, [] as EconomyTransaction[]);
 };
 
 const reconcileGameState = (state: GameState): GameState => {
@@ -250,10 +255,10 @@ const normalizeEconomyState = (
     ? rawEconomy as Partial<EconomyState>
     : null;
   const transactions = normalizeTransactions(parsedEconomy?.transactions);
-  const stadiumBookValue = typeof parsedEconomy?.stadiumBookValue === 'number' && parsedEconomy.stadiumBookValue > 0
+  const stadiumBookValue = isFiniteNumber(parsedEconomy?.stadiumBookValue) && parsedEconomy.stadiumBookValue > 0
     ? Math.round(parsedEconomy.stadiumBookValue)
     : calculateStadiumBookValue(state.selectedClub, state.stadiumCapacity);
-  const debt = typeof parsedEconomy?.debt === 'number' && parsedEconomy.debt > 0
+  const debt = isFiniteNumber(parsedEconomy?.debt) && parsedEconomy.debt > 0
     ? Math.round(parsedEconomy.debt)
     : 0;
   const equity = calculateEquity(state.budget, calculateSquadValue(state.squad.players), stadiumBookValue, debt);
@@ -261,10 +266,11 @@ const normalizeEconomyState = (
   return {
     ...fallbackEconomy,
     transactions,
+    transactionSequence: getTransactionSequence(transactions, parsedEconomy?.transactionSequence),
     debt,
     stadiumBookValue,
     weeklyInterestRate: calculateDebtInterestRate(state.selectedClub, debt, equity),
-    consecutiveCrisisWeeks: typeof parsedEconomy?.consecutiveCrisisWeeks === 'number' && parsedEconomy.consecutiveCrisisWeeks > 0
+    consecutiveCrisisWeeks: isFiniteNumber(parsedEconomy?.consecutiveCrisisWeeks) && parsedEconomy.consecutiveCrisisWeeks > 0
       ? Math.floor(parsedEconomy.consecutiveCrisisWeeks)
       : 0,
     isBankrupt: parsedEconomy?.isBankrupt === true,
@@ -274,22 +280,13 @@ const normalizeEconomyState = (
   };
 };
 
-const saveGameState = (state: GameState) => {
+export const loadGameState = (savedState: unknown = loadStoredGameState()): GameState | null => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error('Fejl ved gemning af game state:', error);
-  }
-};
-
-export const loadGameState = (): GameState | null => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) {
+    if (!savedState || typeof savedState !== 'object') {
       return null;
     }
 
-    const parsed = JSON.parse(saved) as Partial<GameState> & {
+    const parsed = savedState as Partial<GameState> & {
       selectedTeam?: Club | null;
       players?: unknown;
     };
@@ -304,19 +301,19 @@ export const loadGameState = (): GameState | null => {
     const players = selectedClub
       ? (Object.keys(normalizedPlayers).length > 0 || hasEmptySquad ? normalizedPlayers : getTeamSquadRecord(selectedClub))
       : {};
-    const season = typeof parsed.season === 'number' ? parsed.season : initialState.season;
+    const season = isFiniteNumber(parsed.season) ? parsed.season : initialState.season;
     const leagueMatches = normalizeLeagueMatchRecords(parsed.leagueMatches);
     const loadedState: GameState = {
       ...initialState,
       selectedClub,
-      budget: typeof parsed.budget === 'number' ? parsed.budget : initialState.budget,
+      budget: isFiniteNumber(parsed.budget) ? parsed.budget : initialState.budget,
       squad: { clubId: selectedClub?.id ?? '', players },
       transferMarket: normalizeTransferMarket(parsed.transferMarket, players),
-      fanCount: typeof parsed.fanCount === 'number' ? parsed.fanCount : initialState.fanCount,
-      stadiumCapacity: typeof parsed.stadiumCapacity === 'number' ? parsed.stadiumCapacity : initialState.stadiumCapacity,
-      fanMood: typeof parsed.fanMood === 'number' ? parsed.fanMood : initialState.fanMood,
+      fanCount: isFiniteNumber(parsed.fanCount) ? parsed.fanCount : initialState.fanCount,
+      stadiumCapacity: isFiniteNumber(parsed.stadiumCapacity) ? parsed.stadiumCapacity : initialState.stadiumCapacity,
+      fanMood: isFiniteNumber(parsed.fanMood) ? parsed.fanMood : initialState.fanMood,
       season,
-      week: typeof parsed.week === 'number' ? parsed.week : initialState.week,
+      week: isFiniteNumber(parsed.week) ? parsed.week : initialState.week,
       leagueMatches,
       seasonHistory: normalizeSeasonHistory(parsed.seasonHistory, selectedClub, season, leagueMatches),
       economy: initialState.economy,
@@ -328,14 +325,6 @@ export const loadGameState = (): GameState | null => {
     console.error('Fejl ved indlæsning af game state:', error);
   }
   return null;
-};
-
-const deleteGameState = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.error('Fejl ved sletning af game state:', error);
-  }
 };
 
 export const purchasePlayer = (state: GameState, playerId: string): GameState => {
@@ -356,7 +345,7 @@ export const purchasePlayer = (state: GameState, playerId: string): GameState =>
   const transferMarket = { ...state.transferMarket };
   delete transferMarket[id];
   const transaction = createEconomyTransaction(
-    state.economy.transactions.length + 1, state.season, state.week,
+    state.economy.transactionSequence + 1, state.season, state.week,
     'expense', 'player_purchase', cost, `Køb af ${player.name}`,
   );
   return reconcileGameState({
@@ -367,7 +356,7 @@ export const purchasePlayer = (state: GameState, playerId: string): GameState =>
       players: { ...state.squad.players, [id]: { ...player, id, isForSale: false, askingPrice: undefined } },
     },
     transferMarket,
-    economy: { ...state.economy, transactions: [...state.economy.transactions, transaction] },
+    economy: { ...state.economy, transactionSequence: state.economy.transactionSequence + 1, transactions: [...state.economy.transactions, transaction] },
   });
 };
 
@@ -383,7 +372,7 @@ export const sellOwnedPlayer = (state: GameState, playerId: string): GameState =
   const players = { ...state.squad.players };
   delete players[id];
   const transaction = createEconomyTransaction(
-    state.economy.transactions.length + 1, state.season, state.week,
+    state.economy.transactionSequence + 1, state.season, state.week,
     'income', 'player_sale', player.value, `Salg af ${player.name}`,
   );
   return reconcileGameState({
@@ -391,7 +380,7 @@ export const sellOwnedPlayer = (state: GameState, playerId: string): GameState =
     budget: state.budget + player.value,
     squad: { ...state.squad, players },
     transferMarket: { ...state.transferMarket, [id]: { ...player, id, isForSale: false, askingPrice: undefined } },
-    economy: { ...state.economy, transactions: [...state.economy.transactions, transaction] },
+    economy: { ...state.economy, transactionSequence: state.economy.transactionSequence + 1, transactions: [...state.economy.transactions, transaction] },
   });
 };
 
@@ -409,8 +398,8 @@ export const updateOwnedPlayer = (state: GameState, playerId: string, updates: P
   });
 };
 
-export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [gameState, setReactGameState] = useState<GameState>(() => loadGameState() ?? reconcileGameState(createInitialGameState()));
+export const GameProvider = ({ children, initialState }: { children: ReactNode; initialState?: unknown }) => {
+  const [gameState, setReactGameState] = useState<GameState>(() => loadGameState(initialState) ?? reconcileGameState(createInitialGameState()));
   const stateRef = useRef(gameState);
   const setGameState = (update: GameState | ((prev: GameState) => GameState)) => {
     const next = typeof update === 'function' ? update(stateRef.current) : update;
@@ -419,7 +408,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    saveGameState(gameState);
+    void saveStoredGameState(gameState);
   }, [gameState]);
 
   const selectClub = (club: Club) => {
@@ -491,7 +480,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       const nextCapacity = prev.stadiumCapacity + 2500;
       const transaction = createEconomyTransaction(
-        prev.economy.transactions.length + 1,
+        prev.economy.transactionSequence + 1,
         prev.season,
         prev.week,
         'expense',
@@ -508,90 +497,68 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           ...prev.economy,
           stadiumBookValue: Math.max(prev.economy.stadiumBookValue + cost, calculateStadiumBookValue(prev.selectedClub, nextCapacity)),
           transactions: [...prev.economy.transactions, transaction],
+          transactionSequence: prev.economy.transactionSequence + 1,
         },
       });
     });
   };
 
   const takeLoan = (): string | null => {
-    if (!gameState.selectedClub) {
+    const prev = stateRef.current;
+    if (!prev.selectedClub) {
       return 'Vælg en klub først.';
     }
 
-    if (gameState.economy.isBankrupt) {
+    if (prev.economy.isBankrupt) {
       return 'Klubben er konkurs. Start et nyt spil for at fortsætte.';
     }
 
-    const currentOffer = calculateLoanOffer({
-      selectedClub: gameState.selectedClub,
-      cash: gameState.budget,
-      debt: gameState.economy.debt,
-      stadiumBookValue: gameState.economy.stadiumBookValue,
-      squadValue: calculateSquadValue(gameState.squad.players),
-      fanCount: gameState.fanCount,
-      stadiumCapacity: gameState.stadiumCapacity,
+    const offer = calculateLoanOffer({
+      selectedClub: prev.selectedClub,
+      cash: prev.budget,
+      debt: prev.economy.debt,
+      stadiumBookValue: prev.economy.stadiumBookValue,
+      squadValue: calculateSquadValue(prev.squad.players),
+      fanCount: prev.fanCount,
+      stadiumCapacity: prev.stadiumCapacity,
     });
-    const currentWeekKey = buildWeekKey(gameState.season, gameState.week);
+    const weekKey = buildWeekKey(prev.season, prev.week);
 
-    if (gameState.economy.lastLoanWeekKey === currentWeekKey) {
+    if (prev.economy.lastLoanWeekKey === weekKey) {
       return 'Bestyrelsen godkender kun ét nyt lån pr. uge.';
     }
 
-    if (!currentOffer.available || currentOffer.amount <= 0) {
+    if (!offer.available || offer.amount <= 0) {
       return 'Bestyrelsen afviser flere lån på det nuværende økonomiske grundlag.';
     }
 
-    setGameState(prev => {
-      if (prev.economy.isBankrupt) {
-        return prev;
-      }
+    const transaction = createEconomyTransaction(
+      prev.economy.transactionSequence + 1,
+      prev.season,
+      prev.week,
+      'income',
+      'loan',
+      offer.amount,
+      'Optaget driftslån',
+    );
 
-      const offer = calculateLoanOffer({
-        selectedClub: prev.selectedClub,
-        cash: prev.budget,
-        debt: prev.economy.debt,
-        stadiumBookValue: prev.economy.stadiumBookValue,
-        squadValue: calculateSquadValue(prev.squad.players),
-        fanCount: prev.fanCount,
-        stadiumCapacity: prev.stadiumCapacity,
-      });
-      const weekKey = buildWeekKey(prev.season, prev.week);
-
-      if (prev.economy.lastLoanWeekKey === weekKey || !offer.available || offer.amount <= 0) {
-        return prev;
-      }
-
-      const transaction = createEconomyTransaction(
-        prev.economy.transactions.length + 1,
-        prev.season,
-        prev.week,
-        'income',
-        'loan',
-        offer.amount,
-        'Optaget driftslån',
-      );
-
-      return reconcileGameState({
-        ...prev,
-        budget: prev.budget + offer.amount,
-        economy: {
-          ...prev.economy,
-          debt: prev.economy.debt + offer.amount,
-          lastLoanWeekKey: weekKey,
-          transactions: [...prev.economy.transactions, transaction],
-        },
-      });
-    });
+    setGameState(reconcileGameState({
+      ...prev,
+      budget: prev.budget + offer.amount,
+      economy: {
+       ...prev.economy,
+       debt: prev.economy.debt + offer.amount,
+       lastLoanWeekKey: weekKey,
+       transactions: [...prev.economy.transactions, transaction],
+       transactionSequence: prev.economy.transactionSequence + 1,
+      },
+    }));
 
     return null;
   };
 
-  const handleNextWeek = (): number => {
-    if (gameState.economy.isBankrupt) {
-      return 0;
-    }
-
-    const ticketRevenue = calculateTicketRevenue(gameState.fanCount, gameState.stadiumCapacity);
+  const handleNextWeek = (): number | null => {
+    let revenue: number | null = null;
 
     setGameState(prev => {
       if (!prev.selectedClub || prev.economy.isBankrupt) {
@@ -616,6 +583,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return prev;
       }
 
+      const ticketRevenue = calculateTicketRevenue(prev.fanCount, prev.stadiumCapacity);
       const matchResult = getWeeklyMatchResult(prev);
       const sponsorIncome = calculateWeeklySponsorIncome(
         prev.selectedClub,
@@ -633,7 +601,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       const newTransactions = [
         createEconomyTransaction(
-          prev.economy.transactions.length + 1,
+          prev.economy.transactionSequence + 1,
           prev.season,
           prev.week,
           'income',
@@ -642,7 +610,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           `Billetindtægter i uge ${prev.week}`,
         ),
         createEconomyTransaction(
-          prev.economy.transactions.length + 2,
+          prev.economy.transactionSequence + 2,
           prev.season,
           prev.week,
           'income',
@@ -657,7 +625,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                 : 'Ugentlig sponsorindtægt',
         ),
         createEconomyTransaction(
-          prev.economy.transactions.length + 3,
+          prev.economy.transactionSequence + 3,
           prev.season,
           prev.week,
           'expense',
@@ -666,7 +634,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           'Ugentlig lønudbetaling',
         ),
         createEconomyTransaction(
-          prev.economy.transactions.length + 4,
+          prev.economy.transactionSequence + 4,
           prev.season,
           prev.week,
           'expense',
@@ -677,7 +645,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         ...(interestCost > 0
           ? [
             createEconomyTransaction(
-              prev.economy.transactions.length + 5,
+              prev.economy.transactionSequence + 5,
               prev.season,
               prev.week,
               'expense',
@@ -720,6 +688,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         : 0;
       const isBankrupt = consecutiveCrisisWeeks >= BANKRUPTCY_CRISIS_WEEKS;
 
+      revenue = ticketRevenue;
       return reconcileGameState({
         ...prev,
         week: isSeasonFinished ? 1 : nextUnplayedFixture?.week ?? prev.week + 1,
@@ -734,12 +703,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           isBankrupt,
           lastProcessedWeekKey: currentWeekKey,
           transactions: combinedTransactions,
+          transactionSequence: prev.economy.transactionSequence + newTransactions.length,
           lastWeekSummary,
         },
       });
     });
 
-    return ticketRevenue;
+    return revenue;
   };
 
   const recordMatchResult = (fixture: ScheduledMatch, userGoals: number, opponentGoals: number, details?: MatchDetails) => {
@@ -786,7 +756,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetGame = () => {
-    deleteGameState();
+    void deleteStoredGameState();
     setGameState(reconcileGameState(createInitialGameState()));
   };
 

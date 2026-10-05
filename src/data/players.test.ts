@@ -23,6 +23,27 @@ const normalizeSeedName = (name: string) =>
     .toLocaleLowerCase('da-DK');
 
 describe('team-specific squad generation', () => {
+  it('normalizes every non-finite player numeric field without poisoning calculations', () => {
+    const source = TRANSFER_MARKET_PLAYERS[0];
+    for (const value of [NaN, Infinity, -Infinity]) {
+      const skills = { ...source.skills };
+      for (const key of SKILL_KEYS) skills[key] = value;
+      const player = normalizePlayer({
+        ...source, age: value, asi: value, value, salary: value, askingPrice: value,
+        skills,
+      })!;
+      assert.equal(player.age, 24);
+      assert.equal(player.askingPrice, undefined);
+      for (const field of [player.asi, player.value, player.salary, ...Object.values(player.skills)]) {
+        assert.ok(Number.isFinite(field));
+      }
+      const legacy = normalizePlayer({ id: 'legacy', name: 'Legacy', position: 'FW', rating: value, age: value })!;
+      assert.equal(legacy.age, 24);
+      assert.ok(Number.isFinite(legacy.value));
+      assert.ok(Number.isFinite(legacy.asi));
+    }
+  });
+
   it('has 869 globally unique playable catalog IDs, with a separate starter fallback', () => {
     const clubPlayers = allTeams.flatMap(team => getTeamSquad(team));
     const catalog = [...clubPlayers, ...TRANSFER_MARKET_PLAYERS];

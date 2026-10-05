@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 const STORAGE_KEY = 'dkmanager25_gamestate';
+let pendingWrite = Promise.resolve();
 
 const isNativePlatform = () => Capacitor.isNativePlatform();
 
@@ -29,55 +30,48 @@ export const loadNativeStoredGameState = async (): Promise<unknown> => {
     const { value } = await Preferences.get({ key: STORAGE_KEY });
 
     if (!value) {
-      return null;
+      return loadStoredGameState();
     }
 
     return JSON.parse(value);
   } catch (error) {
     console.error('Fejl ved indlæsning af native game state:', error);
-    return null;
+    return loadStoredGameState();
   }
 };
 
-export const saveStoredGameState = async (state: unknown) => {
+export const saveStoredGameState = (state: unknown): Promise<void> => {
   const serializedState = JSON.stringify(state);
-
-  try {
-    localStorage.setItem(STORAGE_KEY, serializedState);
-  } catch (error) {
-    console.error('Fejl ved gemning af game state:', error);
-  }
-
-  if (!isNativePlatform()) {
-    return;
-  }
-
-  try {
-    await Preferences.set({
-      key: STORAGE_KEY,
-      value: serializedState,
-    });
-  } catch (error) {
-    console.error('Fejl ved gemning af native game state:', error);
-  }
+  pendingWrite = pendingWrite.then(async () => {
+    try {
+      if (isNativePlatform()) {
+        await Preferences.set({ key: STORAGE_KEY, value: serializedState });
+      } else {
+        localStorage.setItem(STORAGE_KEY, serializedState);
+      }
+    } catch (error) {
+      console.error('Fejl ved gemning af game state:', error);
+    }
+  });
+  return pendingWrite;
 };
 
-export const deleteStoredGameState = async () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.error('Fejl ved sletning af game state:', error);
-  }
-
-  if (!isNativePlatform()) {
-    return;
-  }
-
-  try {
-    await Preferences.remove({ key: STORAGE_KEY });
-  } catch (error) {
-    console.error('Fejl ved sletning af native game state:', error);
-  }
+export const deleteStoredGameState = (): Promise<void> => {
+  pendingWrite = pendingWrite.then(async () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      console.error('Fejl ved sletning af game state:', error);
+    }
+    if (isNativePlatform()) {
+      try {
+        await Preferences.remove({ key: STORAGE_KEY });
+      } catch (error) {
+        console.error('Fejl ved sletning af native game state:', error);
+      }
+    }
+  });
+  return pendingWrite;
 };
 
 export const isUsingNativeStorage = () => isNativePlatform();

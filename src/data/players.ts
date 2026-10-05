@@ -2,6 +2,7 @@ import { Player, PlayerRole, PlayerSkills, SkillKey } from '../types/player';
 import { Team } from '../types/teams';
 import type { SquadState } from '../types/squads';
 import { estimateWeeklySalary } from '../lib/economy';
+import { isFiniteNumber } from '../lib/numbers';
 import { LEAGUES, getTeamById } from './leagues';
 
 export const SKILL_KEYS: SkillKey[] = [
@@ -116,7 +117,7 @@ interface TeamPlayerSeed {
   secondaryRoles?: PlayerRole[];
 }
 
-const clampSkill = (value: number) => Math.max(1, Math.min(99, Math.round(value)));
+const clampSkill = (value: number) => Math.max(1, Math.min(99, Math.round(isFiniteNumber(value) ? value : 65)));
 
 const average = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
@@ -716,6 +717,13 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
   const sourceId = normalizePlayerIdValue(rawPlayer.id) ?? normalizePlayerIdValue(fallbackId);
   const normalizedId = sourceId ? canonicalizePlayerId(sourceId) : undefined;
   const normalizedName = resolvePlayerName(rawPlayer.name, normalizedId);
+  rawPlayer = {
+    ...rawPlayer,
+    age: isFiniteNumber(rawPlayer.age) ? rawPlayer.age : 24,
+    value: isFiniteNumber(rawPlayer.value) ? rawPlayer.value : undefined,
+    salary: isFiniteNumber(rawPlayer.salary) ? rawPlayer.salary : undefined,
+    askingPrice: isFiniteNumber(rawPlayer.askingPrice) ? rawPlayer.askingPrice : undefined,
+  };
   if (!rawPlayer.position) {
     return null;
   }
@@ -730,11 +738,11 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
       primaryRole: rawPlayer.primaryRole,
       secondaryRoles: rawPlayer.secondaryRoles ?? [],
       skills,
-      asi: typeof rawPlayer.asi === 'number' ? rawPlayer.asi : calculateASI(skills),
+      asi: isFiniteNumber(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
       value: rawPlayer.value ?? 0,
       salary: estimateWeeklySalary({
         age: rawPlayer.age ?? 24,
-        asi: typeof rawPlayer.asi === 'number' ? rawPlayer.asi : calculateASI(skills),
+        asi: isFiniteNumber(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
         value: rawPlayer.value ?? 0,
         primaryRole: rawPlayer.primaryRole,
         salary: rawPlayer.salary,
@@ -757,7 +765,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
   }
 
   const sourceRating = rawPlayer.rating ?? rawPlayer.asi;
-  const base = typeof sourceRating === 'number'
+  const base = isFiniteNumber(sourceRating)
     ? Math.max(40, Math.min(80, Math.round(sourceRating)))
     : 65;
   return createPlayer({

@@ -42,6 +42,7 @@ export interface EconomyPeriodSummary {
 export interface EconomyState {
   debt: number;
   transactions: EconomyTransaction[];
+  transactionSequence: number;
   stadiumBookValue: number;
   weeklyInterestRate: number;
   boardStatus: BoardStatus;

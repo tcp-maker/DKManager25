@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 
 interface ConfirmActionProps {
   label: string;
@@ -27,6 +27,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
 }) => {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const confirmationId = useId();
   const titleId = useId();
@@ -42,8 +43,9 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
   };
 
   const handleConfirm = async () => {
-    if (disabled || isSubmitting) return;
+    if (disabled || submittingRef.current) return;
 
+    submittingRef.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -58,6 +60,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Handlingen kunne ikke gennemføres.');
     } finally {
+      submittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -103,7 +106,7 @@ const ConfirmAction: React.FC<ConfirmActionProps> = ({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={isSubmitting}
+              disabled={disabled || isSubmitting}
               className={`flex-1 rounded px-4 py-2 font-bold transition disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 ${confirmButtonClassName}`}
             >
               {isSubmitting ? 'Behandler…' : confirmLabel}

@@ -75,6 +75,10 @@ Optælling før og efter identitetsrettelsen: **869 unikke spilbare spiller-ID'e
 
 Ved indlæsning bliver kendte gamle kopier (`own_buy1`, `own_buy1_1_2_1` osv.) til deres oprindelige `buy1`-ID. Registerets nøgle bliver altid spillerens indre ID. Dubletter afgøres deterministisk: først en kanonisk indre ID med matchende nøgle, derefter andre kanoniske poster, derefter gamle kopier med matchende nøgle, og til sidst øvrige kopier. Ved lige prioritet vinder leksikografisk første kildenøgle; det er ikke en vurdering af nyeste eller bedste progression. Vinderens attributter bevares gennem den eksisterende feltvalidering; dubletternes progression sammenlægges ikke. Navne bruges aldrig til identitetsdeduplikering.
 
+Gemte tal valideres som endelige værdier, så `NaN` og uendelighed ikke videreføres til beregninger. Økonomien gemmer en stigende transaktionstæller uafhængigt af de seneste 180 posteringer; ældre saves får tælleren migreret fra eksisterende ID'er.
+
+På Android bruges Capacitor Preferences, som indlæses før spillet starter. Ældre browserbaserede saves bruges som fallback ved migrering; webversionen bruger fortsat localStorage. Gemning og nulstilling udføres i rækkefølge, og Android-cloudbackup er deaktiveret. PWA-builds får en indholdshash-versioneret cache med de aktuelle JS-/CSS-filer; navigation hentes fra netværket først med offline-fallback.
+
 Den ejede trup har forrang over eventuelle markedskopier. Ældre saves uden marked får de fem oprindelige transfer-ID'er minus allerede ejede spillere; tidligere solgte poster kan ikke genskabes, da gamle saves ikke gemte dem. Nye salg bevarer spiller og progression på markedet med samme ID. Budget, sæson, gæld og historiske betalinger nulstilles ikke, og der gives ingen retroaktive refusioner. Migreringen er idempotent. Der er ingen gemte lineup-/spillerudvalgsreferencer at omskrive; spillerudvalg i UI er lokal, ikke-persistent state.
 
 Kampresultater påvirker nu state sådan:
