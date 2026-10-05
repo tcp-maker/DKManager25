@@ -163,7 +163,7 @@ describe('club/squad presentation with an existing saved squad', () => {
     assert.match(markup, /123\.456/);
     assert.match(markup, />Klub<\/button>/);
     assert.match(markup, />Økonomi<\/button>/);
-    assert.doesNotMatch(markup, /Kassebeholdning|Trupværdi|Løn\/uge|Stadionkapacitet|Bestyrelse|Sæsonbalance/);
+    assert.doesNotMatch(markup, /Kassebeholdning|Trupværdi|Løn\/uge|Stadionkapacitet|Bestyrelse|Sæsonbalance|Finansiering|Lønmasse|Seneste transaktioner/);
     assert.match(markup, /Tryk på en spiller/);
   });
 
@@ -215,7 +215,7 @@ describe('club/squad presentation with an existing saved squad', () => {
       assert.match(markup, /aria-label="Hovedmenu"/);
       assert.match(markup, /aria-current="page"[^>]*>Klub<\/button>/);
       assert.match(markup, /Stadionaktivitet/);
-      assert.doesNotMatch(markup, /Finansiering|<aside/);
+      assert.doesNotMatch(markup, /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner|<aside/);
     }
     for (const location of [
       { hash: '#økonomi', pathname: '/klub' },
