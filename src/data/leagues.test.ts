@@ -10,6 +10,7 @@ import {
   getAvailableSeasons,
   getLeagueSeasonSchedule,
   getLivePhase,
+  getPendingUserMatch,
   getSeasonFixtures,
   normalizeLeagueMatchRecords,
   normalizeSeasonHistory,
@@ -442,6 +443,28 @@ describe('league standings matches played', () => {
 
     assert.deepEqual(userTeamMatches.map(match => [match.fixtureId, match.isUserMatch]), [[roundTwoUserFixture.id, true]]);
     assert.equal(newMatches.filter(match => match.week === 1).length, 5);
+  });
+
+  it('keeps a committed user result pending until the week advances and never records it twice', () => {
+    const userTeam = LEAGUES[0].teams[0];
+    const schedule = getLeagueSeasonSchedule(userTeam);
+    const roundOneUserFixture = getUserFixture(schedule, userTeam.id, 1);
+    assert.ok(roundOneUserFixture);
+
+    const recorded = buildRoundMatchRecords(schedule, 1, userTeam.id, roundOneUserFixture.id, { homeGoals: 2, awayGoals: 0 }, [], fixedScore);
+    const pending = getPendingUserMatch(recorded, 1, 1);
+    assert.equal(pending?.fixtureId, roundOneUserFixture.id);
+    assert.equal(pending?.homeGoals, 2);
+
+    // Re-recording the same fixture (e.g. after a remount) is a no-op.
+    assert.deepEqual(
+      buildRoundMatchRecords(schedule, 1, userTeam.id, roundOneUserFixture.id, { homeGoals: 0, awayGoals: 5 }, recorded, fixedScore),
+      [],
+    );
+
+    assert.equal(getPendingUserMatch(recorded, 1, 2), null);
+    assert.equal(getPendingUserMatch(recorded, 2, 1), null);
+    assert.equal(getPendingUserMatch([], 1, 1), null);
   });
 
   it('preserves detailed reports only on the played user fixture', () => {

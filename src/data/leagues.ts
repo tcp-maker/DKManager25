@@ -1009,6 +1009,19 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === 'nu
 export const getSeasonMatches = (matches: LeagueMatchRecord[], season: number): LeagueMatchRecord[] =>
   matches.filter(match => match.season === season);
 
+/**
+ * Returns the user's most recently recorded match that the game week has not yet advanced past,
+ * i.e. a result that has been committed but is still awaiting "next week".
+ */
+export const getPendingUserMatch = (
+  matches: LeagueMatchRecord[],
+  season: number,
+  week: number,
+): LeagueMatchRecord | null =>
+  matches
+    .filter(match => match.season === season && match.isUserMatch && match.week >= week)
+    .reduce<LeagueMatchRecord | null>((latest, match) => (!latest || match.week > latest.week ? match : latest), null);
+
 export const buildSeasonArchiveEntry = (
   selectedTeam: Team | null,
   season: number,
