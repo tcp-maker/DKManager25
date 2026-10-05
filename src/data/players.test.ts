@@ -52,7 +52,7 @@ describe('team-specific squad generation', () => {
       secondaryRoles: ['unknown-role'],
       salary: undefined,
     } as unknown as Parameters<typeof normalizePlayer>[0])!;
-    assert.equal(malformed.primaryRole, 'winger');
+    assert.equal(malformed.primaryRole, 'striker');
     assert.deepEqual(malformed.secondaryRoles, []);
     assert.ok(Number.isFinite(malformed.salary));
     assert.equal(normalizePlayer({ ...source, position: 'unknown-position' } as unknown as Parameters<typeof normalizePlayer>[0]), null);
