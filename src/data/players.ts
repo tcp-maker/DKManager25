@@ -4,6 +4,7 @@ import type { SquadState } from '../types/squads';
 import { estimateWeeklySalary } from '../lib/economy';
 import { isFiniteNumber } from '../lib/numbers';
 import { LEAGUES, getTeamById } from './leagues';
+import { INTERNET_ROSTERS_2025_26, ROSTER_SEASON, type InternetRosterPlayer, type RosterCoverage } from './rosters2526';
 
 export const SKILL_KEYS: SkillKey[] = [
   'intelligence',
@@ -527,7 +528,6 @@ export const TEAM_PLAYER_SEEDS: Record<string, readonly TeamPlayerSeed[]> = {
 };
 
 const TEAM_IDS = LEAGUES.flatMap(league => league.teams.map(team => team.id));
-export const TEAM_IDS_WITH_FALLBACK_NAMES = TEAM_IDS.filter(teamId => !(teamId in TEAM_PLAYER_SEEDS));
 
 const clampBase = (value: number) => Math.max(42, Math.min(74, Math.round(value)));
 
@@ -691,12 +691,28 @@ const FALLBACK_TEAM: Team = {
 
 export const STARTER_PLAYERS = buildTeamSquad(FALLBACK_TEAM);
 
+const clonePlayer = (player: Player): Player => ({
+  ...player,
+  secondaryRoles: [...player.secondaryRoles],
+  skills: { ...player.skills },
+});
+
+/**
+ * Returns a club's starting squad from the canonical player registry (17 player references per
+ * club). Unknown/custom teams fall back to the legacy deterministic template squad.
+ */
 export const getTeamSquad = (team: Team | null): Player[] => {
   if (!team) {
     return STARTER_PLAYERS;
   }
 
-  return buildTeamSquad(team);
+  const canonicalTeam = getTeamById(team.id) ?? team;
+  const squadIds = PLAYER_REGISTRY.clubSquadsByClubId[canonicalTeam.id];
+  if (!squadIds) {
+    return buildTeamSquad(canonicalTeam);
+  }
+
+  return squadIds.map(id => clonePlayer(PLAYER_REGISTRY.playersById[id].player));
 };
 
 export const getTeamSquadRecord = (team: Team | null): Record<string, Player> =>
@@ -716,7 +732,295 @@ export const getCurrentTeamSquad = (
   return getTeamSquad(team).filter(player => !relocatedIds.has(player.id));
 };
 
-export const TRANSFER_MARKET_PLAYERS = transferSeeds.map(createPlayer);
+/*
+ * Canonical player registry
+ * -------------------------
+ * One shared pool of player records. Club squads and the transfer pool only hold references (IDs)
+ * into this pool, so a player identity exists exactly once.
+ *
+ * Sources (see `PlayerRegistryEntry.source`):
+ * - 'repo-seed': players that already existed in this repository (the curated FC København,
+ *   Brøndby and Midtjylland seeds in `TEAM_PLAYER_SEEDS` with their legacy `<club>-player-1..18`
+ *   IDs and generated attributes, plus the legacy `buy1..buy5` transfer players). They are reused
+ *   unchanged.
+ * - 'internet-2025-26': real 2025/26 roster players from `INTERNET_ROSTERS_2025_26`
+ *   (src/data/rosters2526.ts). IDs are `<club>-player-<n>` with n >= 19, so legacy placeholder IDs
+ *   1..18 of previously synthetic clubs are never reused for a different person. Their ratings are
+ *   derived deterministically from club level, role and age.
+ * - 'synthetic': clearly marked dummy players (`player-did-NNNN`) used only to fill missing squad
+ *   slots where internet data is incomplete, and to top the pool up to `PLAYER_POOL_TARGET`.
+ *
+ * Each club squad has exactly 17 players: 2 GK, 6 DF (2–3 full-backs), 6 MF (2–3 wingers) and
+ * 3 FW. Every other registry player (club surplus, legacy transfer seeds and top-up dummies) is in
+ * the transfer pool and available on the buy/sell market.
+ */
+export type PlayerDataSource = 'internet-2025-26' | 'repo-seed' | 'synthetic';
+export type PlayerRegistryStatus = 'squad' | 'transfer';
+
+export interface PlayerRegistryEntry {
+  player: Player;
+  source: PlayerDataSource;
+  /** Club whose data produced the record (null for legacy transfer seeds and pool top-ups). */
+  originClubId: string | null;
+  /** Club squad the player is assigned to, or null when in the transfer pool. */
+  clubId: string | null;
+  status: PlayerRegistryStatus;
+}
+
+export interface PlayerRegistry {
+  season: string;
+  playersById: Record<string, PlayerRegistryEntry>;
+  playerOrder: string[];
+  clubSquadsByClubId: Record<string, string[]>;
+  transferPlayerIds: string[];
+  rosterCoverageByClubId: Record<string, RosterCoverage>;
+}
+
+export const SQUAD_SIZE = 17;
+export const PLAYER_POOL_TARGET = 999;
+export const SQUAD_COMPOSITION: Readonly<Record<Player['position'], number>> = { GK: 2, DF: 6, MF: 6, FW: 3 };
+export const FULL_BACKS_PER_SQUAD: readonly [min: number, max: number] = [2, 3];
+export const WINGERS_PER_SQUAD: readonly [min: number, max: number] = [2, 3];
+const FIRST_IMPORTED_PLAYER_NUMBER = 19;
+
+const POSITION_BY_ROLE: Record<PlayerRole, Player['position']> = {
+  goalkeeper: 'GK',
+  'center-back': 'DF',
+  'full-back': 'DF',
+  'defensive-midfielder': 'MF',
+  'central-midfielder': 'MF',
+  'attacking-midfielder': 'MF',
+  winger: 'MF',
+  striker: 'FW',
+};
+
+interface RegistryCandidate {
+  player: Player;
+  source: PlayerDataSource;
+}
+
+const normalizeIdentityName = (name: string) =>
+  name
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLocaleLowerCase('da-DK');
+
+const getAgeAdjustment = (age: number) => {
+  if (age <= 19) return -4;
+  if (age <= 21) return -2;
+  if (age <= 23) return 0;
+  if (age <= 30) return 2;
+  if (age <= 32) return 1;
+  return -1;
+};
+
+const buildVariedOverrides = (role: PlayerRole, rng: () => number): SkillOverrides =>
+  Object.fromEntries(SKILL_KEYS.map(skill => [skill, (roleSkillDefaults[role][skill] ?? 0) + randomInt(rng, -3, 3)]));
+
+/** Quantifies an internet-sourced player from club level, role, age and a stable per-player variation. */
+const createInternetPlayer = (team: Team, id: string, [name, age, role]: InternetRosterPlayer): Player => {
+  const rng = createDeterministicGenerator(`${id}:${normalizeIdentityName(name)}`);
+  const resolvedAge = isSafeInteger(age) && age > 0 ? age : randomInt(rng, 20, 30);
+  const base = clampBase(team.baseRating - 13 + getAgeAdjustment(resolvedAge) + randomInt(rng, -3, 3));
+
+  return createPlayer({
+    id,
+    name,
+    age: resolvedAge,
+    position: POSITION_BY_ROLE[role],
+    primaryRole: role,
+    base,
+    overrides: buildVariedOverrides(role, rng),
+  });
+};
+
+const createSyntheticPlayer = (id: string, role: PlayerRole, baseRating: number): Player => {
+  const rng = createDeterministicGenerator(id);
+  const age = randomInt(rng, 18, 31);
+
+  return createPlayer({
+    id,
+    name: getDeterministicPlayerName(id),
+    age,
+    position: POSITION_BY_ROLE[role],
+    primaryRole: role,
+    base: clampBase(baseRating - 15 + getAgeAdjustment(age) + randomInt(rng, -2, 2)),
+    overrides: buildVariedOverrides(role, rng),
+  });
+};
+
+const SOURCE_PRIORITY: Record<PlayerDataSource, number> = { 'repo-seed': 0, 'internet-2025-26': 1, synthetic: 2 };
+
+const rankCandidates = (candidates: RegistryCandidate[]) =>
+  [...candidates].sort((a, b) =>
+    SOURCE_PRIORITY[a.source] - SOURCE_PRIORITY[b.source]
+    || calculateRoleScore(b.player) - calculateRoleScore(a.player)
+    || (a.player.id < b.player.id ? -1 : a.player.id > b.player.id ? 1 : 0));
+
+/** Splits a line into specialists (full-backs / wingers) and others, keeping 2–3 specialists. */
+const pickLine = (
+  candidates: RegistryCandidate[],
+  specialistRole: PlayerRole,
+  otherRole: PlayerRole,
+  total: number,
+  [minSpecialists, maxSpecialists]: readonly [number, number],
+  createDummy: (role: PlayerRole) => RegistryCandidate,
+) => {
+  const specialists = candidates.filter(candidate => candidate.player.primaryRole === specialistRole);
+  const others = candidates.filter(candidate => candidate.player.primaryRole !== specialistRole);
+  const preferredSpecialists = others.length >= total - minSpecialists ? minSpecialists : maxSpecialists;
+  const specialistCount = Math.min(specialists.length, preferredSpecialists);
+  const otherCount = Math.min(others.length, total - Math.max(specialistCount, minSpecialists));
+  const picked = [...specialists.slice(0, specialistCount), ...others.slice(0, otherCount)];
+
+  for (let index = specialistCount; index < minSpecialists; index += 1) {
+    picked.push(createDummy(specialistRole));
+  }
+  while (picked.length < total) {
+    picked.push(createDummy(otherRole));
+  }
+
+  return picked;
+};
+
+const buildPlayerRegistry = (): PlayerRegistry => {
+  const teams = LEAGUES.flatMap(league => league.teams);
+  const playersById: Record<string, PlayerRegistryEntry> = {};
+  const playerOrder: string[] = [];
+  const clubSquadsByClubId: Record<string, string[]> = {};
+  const transferPlayerIds: string[] = [];
+  const rosterCoverageByClubId: Record<string, RosterCoverage> = {};
+  const seenNames = new Set<string>();
+  let dummyCounter = 0;
+
+  const register = (entry: PlayerRegistryEntry) => {
+    if (playersById[entry.player.id]) {
+      throw new Error(`Duplicate player id in registry: ${entry.player.id}`);
+    }
+    playersById[entry.player.id] = entry;
+    playerOrder.push(entry.player.id);
+  };
+  const nextDummyId = () => {
+    dummyCounter += 1;
+    return `player-did-${String(dummyCounter).padStart(4, '0')}`;
+  };
+
+  // Repo seeds are claimed first so an internet duplicate can never displace them.
+  const repoSeedSquads = new Map<string, Player[]>();
+  for (const team of teams) {
+    if (TEAM_PLAYER_SEEDS[team.id]) {
+      const legacySquad = buildTeamSquad(team);
+      repoSeedSquads.set(team.id, legacySquad);
+      legacySquad.forEach(player => seenNames.add(normalizeIdentityName(player.name)));
+    }
+  }
+
+  const surplus: PlayerRegistryEntry[] = [];
+  for (const team of teams) {
+    const candidates: RegistryCandidate[] = (repoSeedSquads.get(team.id) ?? [])
+      .map(player => ({ player, source: 'repo-seed' }));
+    const roster = INTERNET_ROSTERS_2025_26[team.id];
+    rosterCoverageByClubId[team.id] = roster?.status ?? 'not-found';
+    let playerNumber = FIRST_IMPORTED_PLAYER_NUMBER;
+    for (const rosterPlayer of roster?.players ?? []) {
+      const nameKey = normalizeIdentityName(rosterPlayer[0]);
+      if (seenNames.has(nameKey)) {
+        continue;
+      }
+      seenNames.add(nameKey);
+      candidates.push({
+        player: createInternetPlayer(team, `${team.id}-player-${playerNumber}`, rosterPlayer),
+        source: 'internet-2025-26',
+      });
+      playerNumber += 1;
+    }
+
+    const ranked = rankCandidates(candidates);
+    const byPosition = (position: Player['position']) => ranked.filter(candidate => candidate.player.position === position);
+    const createDummy = (role: PlayerRole): RegistryCandidate => ({
+      player: createSyntheticPlayer(nextDummyId(), role, team.baseRating),
+      source: 'synthetic',
+    });
+    const fill = (picked: RegistryCandidate[], total: number, role: PlayerRole) => {
+      while (picked.length < total) picked.push(createDummy(role));
+      return picked;
+    };
+
+    const squad = [
+      ...fill(byPosition('GK').slice(0, SQUAD_COMPOSITION.GK), SQUAD_COMPOSITION.GK, 'goalkeeper'),
+      ...pickLine(byPosition('DF'), 'full-back', 'center-back', SQUAD_COMPOSITION.DF, FULL_BACKS_PER_SQUAD, createDummy),
+      ...pickLine(byPosition('MF'), 'winger', 'central-midfielder', SQUAD_COMPOSITION.MF, WINGERS_PER_SQUAD, createDummy),
+      ...fill(byPosition('FW').slice(0, SQUAD_COMPOSITION.FW), SQUAD_COMPOSITION.FW, 'striker'),
+    ];
+    const squadIds = new Set(squad.map(candidate => candidate.player.id));
+
+    for (const { player, source } of squad) {
+      register({ player, source, originClubId: team.id, clubId: team.id, status: 'squad' });
+    }
+    clubSquadsByClubId[team.id] = squad.map(candidate => candidate.player.id);
+
+    for (const { player, source } of candidates) {
+      if (!squadIds.has(player.id)) {
+        surplus.push({
+          player: { ...player, isForSale: false, askingPrice: undefined },
+          source,
+          originClubId: team.id,
+          clubId: null,
+          status: 'transfer',
+        });
+      }
+    }
+  }
+
+  const transferEntries: PlayerRegistryEntry[] = [
+    ...transferSeeds.map(seed => ({
+      player: createPlayer(seed),
+      source: 'repo-seed' as const,
+      originClubId: null,
+      clubId: null,
+      status: 'transfer' as const,
+    })),
+    ...surplus,
+  ];
+  for (const entry of transferEntries) {
+    register(entry);
+    transferPlayerIds.push(entry.player.id);
+  }
+
+  // Top the shared pool up with clearly marked synthetic transfer players. Real roster data
+  // reduces how many dummies are needed.
+  const topUpRoles: PlayerRole[] = SQUAD_TEMPLATE.map(slot => slot.primaryRole);
+  const baseRatings = teams.map(team => team.baseRating);
+  for (let index = 0; playerOrder.length < PLAYER_POOL_TARGET; index += 1) {
+    const player = createSyntheticPlayer(
+      nextDummyId(),
+      topUpRoles[index % topUpRoles.length],
+      baseRatings[index % baseRatings.length],
+    );
+    register({ player, source: 'synthetic', originClubId: null, clubId: null, status: 'transfer' });
+    transferPlayerIds.push(player.id);
+  }
+
+  return {
+    season: ROSTER_SEASON,
+    playersById,
+    playerOrder,
+    clubSquadsByClubId,
+    transferPlayerIds,
+    rosterCoverageByClubId,
+  };
+};
+
+export const PLAYER_REGISTRY: PlayerRegistry = buildPlayerRegistry();
+
+/** Clubs whose starting squad needed synthetic fallback players because internet data was incomplete. */
+export const TEAM_IDS_WITH_FALLBACK_NAMES = TEAM_IDS.filter(teamId =>
+  (PLAYER_REGISTRY.clubSquadsByClubId[teamId] ?? []).some(id => PLAYER_REGISTRY.playersById[id].source === 'synthetic'));
+
+export const TRANSFER_MARKET_PLAYERS = PLAYER_REGISTRY.transferPlayerIds
+  .map(id => clonePlayer(PLAYER_REGISTRY.playersById[id].player));
 
 export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: string): Player | null => {
   if (!rawPlayer || typeof rawPlayer !== 'object') {
