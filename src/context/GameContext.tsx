@@ -574,7 +574,7 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
       const nextUnplayedFixture = seasonFixtures.find(match => !playedFixtureIds.has(match.id));
       const isSeasonFinished = seasonFixtures.length > 0 && !nextUnplayedFixture;
 
-      if (nextUnplayedFixture && nextUnplayedFixture.week <= prev.week) {
+      if (nextUnplayedFixture && nextUnplayedFixture.week < prev.week) {
         return prev;
       }
 
