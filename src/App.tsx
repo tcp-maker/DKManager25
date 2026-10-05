@@ -7,6 +7,7 @@ import MatchView from './components/MatchView';
 import StadiumView from './components/StadiumView';
 import TeamView from './components/TeamView';
 import ClubView from './components/ClubView';
+import EconomyView from './components/EconomyView';
 import LeagueTableCard from './components/LeagueTableCard';
 import LeagueTablesView from './components/LeagueTablesView';
 import TeamBadge from './components/TeamBadge';
@@ -83,6 +84,12 @@ const App: React.FC = () => {
         return;
       }
 
+      if (event.key === '7') {
+        event.preventDefault();
+        setActiveView('economy');
+        return;
+      }
+
       if (selectedClub && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         setIsRestartConfirmationOpen(true);
@@ -140,6 +147,8 @@ const App: React.FC = () => {
         return <StadiumView />;
       case 'club':
         return <ClubView />;
+      case 'economy':
+        return <EconomyView />;
       case 'table':
         return <LeagueTablesView currentStandings={leagueTable} />;
       default:
@@ -214,6 +223,7 @@ const App: React.FC = () => {
                 <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
                 <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
                 <button onClick={() => setActiveView('club')} className={activeView === 'club' ? 'font-bold' : ''}>Klub</button>
+                <button onClick={() => setActiveView('economy')} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
                 <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
               </div>
 
@@ -243,10 +253,10 @@ const App: React.FC = () => {
           </nav>
 
           <main className="max-w-7xl mx-auto px-4 py-8">
-            <div className={`grid gap-6 ${activeView !== 'team' && activeView !== 'club' && activeView !== 'table' ? 'xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]' : ''}`}>
+            <div className={`grid gap-6 ${activeView !== 'team' && activeView !== 'club' && activeView !== 'economy' && activeView !== 'table' ? 'xl:grid-cols-[minmax(0,2.2fr)_minmax(320px,1fr)]' : ''}`}>
               <div>{renderMainView()}</div>
 
-              {activeView !== 'table' && activeView !== 'team' && activeView !== 'club' && (
+              {activeView !== 'table' && activeView !== 'team' && activeView !== 'club' && activeView !== 'economy' && (
                 <aside className="xl:sticky xl:top-4 xl:self-start">
                   <LeagueTableCard
                     leagueName={selectedClub.league}
