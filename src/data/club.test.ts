@@ -150,6 +150,22 @@ describe('club/squad presentation with an existing saved squad', () => {
     assert.match(markup, /Tryk på en spiller/);
   });
 
+  it('shows club sections in management-first order', () => {
+    const markup = renderSaved(ClubView);
+    const headings = [...markup.matchAll(/<h[12]\b[^>]*>(.*?)<\/h[12]>/g)]
+      .map(([, heading]) => heading);
+    assert.deepEqual(headings, [
+      'Klub',
+      'Bestyrelse: Presset',
+      'Finansiering',
+      'Økonomi / sæsonbalance',
+      'Stadionaktivitet',
+      'Indtægter efter kategori',
+      'Udgifter efter kategori',
+      'Seneste transaktioner',
+    ]);
+  });
+
   it('keeps board, financing, cash signs and honest attendance labels on the club page', () => {
     const markup = renderSaved(ClubView);
     assert.match(markup, /Bestyrelse:/);
