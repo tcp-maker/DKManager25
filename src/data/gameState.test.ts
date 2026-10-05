@@ -50,6 +50,78 @@ describe('club and squad save migration', () => {
     assert.match(actions.takeLoan()!, /ét nyt lån/);
   });
 
+  it('blocks reloaded weeks without a recorded current-week user result', () => {
+    const fixtures = getSeasonFixtures(club);
+    const leagueMatches = fixtures.reduce((matches, fixture) => [
+      ...matches,
+      ...buildRoundMatchRecords(
+        getLeagueSeasonSchedule(club), 1, club.id, fixture.id,
+        { homeGoals: 2, awayGoals: 0 }, matches,
+      ),
+    ], [] as ReturnType<typeof buildRoundMatchRecords>);
+
+    for (const state of [
+      { week: 0, leagueMatches: [] },
+      { week: fixtures.at(-1)!.week + 1, leagueMatches },
+      { season: 2, week: 0, leagueMatches },
+    ]) {
+      saved = JSON.stringify({ selectedClub: club, budget: 100000000, ...state });
+      let actions!: ReturnType<typeof useGame>;
+      const Capture = () => {
+        actions = useGame();
+        return null;
+      };
+      renderToString(createElement(GameProvider, { children: createElement(Capture) }));
+      assert.equal(actions.handleNextWeek(), null);
+      assert.equal(actions.handleNextWeek(), null);
+    }
+  });
+
+  it('keeps a processed week idempotent after reload', () => {
+    const fixture = getSeasonFixtures(club)[0];
+    saved = JSON.stringify({
+      selectedClub: club,
+      leagueMatches: buildRoundMatchRecords(
+        getLeagueSeasonSchedule(club), 1, club.id, fixture.id,
+        { homeGoals: 2, awayGoals: 0 }, [],
+      ),
+      economy: { ...createDefaultEconomyState(club, 3000), lastProcessedWeekKey: '1-1' },
+    });
+    let actions!: ReturnType<typeof useGame>;
+    const Capture = () => {
+      actions = useGame();
+      return null;
+    };
+    renderToString(createElement(GameProvider, { children: createElement(Capture) }));
+    actions.recordMatchResult(fixture, 2, 0);
+    assert.equal(actions.handleNextWeek(), null);
+    assert.equal(actions.handleNextWeek(), null);
+  });
+
+  it('blocks out-of-order fixtures and preserves normal weekly and season progression', () => {
+    saved = JSON.stringify({ selectedClub: club, budget: 100000000 });
+    let actions!: ReturnType<typeof useGame>;
+    const Capture = () => {
+      actions = useGame();
+      return null;
+    };
+    renderToString(createElement(GameProvider, { children: createElement(Capture) }));
+    const fixtures = getSeasonFixtures(club);
+    actions.recordMatchResult(fixtures[1], 2, 0);
+    assert.equal(actions.handleNextWeek(), null);
+    actions.recordMatchResult(fixtures[0], 2, 0);
+    assert.notEqual(actions.handleNextWeek(), null);
+    assert.equal(actions.handleNextWeek(), null);
+    for (const fixture of fixtures.slice(2)) {
+      actions.recordMatchResult(fixture, 2, 0);
+      assert.notEqual(actions.handleNextWeek(), null);
+      assert.equal(actions.handleNextWeek(), null);
+    }
+    actions.recordMatchResult(fixtures[0], 2, 0);
+    assert.notEqual(actions.handleNextWeek(), null);
+    assert.equal(actions.handleNextWeek(), null);
+  });
+
   it('rejects non-finite game, economy, transaction and summary fields', () => {
     for (const value of [NaN, Infinity, -Infinity]) {
       const state = loadGameState({
