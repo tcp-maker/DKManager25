@@ -281,6 +281,14 @@ const normalizeAbsoluteSkills = (skills: PlayerSkills): PlayerSkills => ({
   wingPlay: clampSkill(skills.wingPlay),
 });
 
+const isPlayerPosition = (position: unknown): position is Player['position'] =>
+  position === 'GK' || position === 'DF' || position === 'MF' || position === 'FW';
+
+const isPlayerRole = (role: unknown): role is PlayerRole =>
+  typeof role === 'string' && Object.prototype.hasOwnProperty.call(roleSkillDefaults, role);
+
+const isSafeInteger = (value: unknown): value is number =>
+  isFiniteNumber(value) && Number.isSafeInteger(value);
 export const calculateASI = (skills: PlayerSkills) =>
   Math.round(average(SKILL_KEYS.map(skill => skills[skill])));
 
@@ -719,16 +727,16 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
   const normalizedName = resolvePlayerName(rawPlayer.name, normalizedId);
   rawPlayer = {
     ...rawPlayer,
-    age: isFiniteNumber(rawPlayer.age) ? rawPlayer.age : 24,
-    value: isFiniteNumber(rawPlayer.value) ? rawPlayer.value : undefined,
-    salary: isFiniteNumber(rawPlayer.salary) ? rawPlayer.salary : undefined,
-    askingPrice: isFiniteNumber(rawPlayer.askingPrice) ? rawPlayer.askingPrice : undefined,
+    age: isSafeInteger(rawPlayer.age) && rawPlayer.age > 0 ? rawPlayer.age : 24,
+    value: isSafeInteger(rawPlayer.value) ? rawPlayer.value : undefined,
+    salary: isSafeInteger(rawPlayer.salary) ? rawPlayer.salary : undefined,
+    askingPrice: isSafeInteger(rawPlayer.askingPrice) ? rawPlayer.askingPrice : undefined,
   };
-  if (!rawPlayer.position) {
+  if (!isPlayerPosition(rawPlayer.position)) {
     return null;
   }
 
-  if (rawPlayer.skills && rawPlayer.primaryRole) {
+  if (rawPlayer.skills && isPlayerRole(rawPlayer.primaryRole)) {
     const skills = normalizeAbsoluteSkills(rawPlayer.skills);
     const normalizedPlayer = {
       id: normalizedId ?? normalizedName,
@@ -736,13 +744,15 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
       age: rawPlayer.age ?? 24,
       position: rawPlayer.position,
       primaryRole: rawPlayer.primaryRole,
-      secondaryRoles: rawPlayer.secondaryRoles ?? [],
+      secondaryRoles: Array.isArray(rawPlayer.secondaryRoles)
+        ? rawPlayer.secondaryRoles.filter(isPlayerRole)
+        : [],
       skills,
-      asi: isFiniteNumber(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
+      asi: isSafeInteger(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
       value: rawPlayer.value ?? 0,
       salary: estimateWeeklySalary({
         age: rawPlayer.age ?? 24,
-        asi: isFiniteNumber(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
+        asi: isSafeInteger(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
         value: rawPlayer.value ?? 0,
         primaryRole: rawPlayer.primaryRole,
         salary: rawPlayer.salary,
@@ -765,7 +775,7 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
   }
 
   const sourceRating = rawPlayer.rating ?? rawPlayer.asi;
-  const base = isFiniteNumber(sourceRating)
+  const base = isSafeInteger(sourceRating)
     ? Math.max(40, Math.min(80, Math.round(sourceRating)))
     : 65;
   return createPlayer({
@@ -773,8 +783,10 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     name: normalizedName,
     age: rawPlayer.age ?? 24,
     position: rawPlayer.position,
-    primaryRole: rawPlayer.primaryRole ?? roleFallbackByPosition[rawPlayer.position],
-    secondaryRoles: rawPlayer.secondaryRoles ?? [],
+    primaryRole: isPlayerRole(rawPlayer.primaryRole) ? rawPlayer.primaryRole : roleFallbackByPosition[rawPlayer.position],
+    secondaryRoles: Array.isArray(rawPlayer.secondaryRoles)
+      ? rawPlayer.secondaryRoles.filter(isPlayerRole)
+      : [],
     base,
     isForSale: rawPlayer.isForSale ?? false,
     askingPrice: rawPlayer.askingPrice,

@@ -54,6 +54,7 @@ interface GameState {
 
 interface GameContextType {
   gameState: GameState;
+  storageError: string | null;
   selectClub: (club: Club) => void;
   restartCurrentClub: () => void;
   addPlayer: (player: Player) => boolean;
@@ -83,6 +84,12 @@ const VALID_TRANSACTION_CATEGORIES = new Set<EconomyTransaction['category']>([
 ]);
 
 const buildWeekKey = (season: number, week: number) => `${season}-${week}`;
+
+const isSafeInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isSafeInteger(value);
+
+const normalizeSavedInteger = (value: unknown, fallback: number, minimum: number) =>
+  isSafeInteger(value) && value >= minimum ? value : fallback;
 
 const createInitialGameState = (): GameState => ({
   selectedClub: null,
@@ -127,8 +134,19 @@ const getWeeklyMatchResult = (state: GameState): 'win' | 'draw' | 'loss' | 'none
   return 'draw';
 };
 
-const hasCurrentWeekTransactions = (transactions: EconomyTransaction[], season: number, week: number) =>
-  transactions.some(transaction => transaction.season === season && transaction.week === week);
+const OPERATING_TRANSACTION_CATEGORIES = new Set<EconomyTransaction['category']>([
+  'ticket_sales',
+  'sponsor',
+  'wages',
+  'operations',
+  'interest',
+]);
+
+const getCurrentWeekOperatingTransactions = (transactions: EconomyTransaction[], season: number, week: number) =>
+  transactions.filter(transaction =>
+    transaction.season === season
+    && transaction.week === week
+    && OPERATING_TRANSACTION_CATEGORIES.has(transaction.category));
 
 const normalizePeriodSummary = (summary: unknown): EconomyPeriodSummary | null => {
   if (!summary || typeof summary !== 'object') {
@@ -137,11 +155,13 @@ const normalizePeriodSummary = (summary: unknown): EconomyPeriodSummary | null =
 
   const candidate = summary as Partial<EconomyPeriodSummary>;
   if (
-    !isFiniteNumber(candidate.season)
-    || !isFiniteNumber(candidate.week)
-    || !isFiniteNumber(candidate.income)
-    || !isFiniteNumber(candidate.expenses)
-    || !isFiniteNumber(candidate.net)
+    !isSafeInteger(candidate.season)
+    || candidate.season < 1
+    || !isSafeInteger(candidate.week)
+    || candidate.week < 1
+    || !isSafeInteger(candidate.income)
+    || !isSafeInteger(candidate.expenses)
+    || !isSafeInteger(candidate.net)
   ) {
     return null;
   }
@@ -168,10 +188,13 @@ const normalizeTransactions = (transactions: unknown): EconomyTransaction[] => {
 
       const candidate = rawTransaction as Partial<EconomyTransaction>;
       if (
-        !isFiniteNumber(candidate.season)
-        || !isFiniteNumber(candidate.week)
+        !isSafeInteger(candidate.season)
+        || candidate.season < 1
+        || !isSafeInteger(candidate.week)
+        || candidate.week < 1
         || (candidate.type !== 'income' && candidate.type !== 'expense')
-        || !isFiniteNumber(candidate.amount)
+        || !isSafeInteger(candidate.amount)
+        || candidate.amount < 0
         || typeof candidate.description !== 'string'
         || !candidate.category
         || !VALID_TRANSACTION_CATEGORIES.has(candidate.category)
@@ -192,7 +215,7 @@ const normalizeTransactions = (transactions: unknown): EconomyTransaction[] => {
         week: candidate.week,
         type: candidate.type,
         category: candidate.category,
-        amount: Math.max(0, Math.round(candidate.amount)),
+        amount: candidate.amount,
         description: candidate.description,
       });
       return acc;
@@ -222,9 +245,9 @@ const reconcileGameState = (state: GameState): GameState => {
     wageBill
     + calculateWeeklyOperationsCost(state.selectedClub, state.fanCount, state.stadiumCapacity)
     + Math.round(state.economy.debt * weeklyInterestRate);
-  const currentWeekSummary = calculatePeriodSummary(trimmedTransactions, state.season, state.week);
-  const weeklyCashflow = hasCurrentWeekTransactions(trimmedTransactions, state.season, state.week)
-    ? currentWeekSummary.net
+  const currentWeekOperatingTransactions = getCurrentWeekOperatingTransactions(trimmedTransactions, state.season, state.week);
+  const weeklyCashflow = currentWeekOperatingTransactions.length > 0
+    ? calculatePeriodSummary(currentWeekOperatingTransactions, state.season, state.week).net
     : projectedIncome - projectedExpenses;
 
   return {
@@ -255,11 +278,11 @@ const normalizeEconomyState = (
     ? rawEconomy as Partial<EconomyState>
     : null;
   const transactions = normalizeTransactions(parsedEconomy?.transactions);
-  const stadiumBookValue = isFiniteNumber(parsedEconomy?.stadiumBookValue) && parsedEconomy.stadiumBookValue > 0
-    ? Math.round(parsedEconomy.stadiumBookValue)
+  const stadiumBookValue = isSafeInteger(parsedEconomy?.stadiumBookValue) && parsedEconomy.stadiumBookValue > 0
+    ? parsedEconomy.stadiumBookValue
     : calculateStadiumBookValue(state.selectedClub, state.stadiumCapacity);
-  const debt = isFiniteNumber(parsedEconomy?.debt) && parsedEconomy.debt > 0
-    ? Math.round(parsedEconomy.debt)
+  const debt = isSafeInteger(parsedEconomy?.debt) && parsedEconomy.debt > 0
+    ? parsedEconomy.debt
     : 0;
   const equity = calculateEquity(state.budget, calculateSquadValue(state.squad.players), stadiumBookValue, debt);
 
@@ -270,8 +293,8 @@ const normalizeEconomyState = (
     debt,
     stadiumBookValue,
     weeklyInterestRate: calculateDebtInterestRate(state.selectedClub, debt, equity),
-    consecutiveCrisisWeeks: isFiniteNumber(parsedEconomy?.consecutiveCrisisWeeks) && parsedEconomy.consecutiveCrisisWeeks > 0
-      ? Math.floor(parsedEconomy.consecutiveCrisisWeeks)
+    consecutiveCrisisWeeks: isSafeInteger(parsedEconomy?.consecutiveCrisisWeeks) && parsedEconomy.consecutiveCrisisWeeks > 0
+      ? parsedEconomy.consecutiveCrisisWeeks
       : 0,
     isBankrupt: parsedEconomy?.isBankrupt === true,
     lastProcessedWeekKey: typeof parsedEconomy?.lastProcessedWeekKey === 'string' ? parsedEconomy.lastProcessedWeekKey : null,
@@ -306,14 +329,14 @@ export const loadGameState = (savedState: unknown = loadStoredGameState()): Game
     const loadedState: GameState = {
       ...initialState,
       selectedClub,
-      budget: isFiniteNumber(parsed.budget) ? parsed.budget : initialState.budget,
+      budget: isSafeInteger(parsed.budget) ? parsed.budget : initialState.budget,
       squad: { clubId: selectedClub?.id ?? '', players },
       transferMarket: normalizeTransferMarket(parsed.transferMarket, players),
-      fanCount: isFiniteNumber(parsed.fanCount) ? parsed.fanCount : initialState.fanCount,
-      stadiumCapacity: isFiniteNumber(parsed.stadiumCapacity) ? parsed.stadiumCapacity : initialState.stadiumCapacity,
-      fanMood: isFiniteNumber(parsed.fanMood) ? parsed.fanMood : initialState.fanMood,
-      season,
-      week: isFiniteNumber(parsed.week) ? parsed.week : initialState.week,
+      fanCount: normalizeSavedInteger(parsed.fanCount, initialState.fanCount, 0),
+      stadiumCapacity: normalizeSavedInteger(parsed.stadiumCapacity, initialState.stadiumCapacity, 1),
+      fanMood: isFiniteNumber(parsed.fanMood) ? Math.max(0, Math.min(100, Math.round(parsed.fanMood))) : initialState.fanMood,
+      season: normalizeSavedInteger(season, initialState.season, 1),
+      week: normalizeSavedInteger(parsed.week, initialState.week, 1),
       leagueMatches,
       seasonHistory: normalizeSeasonHistory(parsed.seasonHistory, selectedClub, season, leagueMatches),
       economy: initialState.economy,
@@ -400,6 +423,7 @@ export const updateOwnedPlayer = (state: GameState, playerId: string, updates: P
 
 export const GameProvider = ({ children, initialState }: { children: ReactNode; initialState?: unknown }) => {
   const [gameState, setReactGameState] = useState<GameState>(() => loadGameState(initialState) ?? reconcileGameState(createInitialGameState()));
+  const [storageError, setStorageError] = useState<string | null>(null);
   const stateRef = useRef(gameState);
   const setGameState = (update: GameState | ((prev: GameState) => GameState)) => {
     const next = typeof update === 'function' ? update(stateRef.current) : update;
@@ -408,7 +432,9 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
   };
 
   useEffect(() => {
-    void saveStoredGameState(gameState);
+    void saveStoredGameState(gameState)
+      .then(() => setStorageError(null))
+      .catch(() => setStorageError('Seneste ændringer kunne ikke gemmes. Der kan være for lidt ledig lagerplads.'));
   }, [gameState]);
 
   const selectClub = (club: Club) => {
@@ -756,7 +782,8 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
   };
 
   const resetGame = () => {
-    void deleteStoredGameState();
+    void deleteStoredGameState().catch(() =>
+      setStorageError('Det gemte spil kunne ikke slettes fra lageret.'));
     setGameState(reconcileGameState(createInitialGameState()));
   };
 
@@ -764,6 +791,7 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
     <GameContext.Provider
       value={{
         gameState,
+        storageError,
         selectClub,
         restartCurrentClub,
         addPlayer,

@@ -18,6 +18,7 @@ const TransferMarketView: React.FC = () => {
 
   const availableForBuy = Object.values(gameState.transferMarket)
     .filter(player => !Object.prototype.hasOwnProperty.call(gameState.squad.players, player.id));
+  const getPurchasePrice = (player: Player) => player.askingPrice ?? player.value;
 
   const handleSellPlayer = (playerId: string): string | null => {
     const player = gameState.squad.players[playerId];
@@ -31,8 +32,9 @@ const TransferMarketView: React.FC = () => {
   };
 
   const handleBuyPlayer = (player: Player): string | null => {
-    if (gameState.budget < player.value) {
-      return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${player.value.toLocaleString('da-DK')} kr.`;
+    const price = getPurchasePrice(player);
+    if (gameState.budget < price) {
+      return `Ikke tilstrækkelige midler. Du har ${gameState.budget.toLocaleString('da-DK')} kr, men ${player.name} koster ${price.toLocaleString('da-DK')} kr.`;
     }
 
     const wasAdded = addPlayer(player);
@@ -41,7 +43,7 @@ const TransferMarketView: React.FC = () => {
     }
 
     setSelectedBuyPlayer(null);
-    setStatusMessage(`${player.name} blev købt for ${player.value.toLocaleString('da-DK')} kr.`);
+    setStatusMessage(`${player.name} blev købt for ${price.toLocaleString('da-DK')} kr.`);
     return null;
   };
 
@@ -66,14 +68,19 @@ const TransferMarketView: React.FC = () => {
       </div>
 
       {statusMessage && (
-        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div role="status" className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           {statusMessage}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex space-x-4 mb-6 border-b">
+      <div role="tablist" aria-label="Transfermarked" className="flex space-x-4 mb-6 border-b">
         <button
+          type="button"
+          role="tab"
+          id="transfer-squad-tab"
+          aria-selected={activeTab === 'squad'}
+          aria-controls="transfer-squad-panel"
           onClick={() => setActiveTab('squad')}
           className={`px-4 py-2 font-semibold border-b-2 ${
             activeTab === 'squad'
@@ -84,6 +91,11 @@ const TransferMarketView: React.FC = () => {
           Min Trup ({squadPlayers.length})
         </button>
         <button
+          type="button"
+          role="tab"
+          id="transfer-market-tab"
+          aria-selected={activeTab === 'market'}
+          aria-controls="transfer-market-panel"
           onClick={() => setActiveTab('market')}
           className={`px-4 py-2 font-semibold border-b-2 ${
             activeTab === 'market'
@@ -97,7 +109,7 @@ const TransferMarketView: React.FC = () => {
 
       {/* Squad Tab */}
       {activeTab === 'squad' && (
-        <div>
+        <div role="tabpanel" id="transfer-squad-panel" aria-labelledby="transfer-squad-tab" tabIndex={0}>
           <h2 className="text-2xl font-bold mb-4">Min Trup</h2>
           {squadPlayers.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Ingen spillere i trupen endnu</p>
@@ -161,61 +173,60 @@ const TransferMarketView: React.FC = () => {
 
       {/* Market Tab */}
       {activeTab === 'market' && (
-        <div>
+        <div role="tabpanel" id="transfer-market-panel" aria-labelledby="transfer-market-tab" tabIndex={0}>
           <h2 className="text-2xl font-bold mb-4">Ledige Spillere</h2>
           {availableForBuy.length === 0 ? (
             <p className="text-gray-500 text-center py-8">Ingen spillere på markedet</p>
           ) : (
             <div className="space-y-3">
               {availableForBuy.map(player => (
-                <div
-                  key={player.id}
-                  onClick={() => setSelectedBuyPlayer(selectedBuyPlayer?.id === player.id ? null : player)}
-                  className={`bg-white border rounded-lg p-4 cursor-pointer transition ${
-                    selectedBuyPlayer?.id === player.id
-                      ? 'border-blue-500 bg-blue-50 shadow-md'
-                      : 'border-gray-200 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-bold text-lg">{player.name}</h3>
-                      <p className="text-sm text-gray-600">{ROLE_LABELS[player.primaryRole]} • {player.age} år • ASI: {player.asi}</p>
-                      <p className="text-lg font-bold text-blue-600 mt-2">Pris: {player.value.toLocaleString('da-DK')} kr</p>
-                    </div>
-                    {gameState.budget >= player.value && (
-                      <span className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded">
-                        Råd
-                      </span>
-                    )}
-                    {gameState.budget < player.value && (
-                      <span className="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded">
-                        For dyr
-                      </span>
-                    )}
-                  </div>
+                <div key={player.id} className={`bg-white border rounded-lg p-4 transition ${
+                  selectedBuyPlayer?.id === player.id
+                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                    : 'border-gray-200 hover:shadow-md'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBuyPlayer(selectedBuyPlayer?.id === player.id ? null : player)}
+                    aria-expanded={selectedBuyPlayer?.id === player.id}
+                    aria-controls={selectedBuyPlayer?.id === player.id ? `transfer-player-${player.id}` : undefined}
+                    className="flex w-full items-start justify-between gap-3 text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <span className="flex-1">
+                      <span className="block font-bold text-lg">{player.name}</span>
+                      <span className="block text-sm text-gray-600">{ROLE_LABELS[player.primaryRole]} • {player.age} år • ASI: {player.asi}</span>
+                      <span className="mt-2 block text-lg font-bold text-blue-600">Pris: {getPurchasePrice(player).toLocaleString('da-DK')} kr</span>
+                    </span>
+                    <span className={`rounded px-3 py-1 text-xs font-bold ${
+                      gameState.budget >= getPurchasePrice(player)
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {gameState.budget >= getPurchasePrice(player) ? 'Råd' : 'For dyr'}
+                    </span>
+                  </button>
 
                   {/* Expanded details */}
                   {selectedBuyPlayer?.id === player.id && (
-                    <div className="mt-4 pt-4 border-t" onClick={(e) => e.stopPropagation()}>
+                    <div id={`transfer-player-${player.id}`} className="mt-4 pt-4 border-t">
                       <div className="mb-4">
                         <PlayerDetailsPanel player={player} title="Spillerprofil" />
                       </div>
                       <p className="text-sm text-gray-700 mb-4">
-                        Købt denne spiller til {player.value.toLocaleString('da-DK')} kr. Du vil have{' '}
+                        Købt denne spiller til {getPurchasePrice(player).toLocaleString('da-DK')} kr. Du vil have{' '}
                         <span className="font-bold text-green-600">
-                          {(gameState.budget - player.value).toLocaleString('da-DK')} kr
+                          {(gameState.budget - getPurchasePrice(player)).toLocaleString('da-DK')} kr
                         </span>{' '}
                         tilbage.
                       </p>
-                      <div onClick={(e) => e.stopPropagation()}>
+                      <div>
                         <ConfirmAction
-                          label={gameState.budget >= player.value ? 'Køb Spiller' : 'Ikke råd'}
+                          label={gameState.budget >= getPurchasePrice(player) ? 'Køb Spiller' : 'Ikke råd'}
                           confirmLabel="Bekræft køb"
-                          confirmMessage={`Køb ${player.name} for ${player.value.toLocaleString('da-DK')} kr? Du vil have ${(gameState.budget - player.value).toLocaleString('da-DK')} kr tilbage bagefter.`}
+                          confirmMessage={`Køb ${player.name} for ${getPurchasePrice(player).toLocaleString('da-DK')} kr? Du vil have ${(gameState.budget - getPurchasePrice(player)).toLocaleString('da-DK')} kr tilbage bagefter.`}
                           onConfirm={() => handleBuyPlayer(player)}
-                          disabled={gameState.budget < player.value}
-                          disabledMessage={gameState.budget < player.value ? `Du mangler ${(player.value - gameState.budget).toLocaleString('da-DK')} kr.` : undefined}
+                          disabled={gameState.budget < getPurchasePrice(player)}
+                          disabledMessage={gameState.budget < getPurchasePrice(player) ? `Du mangler ${(getPurchasePrice(player) - gameState.budget).toLocaleString('da-DK')} kr.` : undefined}
                           buttonClassName="bg-blue-600 hover:bg-blue-700 text-white"
                           confirmButtonClassName="bg-blue-700 hover:bg-blue-800 text-white"
                         />

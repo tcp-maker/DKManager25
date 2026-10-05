@@ -42,7 +42,7 @@ export const loadNativeStoredGameState = async (): Promise<unknown> => {
 
 export const saveStoredGameState = (state: unknown): Promise<void> => {
   const serializedState = JSON.stringify(state);
-  pendingWrite = pendingWrite.then(async () => {
+  pendingWrite = pendingWrite.catch(() => undefined).then(async () => {
     try {
       if (isNativePlatform()) {
         await Preferences.set({ key: STORAGE_KEY, value: serializedState });
@@ -51,24 +51,31 @@ export const saveStoredGameState = (state: unknown): Promise<void> => {
       }
     } catch (error) {
       console.error('Fejl ved gemning af game state:', error);
+      throw error;
     }
   });
   return pendingWrite;
 };
 
 export const deleteStoredGameState = (): Promise<void> => {
-  pendingWrite = pendingWrite.then(async () => {
+  pendingWrite = pendingWrite.catch(() => undefined).then(async () => {
+    let failure: unknown;
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (error) {
       console.error('Fejl ved sletning af game state:', error);
+      failure = error;
     }
     if (isNativePlatform()) {
       try {
         await Preferences.remove({ key: STORAGE_KEY });
       } catch (error) {
         console.error('Fejl ved sletning af native game state:', error);
+        failure ??= error;
       }
+    }
+    if (failure !== undefined) {
+      throw failure;
     }
   });
   return pendingWrite;

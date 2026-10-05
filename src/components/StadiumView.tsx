@@ -6,9 +6,10 @@ const StadiumView: React.FC = () => {
   const { gameState, upgradeStadium } = useGame();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  // Calculate weekly revenue
   const weeklyRevenue = Math.min(gameState.fanCount, gameState.stadiumCapacity) * 150;
-  const capacityUsage = (gameState.fanCount / gameState.stadiumCapacity) * 100;
+  const capacityUsage = gameState.stadiumCapacity > 0
+    ? Math.max(0, Math.min(100, gameState.fanCount / gameState.stadiumCapacity * 100))
+    : 0;
   const upgrades = Math.max(0, (gameState.stadiumCapacity - 3000) / 2500);
 
   // Stadium name based on team
@@ -59,40 +60,22 @@ const StadiumView: React.FC = () => {
         {/* Capacity Usage Bar */}
         <div className="mt-4">
           <p className="text-sm font-semibold text-gray-700 mb-2">Kapacitet Utnyttelse</p>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              className={`h-full transition-all ${
-                capacityUsage > 90
-                  ? 'bg-green-500'
-                  : capacityUsage > 70
-                  ? 'bg-yellow-500'
-                  : 'bg-blue-500'
-              }`}
-              style={{ width: `${Math.min(capacityUsage, 100)}%` }}
-            />
-          </div>
+          <progress aria-label="Stadionets belægning" max={100} value={capacityUsage} className="h-3 w-full accent-blue-600">
+            {capacityUsage}%
+          </progress>
         </div>
 
         {/* Fan Mood Bar */}
         <div className="mt-4">
           <p className="text-sm font-semibold text-gray-700 mb-2">Fan Mood</p>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              className={`h-full transition-all ${
-                gameState.fanMood > 75
-                  ? 'bg-green-500'
-                  : gameState.fanMood > 50
-                  ? 'bg-yellow-500'
-                  : 'bg-red-500'
-              }`}
-              style={{ width: `${gameState.fanMood}%` }}
-            />
-          </div>
+          <progress aria-label="Fanhumør" max={100} value={gameState.fanMood} className="h-3 w-full accent-purple-600">
+            {gameState.fanMood}%
+          </progress>
         </div>
       </div>
 
       {statusMessage && (
-        <div className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div role="status" className="mb-6 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           {statusMessage}
         </div>
       )}
@@ -119,7 +102,8 @@ const StadiumView: React.FC = () => {
           </div>
           <div className="text-center">
             <p className="text-sm text-gray-600">Ekstra Indtægt</p>
-            <p className="text-xl font-bold text-blue-600">+375.000 kr/sæson</p>
+            <p className="text-xl font-bold text-blue-600">Op til +375.000 kr/uge</p>
+            <p className="text-xs text-gray-500">ved fuldt fremmøde og ledig kapacitet</p>
           </div>
         </div>
 
@@ -154,7 +138,7 @@ const StadiumView: React.FC = () => {
             </div>
             <p className="text-sm text-gray-700">Påvirker spillernes udvikling og rating.</p>
             <button className="w-full bg-gray-300 text-gray-600 font-bold py-2 px-4 rounded cursor-not-allowed">
-              Upgrade Plant (Låst)
+              Opgrader anlæg (låst)
             </button>
           </div>
         </div>
@@ -176,7 +160,7 @@ const StadiumView: React.FC = () => {
             </div>
             <p className="text-sm text-gray-700">Reducerer skader og holder spillerne fit.</p>
             <button className="w-full bg-gray-300 text-gray-600 font-bold py-2 px-4 rounded cursor-not-allowed">
-              Upgrade Plant (Låst)
+              Opgrader anlæg (låst)
             </button>
           </div>
         </div>
@@ -199,9 +183,9 @@ const StadiumView: React.FC = () => {
           <div className="bg-white rounded-lg p-4">
             <h3 className="font-bold mb-2">Fan Mood Påvirker Performance</h3>
             <ul className="text-sm text-gray-700 space-y-1">
-              <li>📈 <span className="font-semibold">Høj Mood (75+):</span> Spillerne spiller bedre</li>
-              <li>📊 <span className="font-semibold">Neutral Mood (50-75):</span> Normal performance</li>
-              <li>📉 <span className="font-semibold">Lav Mood (&lt;50):</span> Spillerne præsterer dårligt</li>
+              <li>📈 <span className="font-semibold">Højt humør (75+):</span> Styrker sponsorindtægten</li>
+              <li>📊 <span className="font-semibold">Neutralt humør (50-75):</span> Stabil sponsorindtægt</li>
+              <li>📉 <span className="font-semibold">Lavt humør (&lt;50):</span> Reducerer sponsorindtægten</li>
             </ul>
           </div>
 

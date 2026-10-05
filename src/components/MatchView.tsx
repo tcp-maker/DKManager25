@@ -417,8 +417,13 @@ const MatchView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex space-x-4 mb-6 border-b">
+        <div role="tablist" aria-label="Kampe" className="flex space-x-4 mb-6 border-b">
           <button
+            type="button"
+            role="tab"
+            id="matches-upcoming-tab"
+            aria-selected={activeTab === 'upcoming'}
+            aria-controls="matches-upcoming-panel"
             onClick={() => setActiveTab('upcoming')}
             className={`px-4 py-2 font-semibold border-b-2 ${
               activeTab === 'upcoming'
@@ -429,6 +434,11 @@ const MatchView: React.FC = () => {
             Kommende Kampe
           </button>
           <button
+            type="button"
+            role="tab"
+            id="matches-history-tab"
+            aria-selected={activeTab === 'history'}
+            aria-controls="matches-history-panel"
             onClick={() => setActiveTab('history')}
             className={`px-4 py-2 font-semibold border-b-2 ${
               activeTab === 'history'
@@ -441,7 +451,7 @@ const MatchView: React.FC = () => {
         </div>
 
         {activeTab === 'upcoming' && (
-          <div>
+          <div role="tabpanel" id="matches-upcoming-panel" aria-labelledby="matches-upcoming-tab" tabIndex={0}>
             <h2 className="text-2xl font-bold mb-4">Kommende Kampe</h2>
 
             {matchResult && !isMatchPlaying && (
@@ -552,7 +562,7 @@ const MatchView: React.FC = () => {
 
                 <div className="mt-6">
                   <h4 className="text-lg font-bold mb-3">Live-begivenheder</h4>
-                  <div className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-green-200 bg-white/80 p-3">
+                  <div role="log" aria-label="Live-begivenheder" aria-live="polite" aria-relevant="additions" className="max-h-72 space-y-2 overflow-y-auto rounded-xl border border-green-200 bg-white/80 p-3">
                     {liveEvents.length === 0 ? (
                       <p className="text-sm text-gray-500">Dommeren fløjter op om et øjeblik...</p>
                     ) : (
@@ -663,7 +673,7 @@ const MatchView: React.FC = () => {
         )}
 
         {activeTab === 'history' && (
-          <div>
+          <div role="tabpanel" id="matches-history-panel" aria-labelledby="matches-history-tab" tabIndex={0}>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-2xl font-bold">Kamp Historie</h2>
               <div className="flex flex-wrap items-center gap-3">
