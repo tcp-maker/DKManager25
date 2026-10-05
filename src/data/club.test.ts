@@ -131,6 +131,7 @@ describe('club and economy navigation', () => {
 });
 
 describe('club/squad presentation with an existing saved squad', () => {
+  const economyOnlySections = /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner/;
   const renderSaved = (component: React.ComponentType, location?: { hash: string; pathname: string }) => {
     const club = LEAGUES[0].teams[0];
     const player = { ...Object.values(getTeamSquadRecord(club))[0], name: 'Gemt transferspiller', value: 123456 };
@@ -163,7 +164,8 @@ describe('club/squad presentation with an existing saved squad', () => {
     assert.match(markup, /123\.456/);
     assert.match(markup, />Klub<\/button>/);
     assert.match(markup, />Økonomi<\/button>/);
-    assert.doesNotMatch(markup, /Kassebeholdning|Trupværdi|Løn\/uge|Stadionkapacitet|Bestyrelse|Sæsonbalance|Finansiering|Lønmasse|Seneste transaktioner/);
+    assert.doesNotMatch(markup, economyOnlySections);
+    assert.doesNotMatch(markup, /Trupværdi|Løn\/uge|Stadionkapacitet/);
     assert.match(markup, /Tryk på en spiller/);
   });
 
@@ -203,7 +205,7 @@ describe('club/squad presentation with an existing saved squad', () => {
     assert.match(markup, /Endnu ingen tilskuerhistorik/);
     assert.match(markup, /<progress[^>]*max="100"[^>]*value=/);
     assert.match(markup, /for="stadium-occupancy"/);
-    assert.doesNotMatch(markup, /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner/);
+    assert.doesNotMatch(markup, economyOnlySections);
   });
 
   it('renders distinct full-width pages and marks the active main menu destination for direct links', () => {
@@ -215,7 +217,8 @@ describe('club/squad presentation with an existing saved squad', () => {
       assert.match(markup, /aria-label="Hovedmenu"/);
       assert.match(markup, /aria-current="page"[^>]*>Klub<\/button>/);
       assert.match(markup, /Stadionaktivitet/);
-      assert.doesNotMatch(markup, /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner|<aside/);
+      assert.doesNotMatch(markup, economyOnlySections);
+      assert.doesNotMatch(markup, /<aside/);
     }
     for (const location of [
       { hash: '#økonomi', pathname: '/klub' },
