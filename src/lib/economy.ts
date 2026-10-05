@@ -195,7 +195,7 @@ export const calculateAttendanceEstimate = (
     ? [...periods.values()].reduce((sum, attendance) => sum + attendance, 0) / periods.size
     : null;
   const occupancy = capacity > 0 ? clamp((average ?? current) / capacity * 100, 0, 100) : 0;
-  return { capacity, current, average, occupancy, periodCount: periods.size, firstWeek: weeks[0], lastWeek: weeks.at(-1) };
+  return { capacity, current, average, occupancy, periodCount: periods.size, firstWeek: weeks[0], lastWeek: weeks[weeks.length - 1] };
 };
 
 export const calculateWeeklySponsorIncome = (

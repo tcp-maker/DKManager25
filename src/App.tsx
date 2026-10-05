@@ -23,7 +23,7 @@ const resolveViewFromLocation = (): AppView => {
 };
 
 const App: React.FC = () => {
-  const { gameState, selectClub, restartCurrentClub, resetGame } = useGame();
+  const { gameState, storageError, selectClub, restartCurrentClub, resetGame } = useGame();
   const [activeView, setActiveView] = useState<AppView>(resolveViewFromLocation);
   const [isResetConfirmationOpen, setIsResetConfirmationOpen] = useState(false);
   const [isRestartConfirmationOpen, setIsRestartConfirmationOpen] = useState(false);
@@ -215,16 +215,21 @@ const App: React.FC = () => {
         </main>
       ) : (
         <>
+          {storageError && (
+            <p role="alert" className="bg-red-100 px-4 py-3 text-center text-sm font-semibold text-red-900">
+              {storageError}
+            </p>
+          )}
           <nav aria-label="Hovedmenu" className="bg-blue-600 text-white p-4">
             <div className="max-w-7xl mx-auto flex flex-wrap items-start gap-4">
               <div className="flex flex-wrap gap-4">
-                <button onClick={() => setActiveView('team')} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
-                <button onClick={() => setActiveView('transfers')} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
-                <button onClick={() => setActiveView('matches')} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
-                <button onClick={() => setActiveView('stadium')} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
+                <button type="button" onClick={() => setActiveView('team')} aria-current={activeView === 'team' ? 'page' : undefined} className={activeView === 'team' ? 'font-bold' : ''}>Trup</button>
+                <button type="button" onClick={() => setActiveView('transfers')} aria-current={activeView === 'transfers' ? 'page' : undefined} className={activeView === 'transfers' ? 'font-bold' : ''}>Transfer</button>
+                <button type="button" onClick={() => setActiveView('matches')} aria-current={activeView === 'matches' ? 'page' : undefined} className={activeView === 'matches' ? 'font-bold' : ''}>Kampe</button>
+                <button type="button" onClick={() => setActiveView('stadium')} aria-current={activeView === 'stadium' ? 'page' : undefined} className={activeView === 'stadium' ? 'font-bold' : ''}>Stadion</button>
                 <button onClick={() => setActiveView('club')} aria-current={activeView === 'club' ? 'page' : undefined} className={activeView === 'club' ? 'font-bold' : ''}>Klub</button>
                 <button onClick={() => setActiveView('economy')} aria-current={activeView === 'economy' ? 'page' : undefined} className={activeView === 'economy' ? 'font-bold' : ''}>Økonomi</button>
-                <button onClick={() => setActiveView('table')} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
+                <button type="button" onClick={() => setActiveView('table')} aria-current={activeView === 'table' ? 'page' : undefined} className={activeView === 'table' ? 'font-bold' : ''}>Tabel</button>
               </div>
 
               <div className="w-full border-t border-blue-500 pt-3 sm:ml-auto sm:w-56 sm:border-l sm:border-t-0 sm:border-blue-500 sm:pl-4 sm:pt-0">

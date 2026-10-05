@@ -281,6 +281,12 @@ const normalizeAbsoluteSkills = (skills: PlayerSkills): PlayerSkills => ({
   wingPlay: clampSkill(skills.wingPlay),
 });
 
+const isPlayerPosition = (position: unknown): position is Player['position'] =>
+  position === 'GK' || position === 'DF' || position === 'MF' || position === 'FW';
+
+const isPlayerRole = (role: unknown): role is PlayerRole =>
+  typeof role === 'string' && Object.prototype.hasOwnProperty.call(roleSkillDefaults, role);
+
 export const calculateASI = (skills: PlayerSkills) =>
   Math.round(average(SKILL_KEYS.map(skill => skills[skill])));
 
@@ -724,11 +730,11 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     salary: isFiniteNumber(rawPlayer.salary) ? rawPlayer.salary : undefined,
     askingPrice: isFiniteNumber(rawPlayer.askingPrice) ? rawPlayer.askingPrice : undefined,
   };
-  if (!rawPlayer.position) {
+  if (!isPlayerPosition(rawPlayer.position)) {
     return null;
   }
 
-  if (rawPlayer.skills && rawPlayer.primaryRole) {
+  if (rawPlayer.skills && isPlayerRole(rawPlayer.primaryRole)) {
     const skills = normalizeAbsoluteSkills(rawPlayer.skills);
     const normalizedPlayer = {
       id: normalizedId ?? normalizedName,
@@ -736,7 +742,9 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
       age: rawPlayer.age ?? 24,
       position: rawPlayer.position,
       primaryRole: rawPlayer.primaryRole,
-      secondaryRoles: rawPlayer.secondaryRoles ?? [],
+      secondaryRoles: Array.isArray(rawPlayer.secondaryRoles)
+        ? rawPlayer.secondaryRoles.filter(isPlayerRole)
+        : [],
       skills,
       asi: isFiniteNumber(rawPlayer.asi) ? rawPlayer.asi : calculateASI(skills),
       value: rawPlayer.value ?? 0,
@@ -773,8 +781,10 @@ export const normalizePlayer = (rawPlayer: LegacyPlayerShape, fallbackId?: strin
     name: normalizedName,
     age: rawPlayer.age ?? 24,
     position: rawPlayer.position,
-    primaryRole: rawPlayer.primaryRole ?? roleFallbackByPosition[rawPlayer.position],
-    secondaryRoles: rawPlayer.secondaryRoles ?? [],
+    primaryRole: isPlayerRole(rawPlayer.primaryRole) ? rawPlayer.primaryRole : roleFallbackByPosition[rawPlayer.position],
+    secondaryRoles: Array.isArray(rawPlayer.secondaryRoles)
+      ? rawPlayer.secondaryRoles.filter(isPlayerRole)
+      : [],
     base,
     isForSale: rawPlayer.isForSale ?? false,
     askingPrice: rawPlayer.askingPrice,

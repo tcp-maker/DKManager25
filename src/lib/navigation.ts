@@ -19,7 +19,14 @@ const viewAliases: Record<string, AppView> = {
 };
 
 export const resolveAppView = (hash: string, pathname: string): AppView => {
-  const hashView = decodeURIComponent(hash.replace(/^#/, '')).toLowerCase();
-  const pathView = decodeURIComponent(pathname.replace(/^\/+/, '').split('/')[0] ?? '').toLowerCase();
+  const safelyDecode = (value: string) => {
+    try {
+      return decodeURIComponent(value).toLowerCase();
+    } catch {
+      return '';
+    }
+  };
+  const hashView = safelyDecode(hash.replace(/^#/, ''));
+  const pathView = safelyDecode(pathname.replace(/^\/+/, '').split('/')[0] ?? '');
   return viewAliases[hashView] ?? viewAliases[pathView] ?? 'team';
 };
