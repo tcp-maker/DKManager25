@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { LEAGUES } from './leagues';
 import {
+  PLAYER_REGISTRY,
   SKILL_KEYS,
   TEAM_PLAYER_SEEDS,
   TRANSFER_MARKET_PLAYERS,
@@ -60,13 +61,13 @@ describe('team-specific squad generation', () => {
     assert.ok(Number.isSafeInteger(unsafeValue.value));
   });
 
-  it('has 869 globally unique playable catalog IDs, with a separate starter fallback', () => {
+  it('has globally unique playable catalog IDs from the canonical registry, with a separate starter fallback', () => {
     const clubPlayers = allTeams.flatMap(team => getTeamSquad(team));
     const catalog = [...clubPlayers, ...TRANSFER_MARKET_PLAYERS];
-    assert.equal(clubPlayers.length, 864);
-    assert.equal(catalog.length, 869);
+    assert.equal(clubPlayers.length, 48 * 17);
+    assert.equal(catalog.length, PLAYER_REGISTRY.playerOrder.length);
     assert.equal(new Set(catalog.map(player => player.id)).size, catalog.length);
-    assert.equal(new Set([...catalog, ...STARTER_PLAYERS].map(player => player.id)).size, 887);
+    assert.equal(new Set([...catalog, ...STARTER_PLAYERS].map(player => player.id)).size, catalog.length + STARTER_PLAYERS.length);
     for (const player of catalog) {
       assert.equal(normalizePlayer(player)?.id, player.id);
     }
@@ -82,8 +83,18 @@ describe('team-specific squad generation', () => {
       'Geovanni Vianney Ndjee', 'Viktor Dadason', 'Maher Carrizo',
     ];
     assert.equal(TEAM_PLAYER_SEEDS.fckoebenhavn.length, 18);
-    assert.deepEqual(getTeamSquad(team).map(player => [player.id, player.name]),
-      expectedNames.map((name, index) => [`fckoebenhavn-player-${index + 1}`, name]));
+    assert.deepEqual(
+      expectedNames.map((_, index) => {
+        const entry = PLAYER_REGISTRY.playersById[`fckoebenhavn-player-${index + 1}`];
+        return [entry.player.id, entry.player.name, entry.source, entry.originClubId];
+      }),
+      expectedNames.map((name, index) => [`fckoebenhavn-player-${index + 1}`, name, 'repo-seed', 'fckoebenhavn']),
+    );
+    const squadIds = new Set(getTeamSquad(team).map(player => player.id));
+    for (const player of getTeamSquad(team)) {
+      assert.equal(PLAYER_REGISTRY.playersById[player.id].clubId, team.id);
+    }
+    assert.equal(squadIds.size, 17);
   });
 
   it('migrates duplicate inner IDs and legacy copies deterministically without name deduplication', () => {
@@ -289,8 +300,11 @@ describe('team-specific squad generation', () => {
     }
   });
 
-  it('gives transfer market players deterministic human-readable names by player id', () => {
-    for (const transferPlayer of TRANSFER_MARKET_PLAYERS) {
+  it('gives legacy and synthetic transfer players deterministic human-readable names by player id', () => {
+    const generatedTransferPlayers = TRANSFER_MARKET_PLAYERS.filter(player =>
+      /^buy\d+$/.test(player.id) || PLAYER_REGISTRY.playersById[player.id].source === 'synthetic');
+    assert.ok(generatedTransferPlayers.length >= 5);
+    for (const transferPlayer of generatedTransferPlayers) {
       assert.equal(transferPlayer.name, getDeterministicPlayerName(transferPlayer.id));
       assert.equal(/(^transferm[aå]l\b|^buy\b|\[fallback\])/i.test(transferPlayer.name), false);
     }

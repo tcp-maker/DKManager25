@@ -5,7 +5,7 @@ import { renderToString } from 'react-dom/server';
 import { GameProvider, loadGameState, purchasePlayer, sellOwnedPlayer, updateOwnedPlayer, useGame } from '../context/GameContext';
 import { createDefaultEconomyState, createEconomyTransaction } from '../lib/economy';
 import { buildRoundMatchRecords, buildSeasonArchiveEntry, getLeagueSeasonSchedule, getSeasonFixtures, LEAGUES, normalizeLeagueMatchRecords } from './leagues';
-import { getCurrentTeamSquad, getTeamSquadRecord, normalizePlayerRecord, TRANSFER_MARKET_PLAYERS } from './players';
+import { getCurrentTeamSquad, getTeamSquadRecord, normalizePlayerRecord, PLAYER_REGISTRY, TRANSFER_MARKET_PLAYERS } from './players';
 
 const club = LEAGUES[0].teams[0];
 const otherClub = LEAGUES[0].teams[1];
@@ -254,7 +254,7 @@ describe('club and squad save migration', () => {
     });
     const state = loadGameState()!;
     assert.equal(state.transferMarket.buy1, undefined);
-    assert.equal(Object.keys(state.transferMarket).length, 4);
+    assert.equal(Object.keys(state.transferMarket).length, TRANSFER_MARKET_PLAYERS.length - 1);
     assert.equal(purchasePlayer(state, 'buy1'), state);
   });
 
@@ -339,7 +339,7 @@ describe('club and squad save migration', () => {
     const world = LEAGUES.flatMap(league => league.teams.flatMap(team =>
       getCurrentTeamSquad(team, relocated.squad, relocated.transferMarket)));
     const ids = [...world, ...Object.values(relocated.transferMarket)].map(p => p.id);
-    assert.equal(ids.length, 869);
+    assert.equal(ids.length, PLAYER_REGISTRY.playerOrder.length);
     assert.equal(new Set(ids).size, ids.length);
     for (const record of [relocated.squad.players, relocated.transferMarket]) {
       for (const [key, currentPlayer] of Object.entries(record)) {
