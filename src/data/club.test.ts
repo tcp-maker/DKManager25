@@ -4,6 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import App from '../App';
 import ClubView from '../components/ClubView';
+import EconomyView from '../components/EconomyView';
 import { GameProvider } from '../context/GameContext';
 import {
   calculateAttendanceEstimate,
@@ -104,13 +105,20 @@ describe('season cashflow and Danish currency signs', () => {
   });
 });
 
-describe('club navigation', () => {
+describe('club and economy navigation', () => {
   it('preserves new and legacy Danish/English aliases for hash and path routing', () => {
-    for (const alias of ['club', 'klub', 'economy', 'okonomi', 'økonomi']) {
+    for (const alias of ['club', 'klub']) {
       assert.equal(resolveAppView(`#${encodeURIComponent(alias)}`, '/'), 'club');
       assert.equal(resolveAppView('', `/${encodeURIComponent(alias)}`), 'club');
     }
+    for (const alias of ['economy', 'okonomi', 'økonomi']) {
+      assert.equal(resolveAppView(`#${encodeURIComponent(alias)}`, '/club'), 'economy');
+      assert.equal(resolveAppView('', `/${encodeURIComponent(alias)}`), 'economy');
+    }
     assert.equal(resolveAppView('#KLUB', '/team'), 'club');
+    assert.equal(resolveAppView('#%C3%98KONOMI', '/klub'), 'economy');
+    assert.equal(resolveAppView('#klub', '/economy'), 'club');
+    assert.equal(resolveAppView('#unknown', '/okonomi'), 'economy');
     assert.equal(resolveAppView('#trup', '/club'), 'team');
     assert.equal(resolveAppView('#unknown', '/klub'), 'club');
     assert.equal(resolveAppView('', '/unknown'), 'team');
@@ -121,10 +129,14 @@ describe('club navigation', () => {
 });
 
 describe('club/squad presentation with an existing saved squad', () => {
-  const renderSaved = (component: React.ComponentType) => {
+  const renderSaved = (component: React.ComponentType, location?: { hash: string; pathname: string }) => {
     const club = LEAGUES[0].teams[0];
     const player = { ...Object.values(getTeamSquadRecord(club))[0], name: 'Gemt transferspiller', value: 123456 };
     const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    if (location) {
+      Object.defineProperty(globalThis, 'window', { configurable: true, value: { location } });
+    }
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       value: { getItem: () => JSON.stringify({
@@ -138,6 +150,8 @@ describe('club/squad presentation with an existing saved squad', () => {
     } finally {
       if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor);
       else Reflect.deleteProperty(globalThis, 'localStorage');
+      if (windowDescriptor) Object.defineProperty(globalThis, 'window', windowDescriptor);
+      else Reflect.deleteProperty(globalThis, 'window');
     }
   };
 
@@ -146,35 +160,71 @@ describe('club/squad presentation with an existing saved squad', () => {
     assert.match(markup, /Gemt transferspiller/);
     assert.match(markup, /123\.456/);
     assert.match(markup, />Klub<\/button>/);
+    assert.match(markup, />Økonomi<\/button>/);
     assert.doesNotMatch(markup, /Kassebeholdning|Trupværdi|Løn\/uge|Stadionkapacitet|Bestyrelse|Sæsonbalance/);
     assert.match(markup, /Tryk på en spiller/);
   });
 
-  it('shows club sections in management-first order', () => {
-    const markup = renderSaved(ClubView);
+  it('shows financial sections on the separate economy page', () => {
+    const markup = renderSaved(EconomyView);
     const headings = [...markup.matchAll(/<h[12]\b[^>]*>(.*?)<\/h[12]>/g)]
       .map(([, heading]) => heading);
     assert.deepEqual(headings, [
-      'Klub',
+      'Økonomi',
       'Bestyrelse: Presset',
       'Finansiering',
       'Økonomi / sæsonbalance',
-      'Stadionaktivitet',
       'Indtægter efter kategori',
       'Udgifter efter kategori',
       'Seneste transaktioner',
     ]);
   });
 
-  it('keeps board, financing, cash signs and honest attendance labels on the club page', () => {
-    const markup = renderSaved(ClubView);
+  it('keeps board, financing and cash signs on the economy page', () => {
+    const markup = renderSaved(EconomyView);
     assert.match(markup, /Bestyrelse:/);
     assert.match(markup, /Sæsonbalance/);
     assert.match(markup, /Finansiering/);
     assert.match(markup, /-200 kr/);
-    assert.match(markup, /Endnu ingen tilskuerhistorik/);
     assert.match(markup, /pengestrøm, ikke et revideret overskud/);
+    assert.match(markup, /123\.456 kr/);
+    assert.doesNotMatch(markup, /Stadionaktivitet|stadium-occupancy/);
+  });
+
+  it('keeps club identity and honest attendance labels without financial sections', () => {
+    const markup = renderSaved(ClubView);
+    const headings = [...markup.matchAll(/<h[12]\b[^>]*>(.*?)<\/h[12]>/g)]
+      .map(([, heading]) => heading);
+    assert.deepEqual(headings, ['Klub', 'Stadionaktivitet']);
+    assert.match(markup, new RegExp(LEAGUES[0].teams[0].name));
+    assert.match(markup, /Sæson 2 • Uge 3/);
+    assert.match(markup, /Endnu ingen tilskuerhistorik/);
     assert.match(markup, /<progress[^>]*max="100"[^>]*value=/);
     assert.match(markup, /for="stadium-occupancy"/);
+    assert.doesNotMatch(markup, /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner/);
+  });
+
+  it('renders distinct full-width pages and marks the active main menu destination for direct links', () => {
+    for (const location of [
+      { hash: '#klub', pathname: '/economy' },
+      { hash: '', pathname: '/klub' },
+    ]) {
+      const markup = renderSaved(App, location);
+      assert.match(markup, /aria-label="Hovedmenu"/);
+      assert.match(markup, /aria-current="page"[^>]*>Klub<\/button>/);
+      assert.match(markup, /Stadionaktivitet/);
+      assert.doesNotMatch(markup, /Finansiering|<aside/);
+    }
+    for (const location of [
+      { hash: '#økonomi', pathname: '/klub' },
+      { hash: '#economy', pathname: '/' },
+      { hash: '', pathname: '/okonomi' },
+    ]) {
+      const markup = renderSaved(App, location);
+      assert.match(markup, /aria-current="page"[^>]*>Økonomi<\/button>/);
+      assert.match(markup, /Finansiering/);
+      assert.match(markup, /-200 kr/);
+      assert.doesNotMatch(markup, /Stadionaktivitet|<aside/);
+    }
   });
 });

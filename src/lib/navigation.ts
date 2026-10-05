@@ -1,4 +1,4 @@
-export type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'club' | 'table';
+export type AppView = 'team' | 'transfers' | 'matches' | 'stadium' | 'club' | 'economy' | 'table';
 
 const viewAliases: Record<string, AppView> = {
   team: 'team',
@@ -11,9 +11,9 @@ const viewAliases: Record<string, AppView> = {
   stadion: 'stadium',
   club: 'club',
   klub: 'club',
-  economy: 'club',
-  okonomi: 'club',
-  økonomi: 'club',
+  economy: 'economy',
+  okonomi: 'economy',
+  økonomi: 'economy',
   table: 'table',
   tabel: 'table',
 };
