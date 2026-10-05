@@ -50,7 +50,6 @@ const ClubView: React.FC = () => {
           {attendance.occupancy}%
         </progress>
       </section>
-
     </div>
   );
 };

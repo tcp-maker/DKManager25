@@ -605,12 +605,12 @@ export const GameProvider = ({ children, initialState }: { children: ReactNode; 
       }
 
       const currentWeekKey = buildWeekKey(prev.season, prev.week);
-      if (prev.economy.lastProcessedWeekKey === currentWeekKey) {
+      const matchResult = getWeeklyMatchResult(prev);
+      if (matchResult === 'none' || prev.economy.lastProcessedWeekKey === currentWeekKey) {
         return prev;
       }
 
       const ticketRevenue = calculateTicketRevenue(prev.fanCount, prev.stadiumCapacity);
-      const matchResult = getWeeklyMatchResult(prev);
       const sponsorIncome = calculateWeeklySponsorIncome(
         prev.selectedClub,
         prev.fanCount,
