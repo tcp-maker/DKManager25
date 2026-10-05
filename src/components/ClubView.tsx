@@ -137,83 +137,7 @@ const ClubView: React.FC = () => {
         </div>
       )}
 
-      <section aria-labelledby="stadium-activity-title" className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 id="stadium-activity-title" className="text-2xl font-bold">Stadionaktivitet</h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div><dt className="text-sm text-gray-600">Stadionkapacitet</dt><dd className="text-xl font-bold">{formatAttendance(attendance.capacity)}</dd></div>
-          <div>
-            <dt className="text-sm text-gray-600">Estimeret gennemsnitligt tilskuertal</dt>
-            <dd className="text-xl font-bold">{attendance.average === null ? 'Endnu ingen tilskuerhistorik' : formatAttendance(attendance.average)}</dd>
-          </div>
-          <div><dt className="text-sm text-gray-600">Aktuelt tilskuerestimat</dt><dd className="text-xl font-bold">{formatAttendance(attendance.current)}</dd></div>
-          <div><dt className="text-sm text-gray-600">Fanhumør</dt><dd className="text-xl font-bold">{gameState.fanMood}/100</dd></div>
-        </dl>
-        <p className="mt-4 text-sm text-gray-600">
-          {attendance.average === null
-            ? `Ingen billetsalg bogført i sæson ${gameState.season}. Aktuelt estimat er min(fans, kapacitet).`
-            : `Sæson ${gameState.season}, uge ${attendance.firstWeek}–${attendance.lastWeek}: ${attendance.periodCount} bevarede bogførte billetuger. Billetsalg / ${TICKET_PRICE} kr pr. billet, fordelt på bogførte uger – ikke faktiske hjemmekampe.`}
-        </p>
-        <p className="mt-2 text-xs text-gray-500">Der registreres ikke tilskuertal pr. kamp. Historikken er begrænset til de seneste 180 transaktioner og kan være ufuldstændig. Belægning sammenholdes med den nuværende kapacitet.</p>
-        <label htmlFor="stadium-occupancy" className="mt-4 block text-sm font-semibold">
-          {occupancyLabel}: {attendance.occupancy.toLocaleString('da-DK', { maximumFractionDigits: 1 })}% (0–100%)
-        </label>
-        <progress id="stadium-occupancy" max={100} value={attendance.occupancy} className="mt-2 h-4 w-full accent-blue-600">
-          {attendance.occupancy}%
-        </progress>
-      </section>
-
-      <h2 className="mb-4 text-2xl font-bold">Økonomi / sæsonbalance</h2>
-      <p className="mb-4 text-sm text-gray-600">
-        Sæson {gameState.season}: indtægter minus udgifter i bevarede bogføringer, inklusive lån, transfers og stadionkøb.
-        Dette er pengestrøm, ikke et revideret overskud. Kun de seneste 180 transaktioner bevares; sæsonbalancen og kategorierne kan derfor være ufuldstændige.
-      </p>
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Kassebeholdning</p>
-          <p className="mt-2 text-2xl font-bold text-blue-700">{formatCurrency(gameState.budget)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Ugens indtægter</p>
-          <p className="mt-2 text-2xl font-bold text-emerald-600">{formatCurrency(displayedWeekSummary.income)}</p>
-          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Ugens udgifter</p>
-          <p className="mt-2 text-2xl font-bold text-red-600">{formatCurrency(displayedWeekSummary.expenses)}</p>
-          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Ugens resultat</p>
-          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(displayedWeekSummary.net)}`}>
-            {formatCurrency(displayedWeekSummary.net, true)}
-          </p>
-          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Sæsonbalance</p>
-          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(seasonSummary.net)}`}>
-            {formatCurrency(seasonSummary.net, true)}
-          </p>
-          <p className="mt-1 text-xs text-gray-500">Indtægter {formatCurrency(seasonSummary.income)} − udgifter {formatCurrency(seasonSummary.expenses)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Gæld</p>
-          <p className="mt-2 text-2xl font-bold text-orange-600">{formatCurrency(gameState.economy.debt)}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Rente pr. uge</p>
-          <p className="mt-2 text-2xl font-bold text-gray-900">{(gameState.economy.weeklyInterestRate * 100).toFixed(2)}%</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-gray-500">Egenkapital</p>
-          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(equity)}`}>{formatCurrency(equity, true)}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Budget + trupværdi + stadionværdi - gæld
-          </p>
-        </div>
-      </div>
-
-      <div className="mb-6 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+      <div className="mb-6 grid gap-6">
         <div className={`rounded-lg border p-6 ${boardToneClasses[gameState.economy.boardStatus.level]}`}>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-2xl font-bold">Bestyrelse: {gameState.economy.boardStatus.level}</h2>
@@ -293,6 +217,82 @@ const ClubView: React.FC = () => {
           )}
         </div>
       </div>
+
+      <h2 className="mb-4 text-2xl font-bold">Økonomi / sæsonbalance</h2>
+      <p className="mb-4 text-sm text-gray-600">
+        Sæson {gameState.season}: indtægter minus udgifter i bevarede bogføringer, inklusive lån, transfers og stadionkøb.
+        Dette er pengestrøm, ikke et revideret overskud. Kun de seneste 180 transaktioner bevares; sæsonbalancen og kategorierne kan derfor være ufuldstændige.
+      </p>
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Kassebeholdning</p>
+          <p className="mt-2 text-2xl font-bold text-blue-700">{formatCurrency(gameState.budget)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Ugens indtægter</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-600">{formatCurrency(displayedWeekSummary.income)}</p>
+          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Ugens udgifter</p>
+          <p className="mt-2 text-2xl font-bold text-red-600">{formatCurrency(displayedWeekSummary.expenses)}</p>
+          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Ugens resultat</p>
+          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(displayedWeekSummary.net)}`}>
+            {formatCurrency(displayedWeekSummary.net, true)}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">Bogført uge {displayedWeekSummary.week}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Sæsonbalance</p>
+          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(seasonSummary.net)}`}>
+            {formatCurrency(seasonSummary.net, true)}
+          </p>
+          <p className="mt-1 text-xs text-gray-500">Indtægter {formatCurrency(seasonSummary.income)} − udgifter {formatCurrency(seasonSummary.expenses)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Gæld</p>
+          <p className="mt-2 text-2xl font-bold text-orange-600">{formatCurrency(gameState.economy.debt)}</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Rente pr. uge</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{(gameState.economy.weeklyInterestRate * 100).toFixed(2)}%</p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-sm text-gray-500">Egenkapital</p>
+          <p className={`mt-2 text-2xl font-bold ${resultToneClasses(equity)}`}>{formatCurrency(equity, true)}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Budget + trupværdi + stadionværdi - gæld
+          </p>
+        </div>
+      </div>
+
+      <section aria-labelledby="stadium-activity-title" className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 id="stadium-activity-title" className="text-2xl font-bold">Stadionaktivitet</h2>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div><dt className="text-sm text-gray-600">Stadionkapacitet</dt><dd className="text-xl font-bold">{formatAttendance(attendance.capacity)}</dd></div>
+          <div>
+            <dt className="text-sm text-gray-600">Estimeret gennemsnitligt tilskuertal</dt>
+            <dd className="text-xl font-bold">{attendance.average === null ? 'Endnu ingen tilskuerhistorik' : formatAttendance(attendance.average)}</dd>
+          </div>
+          <div><dt className="text-sm text-gray-600">Aktuelt tilskuerestimat</dt><dd className="text-xl font-bold">{formatAttendance(attendance.current)}</dd></div>
+          <div><dt className="text-sm text-gray-600">Fanhumør</dt><dd className="text-xl font-bold">{gameState.fanMood}/100</dd></div>
+        </dl>
+        <p className="mt-4 text-sm text-gray-600">
+          {attendance.average === null
+            ? `Ingen billetsalg bogført i sæson ${gameState.season}. Aktuelt estimat er min(fans, kapacitet).`
+            : `Sæson ${gameState.season}, uge ${attendance.firstWeek}–${attendance.lastWeek}: ${attendance.periodCount} bevarede bogførte billetuger. Billetsalg / ${TICKET_PRICE} kr pr. billet, fordelt på bogførte uger – ikke faktiske hjemmekampe.`}
+        </p>
+        <p className="mt-2 text-xs text-gray-500">Der registreres ikke tilskuertal pr. kamp. Historikken er begrænset til de seneste 180 transaktioner og kan være ufuldstændig. Belægning sammenholdes med den nuværende kapacitet.</p>
+        <label htmlFor="stadium-occupancy" className="mt-4 block text-sm font-semibold">
+          {occupancyLabel}: {attendance.occupancy.toLocaleString('da-DK', { maximumFractionDigits: 1 })}% (0–100%)
+        </label>
+        <progress id="stadium-occupancy" max={100} value={attendance.occupancy} className="mt-2 h-4 w-full accent-blue-600">
+          {attendance.occupancy}%
+        </progress>
+      </section>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

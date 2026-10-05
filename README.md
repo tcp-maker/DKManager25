@@ -39,7 +39,7 @@ State indeholder:
 
 Topnavigationen er **Trup, Transfer, Kampe, Stadion, Klub og Tabel** (tasterne **1–6**; **5** åbner Klub). **Trup** viser kun den aktive, gemte spillertrup med positionsantal, ASI, individuelle værdier og spillerdetaljer – ingen bestyrelse, klubøkonomi, samlet trupværdi eller lønmasse. Spillerregister, gemte trupper og transferopdateringer er uændrede.
 
-**Klub** samler klubidentitet, bestyrelsens vurdering, økonomi/sæsonbalance, finansiering og stadionaktivitet. **Stadion** bruges fortsat til udvidelser. URL-hash og sti understøtter `club`/`klub`; gamle `economy`/`okonomi`/`økonomi`-links åbner også Klub og normaliseres til `#club`. Android bruger samme webnavigation.
+**Klub** viser klubidentitet, bestyrelsens vurdering, finansiering, økonomi/sæsonbalance og stadionaktivitet i den rækkefølge, efterfulgt af indtægts-/udgiftskategorier og seneste transaktioner. **Stadion** bruges fortsat til udvidelser. URL-hash og sti understøtter `club`/`klub`; gamle `economy`/`okonomi`/`økonomi`-links åbner også Klub og normaliseres til `#club`. Android bruger samme webnavigation.
 
 **Sæsonbalance** er indtægter minus udgifter for den aktuelle sæsons bevarede bogføringer. Lån, transfers og stadioninvesteringer indgår: tallet er pengestrøm, ikke et revideret overskud. Kun de seneste 180 transaktioner bevares, så sæsonbalancen og kategorisummerne kan være ufuldstændige.
 
