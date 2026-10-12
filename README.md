@@ -11,7 +11,7 @@ DKManager25 er en dansk React + TypeScript prototype, hvor du vælger en klub og
 - Stabil dobbelt round-robin ligaplan med 22 spillerunder pr. division, som kun ændres ved ny uge
 - Kampsimulering med 45 minutters første halvleg, 15 minutters pause og 45 minutters anden halvleg (kampuret slutter ved 90), konsistente scorelinjer og anvendte konsekvenser i game state
 - Stadionudvidelser med kapacitets- og budgetopdatering
-- Separate Klub- og Økonomi-sider: klubidentitet og stadionestimater under Klub; bestyrelse, finansiering, sæsonbalance, transaktionslog, lønninger, sponsorindtægter, gæld, renter og egenkapital under Økonomi
+- Separate Klub- og Økonomi-sider: klubidentitet, bestyrelse og stadionestimater under Klub; finansiering, sæsonbalance, transaktionslog, lønninger, sponsorindtægter, gæld, renter og egenkapital under Økonomi
 - Robust `localStorage`-indlæsning med validering og fallback til standarddata
 - Minimal service worker og manifest, så den eksisterende PWA-intention ikke fejler ved registrering
 - Android-projekt via Capacitor, så webspillet kan pakkes som mobil-app

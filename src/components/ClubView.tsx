@@ -1,11 +1,20 @@
 import React from 'react';
 import { useGame } from '../context/GameContext';
-import { calculateAttendanceEstimate, TICKET_PRICE } from '../lib/economy';
+import { calculateAttendanceEstimate, calculateSquadValue, formatCurrency, TICKET_PRICE } from '../lib/economy';
+import type { BoardStatusLevel } from '../types/economy';
 import TeamBadge from './TeamBadge';
+
+const boardToneClasses: Record<BoardStatusLevel, string> = {
+  Stabil: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  Presset: 'border-amber-200 bg-amber-50 text-amber-900',
+  Kritisk: 'border-orange-200 bg-orange-50 text-orange-900',
+  Krise: 'border-red-200 bg-red-50 text-red-900',
+};
 
 const ClubView: React.FC = () => {
   const { gameState } = useGame();
   const selectedClub = gameState.selectedClub;
+  const squadValue = calculateSquadValue(gameState.squad.players);
   const attendance = calculateAttendanceEstimate(
     gameState.economy.transactions, gameState.season, gameState.fanCount, gameState.stadiumCapacity,
   );
@@ -24,6 +33,54 @@ const ClubView: React.FC = () => {
           <p className="mt-2 text-sm text-gray-600">Fans: {formatAttendance(gameState.fanCount)}</p>
         </div>
       </div>
+
+      <section className={`mb-6 rounded-lg border p-6 ${boardToneClasses[gameState.economy.boardStatus.level]}`}>
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-bold">Bestyrelse: {gameState.economy.boardStatus.level}</h2>
+          <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold">
+            Stadionværdi: {formatCurrency(gameState.economy.stadiumBookValue)}
+          </span>
+          <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold">
+            Trupværdi: {formatCurrency(squadValue)}
+          </span>
+        </div>
+        <p className="mt-3 text-sm">{gameState.economy.boardStatus.summary}</p>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Advarsler</h3>
+            {gameState.economy.boardStatus.warnings.length > 0 ? (
+              <ul className="space-y-2 text-sm">
+                {gameState.economy.boardStatus.warnings.map(warning => (
+                  <li key={warning}>• {warning}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm">Ingen akutte advarsler.</p>
+            )}
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Anbefalinger</h3>
+            <ul className="space-y-2 text-sm">
+              {gameState.economy.boardStatus.recommendations.map(recommendation => (
+                <li key={recommendation}>• {recommendation}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Begrænsninger</h3>
+            {gameState.economy.boardStatus.restrictions.length > 0 ? (
+              <ul className="space-y-2 text-sm">
+                {gameState.economy.boardStatus.restrictions.map(restriction => (
+                  <li key={restriction}>• {restriction}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm">Ingen ekstra begrænsninger.</p>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section aria-labelledby="stadium-activity-title" className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 id="stadium-activity-title" className="text-2xl font-bold">Stadionaktivitet</h2>

@@ -12,15 +12,8 @@ import {
   calculateWeeklySponsorIncome,
   formatCurrency,
 } from '../lib/economy';
-import { ECONOMY_CATEGORY_LABELS, type BoardStatusLevel, type EconomyTransaction, type EconomyTransactionCategory } from '../types/economy';
+import { ECONOMY_CATEGORY_LABELS, type EconomyTransaction, type EconomyTransactionCategory } from '../types/economy';
 import TeamBadge from './TeamBadge';
-
-const boardToneClasses: Record<BoardStatusLevel, string> = {
-  Stabil: 'border-emerald-200 bg-emerald-50 text-emerald-900',
-  Presset: 'border-amber-200 bg-amber-50 text-amber-900',
-  Kritisk: 'border-orange-200 bg-orange-50 text-orange-900',
-  Krise: 'border-red-200 bg-red-50 text-red-900',
-};
 
 const resultToneClasses = (value: number) =>
   value > 0 ? 'text-emerald-600' : value < 0 ? 'text-red-600' : 'text-gray-700';
@@ -130,87 +123,37 @@ const EconomyView: React.FC = () => {
         </div>
       )}
 
-      <div className="mb-6 grid gap-6">
-        <div className={`rounded-lg border p-6 ${boardToneClasses[gameState.economy.boardStatus.level]}`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-2xl font-bold">Bestyrelse: {gameState.economy.boardStatus.level}</h2>
-            <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold">
-              Stadionværdi: {formatCurrency(gameState.economy.stadiumBookValue)}
-            </span>
-            <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold">
-              Trupværdi: {formatCurrency(squadValue)}
-            </span>
-          </div>
-          <p className="mt-3 text-sm">{gameState.economy.boardStatus.summary}</p>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Advarsler</h3>
-              {gameState.economy.boardStatus.warnings.length > 0 ? (
-                <ul className="space-y-2 text-sm">
-                  {gameState.economy.boardStatus.warnings.map(warning => (
-                    <li key={warning}>• {warning}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm">Ingen akutte advarsler.</p>
-              )}
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Anbefalinger</h3>
-              <ul className="space-y-2 text-sm">
-                {gameState.economy.boardStatus.recommendations.map(recommendation => (
-                  <li key={recommendation}>• {recommendation}</li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide">Begrænsninger</h3>
-              {gameState.economy.boardStatus.restrictions.length > 0 ? (
-                <ul className="space-y-2 text-sm">
-                  {gameState.economy.boardStatus.restrictions.map(restriction => (
-                    <li key={restriction}>• {restriction}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm">Ingen ekstra begrænsninger.</p>
-              )}
-            </div>
-          </div>
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold">Finansiering</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Bestyrelsen kan godkende ét nyt driftslån pr. uge, så længe gælden holder sig under klubbens bæreevne.
+        </p>
+        <div className="mt-4 space-y-2 text-sm text-gray-700">
+          <p>Muligt nyt lån: <span className="font-semibold">{formatCurrency(loanOffer.amount)}</span></p>
+          <p>Maksimal samlet gæld: <span className="font-semibold">{formatCurrency(loanOffer.maxDebt)}</span></p>
+          <p>Forventet basisindtægt næste uge: <span className="font-semibold">{formatCurrency(projectedIncome)}</span></p>
+          <p>Uger med bogført historik: <span className="font-semibold">{timeline.length}</span></p>
         </div>
-
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-2xl font-bold">Finansiering</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Bestyrelsen kan godkende ét nyt driftslån pr. uge, så længe gælden holder sig under klubbens bæreevne.
+        <button
+          type="button"
+          onClick={event => {
+            event.currentTarget.disabled = true;
+            const result = takeLoan();
+            if (result !== null) event.currentTarget.disabled = false;
+            setStatusMessage(result ?? `Lånet blev optaget, og kassen er styrket med ${formatCurrency(loanOffer.amount)}.`);
+          }}
+          disabled={!selectedClub || gameState.economy.isBankrupt || !loanOffer.available || loanBlockedThisWeek}
+          className="mt-5 w-full rounded bg-blue-600 px-4 py-2 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+        >
+          {loanBlockedThisWeek ? 'Lån allerede optaget denne uge' : `Optag lån på ${formatCurrency(loanOffer.amount)}`}
+        </button>
+        {(!loanOffer.available || loanBlockedThisWeek) && (
+          <p className="mt-3 text-xs text-gray-500">
+            {loanBlockedThisWeek
+              ? 'Vent til næste uge for at søge om endnu et lån.'
+              : 'Klubben har nået den gældsramme, som bestyrelsen vil acceptere lige nu.'}
           </p>
-          <div className="mt-4 space-y-2 text-sm text-gray-700">
-            <p>Muligt nyt lån: <span className="font-semibold">{formatCurrency(loanOffer.amount)}</span></p>
-            <p>Maksimal samlet gæld: <span className="font-semibold">{formatCurrency(loanOffer.maxDebt)}</span></p>
-            <p>Forventet basisindtægt næste uge: <span className="font-semibold">{formatCurrency(projectedIncome)}</span></p>
-            <p>Uger med bogført historik: <span className="font-semibold">{timeline.length}</span></p>
-          </div>
-          <button
-            type="button"
-            onClick={event => {
-              event.currentTarget.disabled = true;
-              const result = takeLoan();
-              if (result !== null) event.currentTarget.disabled = false;
-              setStatusMessage(result ?? `Lånet blev optaget, og kassen er styrket med ${formatCurrency(loanOffer.amount)}.`);
-            }}
-            disabled={!selectedClub || gameState.economy.isBankrupt || !loanOffer.available || loanBlockedThisWeek}
-            className="mt-5 w-full rounded bg-blue-600 px-4 py-2 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
-          >
-            {loanBlockedThisWeek ? 'Lån allerede optaget denne uge' : `Optag lån på ${formatCurrency(loanOffer.amount)}`}
-          </button>
-          {(!loanOffer.available || loanBlockedThisWeek) && (
-            <p className="mt-3 text-xs text-gray-500">
-              {loanBlockedThisWeek
-                ? 'Vent til næste uge for at søge om endnu et lån.'
-                : 'Klubben har nået den gældsramme, som bestyrelsen vil acceptere lige nu.'}
-            </p>
-          )}
-        </div>
+        )}
       </div>
 
       <h2 className="mb-4 text-2xl font-bold">Økonomi / sæsonbalance</h2>
