@@ -131,7 +131,7 @@ describe('club and economy navigation', () => {
 });
 
 describe('club/squad presentation with an existing saved squad', () => {
-  const economyOnlySections = /Bestyrelse|Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner/;
+  const economyOnlySections = /Finansiering|Sæsonbalance|Kassebeholdning|Lønmasse|Seneste transaktioner/;
   const renderSaved = (component: React.ComponentType, location?: { hash: string; pathname: string }) => {
     const club = LEAGUES[0].teams[0];
     const player = { ...Object.values(getTeamSquadRecord(club))[0], name: 'Gemt transferspiller', value: 123456 };
@@ -175,7 +175,6 @@ describe('club/squad presentation with an existing saved squad', () => {
       .map(([, heading]) => heading);
     assert.deepEqual(headings, [
       'Økonomi',
-      'Bestyrelse: Presset',
       'Finansiering',
       'Økonomi / sæsonbalance',
       'Indtægter efter kategori',
@@ -184,24 +183,29 @@ describe('club/squad presentation with an existing saved squad', () => {
     ]);
   });
 
-  it('keeps board, financing and cash signs on the economy page', () => {
+  it('keeps financing and cash signs on the economy page without board status', () => {
     const markup = renderSaved(EconomyView);
-    assert.match(markup, /Bestyrelse:/);
+    assert.doesNotMatch(markup, /Bestyrelse:|Stadionværdi:|Trupværdi:/);
     assert.match(markup, /Sæsonbalance/);
     assert.match(markup, /Finansiering/);
     assert.match(markup, /-200 kr/);
     assert.match(markup, /pengestrøm, ikke et revideret overskud/);
-    assert.match(markup, /123\.456 kr/);
     assert.doesNotMatch(markup, /Stadionaktivitet|stadium-occupancy/);
   });
 
-  it('keeps club identity and honest attendance labels without financial sections', () => {
+  it('keeps the board summary and club identity alongside honest attendance labels', () => {
     const markup = renderSaved(ClubView);
     const headings = [...markup.matchAll(/<h[12]\b[^>]*>(.*?)<\/h[12]>/g)]
       .map(([, heading]) => heading);
-    assert.deepEqual(headings, ['Klub', 'Stadionaktivitet']);
+    assert.deepEqual(headings, ['Klub', 'Bestyrelse: Presset', 'Stadionaktivitet']);
     assert.match(markup, new RegExp(LEAGUES[0].teams[0].name));
     assert.match(markup, /Sæson 2 • Uge 3/);
+    assert.match(markup, /Stadionværdi: 3\.800\.000 kr/);
+    assert.match(markup, /Trupværdi: 123\.456 kr/);
+    assert.match(markup, /Bestyrelsen er presset/);
+    assert.match(markup, /Advarsler/);
+    assert.match(markup, /Anbefalinger/);
+    assert.match(markup, /Begrænsninger/);
     assert.match(markup, /Endnu ingen tilskuerhistorik/);
     assert.match(markup, /<progress[^>]*max="100"[^>]*value=/);
     assert.match(markup, /for="stadium-occupancy"/);
